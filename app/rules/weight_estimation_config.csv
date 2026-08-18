@@ -1,0 +1,5 @@
+# PLACEHOLDER SAMPLE DATA — replace with the client's real weight-estimation rules.
+# Applied only when a boleta's weight field could not be parsed/read.
+rule_id,trip_type,material,estimated_weight_kg,conditions,active
+W001,transferencia_interna,carbon,8000,weight missing and distance_band=short,true
+W002,acarreo_material_esteril,esteril,12000,weight missing,true

@@ -1,0 +1,17 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.env
+
+# Runtime data (uploaded scans + sqlite db) — never commit real client data
+data/originals/*
+!data/originals/.gitkeep
+data/boletas.db
+data/*.db-journal
+
+# Scratch pipeline output
+scratch/
+.DS_Store

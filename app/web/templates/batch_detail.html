@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Lote {{ batch.label }} — Boletas Energía Mineral{% endblock %}
+{% block content %}
+  <p><a href="/">&larr; Volver</a></p>
+  <h1>Lote: {{ batch.label }}</h1>
+
+  <section class="panel">
+    <h2>Subir boletas</h2>
+    <form method="post" action="/batches/{{ batch.id }}/upload" enctype="multipart/form-data" class="inline-form">
+      <input type="file" name="files" multiple accept="image/*,application/pdf" required>
+      <button type="submit">Procesar boletas</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Resumen</h2>
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-value">{{ summary.total_boletas }}</div><div class="stat-label">Total</div></div>
+      <div class="stat-card"><div class="stat-value">{{ summary.auto_processed_count }}</div><div class="stat-label">Auto-procesadas</div></div>
+      <div class="stat-card {{ 'stat-warn' if summary.needs_review_count else '' }}"><div class="stat-value">{{ summary.needs_review_count }}</div><div class="stat-label">Para revisión</div></div>
+    </div>
+
+    <h3>Pago total por fletero</h3>
+    {% if summary.total_payment_by_fletero %}
+    <table>
+      <thead><tr><th>Fletero</th><th>Total</th></tr></thead>
+      <tbody>
+        {% for fletero, amount in summary.total_payment_by_fletero.items() %}
+        <tr><td>{{ fletero }}</td><td>${{ "%.2f"|format(amount) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted">Sin datos aún.</p>{% endif %}
+
+    <h3>Movimiento neto de inventario por material</h3>
+    {% if summary.net_inventory_by_material %}
+    <table>
+      <thead><tr><th>Material</th><th>Cantidad neta (kg)</th></tr></thead>
+      <tbody>
+        {% for material, qty in summary.net_inventory_by_material.items() %}
+        <tr><td>{{ material }}</td><td>{{ "%.1f"|format(qty) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="muted">Sin datos aún.</p>{% endif %}
+
+    <p><a href="/api/exports/csv?batch_id={{ batch.id }}">Exportar CSV</a> ·
+       <a href="/api/exports/json?batch_id={{ batch.id }}">Exportar JSON</a></p>
+  </section>
+
+  <section class="panel">
+    <h2>Boletas del lote</h2>
+    {% if records %}
+    <table>
+      <thead>
+        <tr><th>Folio</th><th>Fecha</th><th>Ruta</th><th>Tipo de viaje</th><th>Tarifa</th><th>Confianza</th><th>Estado</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr class="{{ 'row-review' if r.status == 'needs_review' else '' }}">
+          <td>{{ r.folio or "—" }}</td>
+          <td>{{ r.date or "—" }}</td>
+          <td>{{ r.origin or "?" }} &rarr; {{ r.destination or "?" }}</td>
+          <td>{{ r.trip_type or "—" }}</td>
+          <td>{{ "$%.2f"|format(r.tariff_amount) if r.tariff_amount is not none else "—" }}</td>
+          <td>{{ "%.0f"|format(r.confidence_score * 100) }}%</td>
+          <td><span class="badge badge-{{ 'ok' if r.status == 'auto_processed' else 'warn' }}">{{ r.status }}</span></td>
+          <td>{% if r.status == 'needs_review' %}<a href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Aún no se han subido boletas a este lote.</p>
+    {% endif %}
+  </section>
+{% endblock %}

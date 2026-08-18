@@ -1,0 +1,12 @@
+# Tunable thresholds/behaviors that drive confidence_score and status.
+# behavior: hard_block (always needs_review), soft_flag (lowers score only),
+#           auto_process_if_no_exceptions (composite score gate), config (plain value).
+condition_key,threshold_value,behavior,description
+ocr_confidence_min,0.60,soft_flag,OCR raw confidence below this contributes to a lower score
+field_confidence_min,0.55,soft_flag,Parsed required-field confidence below this contributes to a lower score
+overall_confidence_auto_process_min,0.75,auto_process_if_no_exceptions,Composite score gate for auto_processed status
+unknown_route,,hard_block,Route (origin/destination pair) not found in route_config
+unknown_tariff,,hard_block,No matching tariff rule for the classified trip_type/distance_band
+missing_weight_no_estimate,,hard_block,Weight missing and no applicable weight-estimation rule
+suspected_duplicate,,hard_block,Same folio+date+fletero+route seen before within the duplicate check window
+duplicate_check_window_days,7,config,Window (days) used for duplicate-boleta detection

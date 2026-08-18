@@ -1,0 +1,16 @@
+{
+  "boleta_id": "B-2002",
+  "date": "2026-01-20",
+  "origin": "Planta Norte",
+  "destination": "Patio Almacen",
+  "material": "Carbon",
+  "fletero": "Maria Lopez",
+  "weight": 8000.0,
+  "weight_source": "estimated",
+  "trip_type": "transferencia_interna",
+  "tariff_amount": 300.0,
+  "inventory_direction": "none",
+  "inventory_quantity": null,
+  "status": "auto_processed",
+  "exceptions": []
+}

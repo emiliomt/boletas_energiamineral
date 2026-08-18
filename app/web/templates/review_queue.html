@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block title %}Cola de Revisión — Boletas Energía Mineral{% endblock %}
+{% block content %}
+  <p><a href="/">&larr; Volver</a></p>
+  <h1>Cola de Revisión</h1>
+
+  {% if records %}
+  <table>
+    <thead>
+      <tr><th>Folio</th><th>Fecha</th><th>Ruta</th><th>Confianza</th><th>Excepciones</th><th></th></tr>
+    </thead>
+    <tbody>
+      {% for r in records %}
+      <tr>
+        <td>{{ r.folio or "—" }}</td>
+        <td>{{ r.date or "—" }}</td>
+        <td>{{ r.origin or "?" }} &rarr; {{ r.destination or "?" }}</td>
+        <td>{{ "%.0f"|format(r.confidence_score * 100) }}%</td>
+        <td>
+          {% for exc in r.exceptions %}<span class="tag">{{ exc }}</span>{% endfor %}
+        </td>
+        <td><a href="/review/{{ r.id }}">Revisar</a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <p class="muted">No hay boletas pendientes de revisión. 🎉</p>
+  {% endif %}
+{% endblock %}

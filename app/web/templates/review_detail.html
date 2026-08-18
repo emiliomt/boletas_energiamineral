@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}Revisar boleta {{ record.id }} — Boletas Energía Mineral{% endblock %}
+{% block content %}
+  <p><a href="/review">&larr; Volver a la cola</a></p>
+  <h1>Revisar boleta #{{ record.id }}</h1>
+
+  <div class="review-grid">
+    <section class="panel">
+      <h2>Escaneo original</h2>
+      <img class="scan-preview" src="/api/records/{{ record.id }}/image" alt="Boleta escaneada">
+      <h3>Texto detectado por OCR</h3>
+      <pre class="ocr-text">{{ record.ocr_text or "(sin texto)" }}</pre>
+    </section>
+
+    <section class="panel">
+      <h2>Detalles y excepciones</h2>
+      <p>Confianza: <strong>{{ "%.0f"|format(record.confidence_score * 100) }}%</strong></p>
+      {% if record.exceptions %}
+      <ul class="exception-list">
+        {% for exc in record.exceptions %}<li>{{ exc }}</li>{% endfor %}
+      </ul>
+      {% else %}
+      <p class="muted">Sin excepciones registradas.</p>
+      {% endif %}
+
+      <h2>Corregir campos</h2>
+      <form method="post" action="/review/{{ record.id }}" class="review-form">
+        <label>Folio<input type="text" name="folio" value="{{ record.folio or '' }}"></label>
+        <label>Fecha (YYYY-MM-DD)<input type="text" name="date" value="{{ record.date or '' }}"></label>
+        <label>Origen<input type="text" name="origin" value="{{ record.origin or '' }}"></label>
+        <label>Destino<input type="text" name="destination" value="{{ record.destination or '' }}"></label>
+        <label>Material<input type="text" name="material" value="{{ record.material or '' }}"></label>
+        <label>Fletero<input type="text" name="fletero" value="{{ record.fletero or '' }}"></label>
+        <label>Peso (kg)<input type="text" name="weight" value="{{ record.weight or '' }}"></label>
+        <label>Tipo de viaje<input type="text" name="trip_type" value="{{ record.trip_type or '' }}"></label>
+        <label>Tu nombre<input type="text" name="edited_by"></label>
+        <label>Nota<input type="text" name="note"></label>
+
+        <div class="review-actions">
+          <button type="submit" name="action" value="correct">Guardar correcciones</button>
+          <button type="submit" name="action" value="approve" class="btn-approve">Aprobar</button>
+        </div>
+      </form>
+    </section>
+  </div>
+{% endblock %}

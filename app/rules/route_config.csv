@@ -1,0 +1,8 @@
+# PLACEHOLDER SAMPLE DATA — replace with the client's real routes before production use.
+# origin/destination match parsed boleta text case-insensitively (with fuzzy matching).
+route_id,origin,destination,trip_type,inventory_direction,material,distance_band,active
+R001,Mina San Jose,Planta Norte,acarreo_carbon,outbound,carbon,0-10km,true
+R002,Planta Norte,Patio Almacen,transferencia_interna,none,carbon,short,true
+R003,Mina San Jose,Bodega Central,acarreo_material_esteril,outbound,esteril,10-25km,true
+R004,Proveedor Externo,Planta Norte,recepcion_compra,inbound,carbon,any,true
+R005,Mina San Jose,Puerto Terminal,acarreo_exportacion,outbound,carbon,25-50km,true

@@ -1,0 +1,7 @@
+{
+  "boleta_id": null,
+  "origin": null,
+  "destination": null,
+  "status": "needs_review",
+  "exceptions_include": ["low_ocr_confidence", "unknown_route", "missing_required_field:folio"]
+}

@@ -1,0 +1,8 @@
+# PLACEHOLDER SAMPLE DATA — replace with the client's real tariffs before production use.
+tariff_id,trip_type,distance_band,tariff_amount,currency,active
+T001,acarreo_carbon,0-10km,850.00,MXN,true
+T002,acarreo_carbon,10-25km,1400.00,MXN,true
+T003,transferencia_interna,short,300.00,MXN,true
+T004,recepcion_compra,any,0.00,MXN,true
+T005,acarreo_material_esteril,10-25km,1200.00,MXN,true
+T006,acarreo_exportacion,25-50km,2200.00,MXN,true

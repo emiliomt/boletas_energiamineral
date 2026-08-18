@@ -1,0 +1,185 @@
+"""SQLAlchemy ORM models.
+
+Two tables represent each processed document on purpose: `Boleta` is the
+immutable record of what was uploaded (so the source scan and its audit
+trail survive even if the derived record is corrected or reprocessed), and
+`BoletaRecord` is the derived/parsed/computed record a reviewer edits.
+"""
+from __future__ import annotations
+
+import datetime as dt
+
+from sqlalchemy import (
+    JSON,
+    Boolean,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+)
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
+from app.db import Base
+
+
+def _utcnow() -> dt.datetime:
+    return dt.datetime.now(dt.timezone.utc)
+
+
+class Batch(Base):
+    __tablename__ = "batches"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    label: Mapped[str] = mapped_column(String(255))
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="open")  # open | closed
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    boletas: Mapped[list["Boleta"]] = relationship(back_populates="batch")
+
+
+class Boleta(Base):
+    """The raw uploaded artifact (one row per page/image)."""
+
+    __tablename__ = "boletas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    batch_id: Mapped[int] = mapped_column(ForeignKey("batches.id"))
+    original_filename: Mapped[str] = mapped_column(String(512))
+    stored_path: Mapped[str] = mapped_column(String(1024))
+    mime_type: Mapped[str] = mapped_column(String(128))
+    page_number: Mapped[int] = mapped_column(Integer, default=1)
+    sha256_hash: Mapped[str] = mapped_column(String(64), index=True)
+    uploaded_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+
+    batch: Mapped["Batch"] = relationship(back_populates="boletas")
+    record: Mapped["BoletaRecord"] = relationship(
+        back_populates="boleta", uselist=False, cascade="all, delete-orphan"
+    )
+
+
+class BoletaRecord(Base):
+    """The parsed/classified/computed output for one Boleta.
+
+    Field names intentionally mirror the required output JSON schema
+    (see app/schemas.py) so serialization is a near-direct mapping.
+    """
+
+    __tablename__ = "boleta_records"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    boleta_id: Mapped[int] = mapped_column(ForeignKey("boletas.id"), unique=True)
+
+    ocr_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    folio: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    date: Mapped[str | None] = mapped_column(String(32), nullable=True)  # ISO YYYY-MM-DD
+    origin: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    destination: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    material: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    fletero: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+    weight: Mapped[float | None] = mapped_column(Float, nullable=True)
+    weight_source: Mapped[str] = mapped_column(String(16), default="missing")  # measured|estimated|missing
+
+    trip_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    tariff_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    inventory_direction: Mapped[str] = mapped_column(String(16), default="unknown")  # inbound|outbound|none|unknown
+    inventory_quantity: Mapped[float | None] = mapped_column(Float, nullable=True)
+
+    confidence_score: Mapped[float] = mapped_column(Float, default=0.0)
+    status: Mapped[str] = mapped_column(String(16), default="needs_review")  # auto_processed|needs_review
+    exceptions: Mapped[list] = mapped_column(JSON, default=list)
+    field_confidences: Mapped[dict] = mapped_column(JSON, default=dict)
+
+    matched_route_rule_id: Mapped[int | None] = mapped_column(ForeignKey("route_rules.id"), nullable=True)
+    matched_tariff_rule_id: Mapped[int | None] = mapped_column(ForeignKey("tariff_rules.id"), nullable=True)
+    matched_weight_rule_id: Mapped[int | None] = mapped_column(
+        ForeignKey("weight_estimation_rules.id"), nullable=True
+    )
+
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+
+    boleta: Mapped["Boleta"] = relationship(back_populates="record")
+    audits: Mapped[list["ReviewAudit"]] = relationship(back_populates="record", cascade="all, delete-orphan")
+
+
+class ReviewAudit(Base):
+    """One row per human correction/approval action, for full traceability."""
+
+    __tablename__ = "review_audits"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    boleta_record_id: Mapped[int] = mapped_column(ForeignKey("boleta_records.id"))
+    field_name: Mapped[str] = mapped_column(String(64))
+    old_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    new_value: Mapped[str | None] = mapped_column(Text, nullable=True)
+    action: Mapped[str] = mapped_column(String(32))  # correction | approval
+    edited_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    edited_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    record: Mapped["BoletaRecord"] = relationship(back_populates="audits")
+
+
+class RouteRule(Base):
+    """Config table: which origin/destination pairs mean what trip."""
+
+    __tablename__ = "route_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    route_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    origin: Mapped[str] = mapped_column(String(255))
+    destination: Mapped[str] = mapped_column(String(255))
+    trip_type: Mapped[str] = mapped_column(String(128))
+    inventory_direction: Mapped[str] = mapped_column(String(16))  # inbound|outbound|none
+    material: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    distance_band: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class TariffRule(Base):
+    """Config table: what a trip_type/distance_band pays."""
+
+    __tablename__ = "tariff_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    tariff_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    trip_type: Mapped[str] = mapped_column(String(128))
+    distance_band: Mapped[str] = mapped_column(String(64))
+    tariff_amount: Mapped[float] = mapped_column(Float)
+    currency: Mapped[str] = mapped_column(String(8), default="MXN")
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class WeightEstimationRule(Base):
+    """Config table: estimated weight to apply when the scan has none."""
+
+    __tablename__ = "weight_estimation_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    rule_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    trip_type: Mapped[str] = mapped_column(String(128))
+    material: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    estimated_weight_kg: Mapped[float] = mapped_column(Float)
+    conditions: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class ExceptionThreshold(Base):
+    """Config table: tunable thresholds/behaviors driving confidence & status."""
+
+    __tablename__ = "exception_thresholds"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    condition_key: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    threshold_value: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    behavior: Mapped[str] = mapped_column(String(32))  # hard_block|soft_flag|auto_process_if_no_exceptions|config
+    description: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)

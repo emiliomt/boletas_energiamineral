@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{% block title %}Inicio — Boletas Energía Mineral{% endblock %}
+{% block content %}
+  <h1>Panel de Control</h1>
+
+  <div class="stat-row">
+    <div class="stat-card">
+      <div class="stat-value">{{ total_count }}</div>
+      <div class="stat-label">Boletas procesadas</div>
+    </div>
+    <div class="stat-card {{ 'stat-warn' if review_count else '' }}">
+      <div class="stat-value">{{ review_count }}</div>
+      <div class="stat-label">Pendientes de revisión</div>
+    </div>
+  </div>
+
+  <section class="panel">
+    <h2>Nuevo lote</h2>
+    <form method="post" action="/batches" class="inline-form">
+      <input type="text" name="label" placeholder="Nombre del lote (ej. Semana 33)" required>
+      <input type="text" name="created_by" placeholder="Tu nombre (opcional)">
+      <button type="submit">Crear lote</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Lotes</h2>
+    {% if batches %}
+    <table>
+      <thead>
+        <tr><th>ID</th><th>Nombre</th><th>Estado</th><th>Creado por</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for batch in batches %}
+        <tr>
+          <td>{{ batch.id }}</td>
+          <td>{{ batch.label }}</td>
+          <td>{{ batch.status }}</td>
+          <td>{{ batch.created_by or "—" }}</td>
+          <td><a href="/batches/{{ batch.id }}">Ver / Subir boletas</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Aún no hay lotes. Crea uno arriba para empezar a subir boletas.</p>
+    {% endif %}
+  </section>
+{% endblock %}

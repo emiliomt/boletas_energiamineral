@@ -1,0 +1,16 @@
+{
+  "boleta_id": "B-2001",
+  "date": "2026-01-20",
+  "origin": "Mina San Jose",
+  "destination": "Planta Norte",
+  "material": "Carbon",
+  "fletero": "Juan Perez",
+  "weight": 9200.0,
+  "weight_source": "measured",
+  "trip_type": "acarreo_carbon",
+  "tariff_amount": 850.0,
+  "inventory_direction": "outbound",
+  "inventory_quantity": -9200.0,
+  "status": "auto_processed",
+  "exceptions": []
+}
