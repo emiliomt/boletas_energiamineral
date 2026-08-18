@@ -14,9 +14,10 @@ from app.engines.exceptions import (
     evaluate,
     threshold_int,
 )
+from app.engines.folio_registry import check_folio, link_folio, unlink_folio
 from app.engines.inventory import InventoryResult
 from app.engines.tariff import compute_tariff
-from app.models import BoletaRecord, ReviewAudit
+from app.models import BoletaRecord, Folio, ReviewAudit
 from app.ocr.base import OCRResult
 from app.parsing.field_parser import ParsedFields
 from app.rules.config_loader import get_active_routes, get_thresholds
@@ -45,6 +46,7 @@ def _find_route_rule_for_trip_type(db: Session, trip_type: str | None, origin: s
 def apply_review(db: Session, record: BoletaRecord, correction: ReviewCorrection) -> BoletaRecord:
     field_confidences = dict(record.field_confidences or {})
     changed_fields: list[str] = []
+    old_folio = record.folio
 
     for field_name in EDITABLE_FIELDS:
         new_value = getattr(correction, field_name)
@@ -123,13 +125,29 @@ def apply_review(db: Session, record: BoletaRecord, correction: ReviewCorrection
         folio=record.folio,
         date=record.date,
         origin=record.origin,
+        secondary_origin=record.secondary_origin,
         destination=record.destination,
+        contract_number=record.contract_number,
         material=record.material,
         fletero=record.fletero,
+        truck_box_number=record.truck_box_number,
         weight=record.weight,
+        weight_declared=record.weight_declared,
         field_confidences=field_confidences,
     )
     ocr = OCRResult(text=record.ocr_text or "", confidence=(record.ocr_confidence or 0.0) * 100)
+
+    # A reviewer can hand-correct the folio, so a manual edit can't silently
+    # bypass the issued-folio registry: unlink the old folio (if it was
+    # linked to this record) and re-check/link the corrected one.
+    if "folio" in changed_fields and old_folio:
+        old_folio_row = db.query(Folio).filter_by(folio=old_folio).one_or_none()
+        if old_folio_row is not None and old_folio_row.boleta_record_id == record.id:
+            unlink_folio(old_folio_row)
+
+    folio_check = check_folio(db, record.folio, exclude_record_id=record.id)
+    if folio_check.status == "ok" and folio_check.folio_row is not None:
+        link_folio(folio_check.folio_row, record.id)
 
     thresholds = get_thresholds(db)
     window_days = threshold_int(thresholds, "duplicate_check_window_days", DEFAULT_DUPLICATE_WINDOW_DAYS)
@@ -144,7 +162,7 @@ def apply_review(db: Session, record: BoletaRecord, correction: ReviewCorrection
         exclude_record_id=record.id,
     )
 
-    evaluation = evaluate(db, ocr, parsed, classification, tariff, inventory_result, is_duplicate)
+    evaluation = evaluate(db, ocr, parsed, classification, tariff, inventory_result, is_duplicate, folio_check)
     record.confidence_score = evaluation.confidence_score
     record.exceptions = evaluation.exceptions
 

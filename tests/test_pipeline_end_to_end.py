@@ -1,29 +1,41 @@
 from __future__ import annotations
 
-from app.models import Batch, Boleta
+from app.models import Batch, Boleta, Folio, FolioBatch
 from app.pipeline.orchestrator import process_boleta
 from tests.fakes import FakeOCRAdapter
 
 CLEAN_TEXT = """\
 Folio: B-1001
 Fecha: 15/01/2026
-Origen: Mina San Jose
+Centro de Explotacion: Mina San Jose
 Destino: Planta Norte
-Material: Carbon
-Fletero: Juan Perez
-Peso: 9000 kg
+Datos del chofer del camion: Juan Perez
+Volumen por Entregar: 9000
+Volumen Entregado: 9000 kg
 """
 
 MISSING_WEIGHT_TEXT = """\
 Folio: B-1002
 Fecha: 16/01/2026
-Origen: Planta Norte
+Centro de Explotacion: Planta Norte
 Destino: Patio Almacen
-Material: Carbon
-Fletero: Maria Lopez
+Datos del chofer del camion: Maria Lopez
 """
 
 ILLEGIBLE_TEXT = "xk qlm zzt ### asdf ??"
+
+
+def _seed_folio(db_session, folio: str) -> Folio:
+    """These fixtures pre-date the folio registry, so their folios (parsed
+    from plain OCR text, no QR involved) need to be pre-issued or every
+    test would get flagged `unknown_folio`."""
+    batch = FolioBatch(label=f"seed-{folio}", mode="imported", count=1)
+    db_session.add(batch)
+    db_session.flush()
+    row = Folio(folio_batch_id=batch.id, folio=folio, qr_payload=f"BOL:{folio}")
+    db_session.add(row)
+    db_session.flush()
+    return row
 
 
 def _make_boleta(db_session, batch_label: str, filename: str) -> Boleta:
@@ -44,6 +56,7 @@ def _make_boleta(db_session, batch_label: str, filename: str) -> Boleta:
 
 
 def test_clean_boleta_is_auto_processed_with_measured_weight(db_session):
+    _seed_folio(db_session, "B-1001")
     boleta = _make_boleta(db_session, "batch-1", "clean.png")
     adapter = FakeOCRAdapter(text=CLEAN_TEXT, confidence=95.0)
 
@@ -60,6 +73,7 @@ def test_clean_boleta_is_auto_processed_with_measured_weight(db_session):
 
 
 def test_missing_weight_boleta_uses_estimation_rule(db_session):
+    _seed_folio(db_session, "B-1002")
     boleta = _make_boleta(db_session, "batch-1", "missing_weight.png")
     adapter = FakeOCRAdapter(text=MISSING_WEIGHT_TEXT, confidence=95.0)
 
@@ -84,7 +98,30 @@ def test_illegible_boleta_goes_to_needs_review(db_session):
     assert record.confidence_score < 0.75
 
 
+def test_volumen_mismatch_flags_needs_review(db_session):
+    _seed_folio(db_session, "B-1003")
+    boleta = _make_boleta(db_session, "batch-1", "mismatch.png")
+    text = (
+        "Folio: B-1003\n"
+        "Fecha: 15/01/2026\n"
+        "Centro de Explotacion: Mina San Jose\n"
+        "Destino: Planta Norte\n"
+        "Datos del chofer del camion: Juan Perez\n"
+        "Volumen por Entregar: 9000\n"
+        "Volumen Entregado: 7000 kg\n"
+    )
+    adapter = FakeOCRAdapter(text=text, confidence=95.0)
+
+    record = process_boleta(db_session, boleta, adapter)
+
+    assert record.status == "needs_review"
+    assert "volumen_mismatch" in record.exceptions
+    assert record.weight == 7000.0
+    assert record.weight_declared == 9000.0
+
+
 def test_reprocessing_updates_existing_record_instead_of_duplicating(db_session):
+    _seed_folio(db_session, "B-1001")
     boleta = _make_boleta(db_session, "batch-1", "clean2.png")
     adapter = FakeOCRAdapter(text=CLEAN_TEXT, confidence=95.0)
 

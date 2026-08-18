@@ -10,7 +10,7 @@ import shutil
 
 import pytest
 
-from app.models import Batch, Boleta
+from app.models import Batch, Boleta, Folio, FolioBatch
 from app.ocr.tesseract_adapter import TesseractOCRAdapter
 from app.pipeline.orchestrator import process_boleta
 from tests.conftest import BOLETAS_FIXTURES_DIR, EXPECTED_OUTPUTS_DIR
@@ -19,6 +19,17 @@ pytestmark = pytest.mark.skipif(
     shutil.which("tesseract") is None or not BOLETAS_FIXTURES_DIR.exists(),
     reason="tesseract binary or generated fixtures not available",
 )
+
+
+def _seed_folio(db_session, folio: str) -> None:
+    """These fixtures pre-date the folio registry and have no embedded QR
+    (folio comes from OCR text alone) -- pre-issue the folio so the
+    registry check doesn't flag it as unknown."""
+    batch = FolioBatch(label=f"seed-{folio}", mode="imported", count=1)
+    db_session.add(batch)
+    db_session.flush()
+    db_session.add(Folio(folio_batch_id=batch.id, folio=folio, qr_payload=f"BOL:{folio}"))
+    db_session.flush()
 
 
 def _process_fixture(db_session, filename: str):
@@ -47,6 +58,7 @@ def _process_fixture(db_session, filename: str):
 )
 def test_clean_fixture_matches_expected_output(db_session, filename, expected_file):
     expected = json.loads((EXPECTED_OUTPUTS_DIR / expected_file).read_text())
+    _seed_folio(db_session, expected["boleta_id"])
 
     record = _process_fixture(db_session, filename)
 

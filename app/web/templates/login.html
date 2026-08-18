@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <title>Iniciar sesión — Boletas Energía Mineral</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="container" style="max-width: 380px; margin-top: 4rem;">
+    <div class="panel">
+      <h1>Boletas Energía Mineral</h1>
+      {% if error %}
+      <p style="color: var(--warn-text);">{{ error }}</p>
+      {% endif %}
+      <form method="post" action="/login" class="review-form">
+        <input type="hidden" name="next" value="{{ next }}">
+        <label>Correo<input type="email" name="email" required></label>
+        <label>Contraseña<input type="password" name="password" required></label>
+        <button type="submit">Entrar</button>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

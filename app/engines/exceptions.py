@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.orm import Session
 
 from app.engines.classification import ClassificationResult
+from app.engines.folio_registry import FolioCheckResult
 from app.engines.inventory import InventoryResult
 from app.engines.tariff import TariffResult
 from app.models import BoletaRecord
@@ -26,6 +27,7 @@ DEFAULT_OCR_CONFIDENCE_MIN = 0.60
 DEFAULT_FIELD_CONFIDENCE_MIN = 0.55
 DEFAULT_AUTO_PROCESS_MIN = 0.75
 DEFAULT_DUPLICATE_WINDOW_DAYS = 7
+DEFAULT_VOLUMEN_MISMATCH_PCT = 10.0
 
 
 @dataclass
@@ -92,6 +94,7 @@ def evaluate(
     tariff: TariffResult,
     inventory: InventoryResult,
     is_duplicate: bool,
+    folio_check: FolioCheckResult,
 ) -> EvaluationResult:
     thresholds = get_thresholds(db)
     ocr_confidence_min = threshold_float(thresholds, "ocr_confidence_min", DEFAULT_OCR_CONFIDENCE_MIN)
@@ -120,6 +123,13 @@ def evaluate(
     exceptions.extend(classification.exceptions)
     exceptions.extend(tariff.exceptions)
     exceptions.extend(inventory.exceptions)
+    exceptions.extend(folio_check.exceptions)
+
+    if parsed.weight is not None and parsed.weight_declared is not None and parsed.weight_declared != 0:
+        volumen_mismatch_pct = threshold_float(thresholds, "volumen_mismatch_pct", DEFAULT_VOLUMEN_MISMATCH_PCT)
+        diff_pct = abs(parsed.weight - parsed.weight_declared) / parsed.weight_declared * 100
+        if diff_pct > volumen_mismatch_pct:
+            exceptions.append("volumen_mismatch")
 
     if is_duplicate:
         exceptions.append("suspected_duplicate")

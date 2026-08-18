@@ -21,6 +21,18 @@ class Settings(BaseSettings):
     rules_config_dir: Path = BASE_DIR / "app" / "rules"
     auto_process_confidence_min: float = 0.75
 
+    # Supabase Auth (admin login) + Postgres (set database_url above to a
+    # Supabase Postgres connection string to actually use it as the DB;
+    # these three are used purely for the Auth REST calls in app/auth/).
+    supabase_url: str | None = None
+    supabase_anon_key: str | None = None
+    supabase_service_role_key: str | None = None
+
+    # Signs the admin session cookie. Has an insecure local-dev default so
+    # the app still runs with zero setup -- MUST be overridden via env var
+    # (a long random value) in any real deployment.
+    session_secret_key: str = "dev-only-insecure-secret-change-me"
+
     def ensure_dirs(self) -> None:
         self.originals_dir.mkdir(parents=True, exist_ok=True)
         (BASE_DIR / "data").mkdir(parents=True, exist_ok=True)
