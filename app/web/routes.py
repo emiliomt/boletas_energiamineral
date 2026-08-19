@@ -50,12 +50,15 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
 @router.get("/dashboard")
 def dashboard_overview(
     request: Request,
-    batch_id: int | None = None,
-    status: str | None = None,
-    fletero: str | None = None,
+    # Strings (not int) so the filter form's empty "Todos los lotes" option
+    # (value="") doesn't 422 on int parsing; parsed to int below when present.
+    batch_id: str = "",
+    status: str = "",
+    fletero: str = "",
     db: Session = Depends(get_db),
 ):
-    overview = build_overview(db, batch_id=batch_id, status=status or None, fletero=fletero or None)
+    selected_batch_id = int(batch_id) if batch_id.strip().isdigit() else None
+    overview = build_overview(db, batch_id=selected_batch_id, status=status or None, fletero=fletero or None)
     batches = db.query(Batch).order_by(Batch.id.desc()).all()
     fleteros = [
         f for (f,) in db.query(BoletaRecord.fletero)
@@ -71,7 +74,7 @@ def dashboard_overview(
             "overview": overview,
             "batches": batches,
             "fleteros": fleteros,
-            "selected_batch_id": batch_id,
+            "selected_batch_id": selected_batch_id,
             "selected_status": status or "",
             "selected_fletero": fletero or "",
         },

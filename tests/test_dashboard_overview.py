@@ -116,3 +116,30 @@ def test_dashboard_page_renders_boletas(client):
     assert "B-6001" in body
     assert "Luis Perez" in body
     assert "Pago a confirmar" in body
+
+
+def test_dashboard_empty_filter_params_do_not_error(client):
+    # The filter form submits empty selects as ?batch_id=&status=&fletero=;
+    # that must not 422 (regression: batch_id used to be parsed as int).
+    c, _ = client
+    resp = c.get("/dashboard", params={"batch_id": "", "status": "", "fletero": ""})
+    assert resp.status_code == 200
+
+
+def test_dashboard_status_filter_via_query(client):
+    c, session_local = client
+    db = session_local()
+    try:
+        batch = Batch(label="L")
+        db.add(batch)
+        db.flush()
+        _add_record(db, batch, "OK-1", "auto_processed", fletero="Juan", tariff=850.0)
+        _add_record(db, batch, "REV-1", "needs_review", fletero="Maria")
+        db.commit()
+    finally:
+        db.close()
+
+    resp = c.get("/dashboard", params={"status": "needs_review"})
+    assert resp.status_code == 200
+    assert "REV-1" in resp.text
+    assert "OK-1" not in resp.text
