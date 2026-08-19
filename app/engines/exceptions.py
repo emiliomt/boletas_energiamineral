@@ -134,17 +134,19 @@ def evaluate(
     if is_duplicate:
         exceptions.append("suspected_duplicate")
 
+    # The accuracy grade measures OCR *extraction* quality only: how well the
+    # raw scan was read (ocr_overall_confidence) and how confidently the boleta
+    # fields that matter were parsed (avg over REQUIRED_FIELDS). It deliberately
+    # excludes optional/derived categories -- material, trip type, and the
+    # downstream route/tariff/inventory resolution -- because those aren't
+    # always present on the boleta (or aren't OCR'd at all), so they shouldn't
+    # drag down the OCR accuracy number. When trip/route resolution fails it's
+    # surfaced as its own exception (unknown_route/tariff/inventory), which
+    # still routes the boleta to review without misrepresenting OCR accuracy.
     required_confidences = [parsed.field_confidences.get(f, 0.0) for f in REQUIRED_FIELDS]
     avg_field_confidence = sum(required_confidences) / len(required_confidences)
 
-    resolution_confidence = 1.0 if (tariff.tariff_amount is not None and inventory.inventory_direction != "unknown") else 0.0
-
-    confidence_score = (
-        0.30 * ocr_overall_confidence
-        + 0.30 * avg_field_confidence
-        + 0.20 * classification.confidence
-        + 0.20 * resolution_confidence
-    )
+    confidence_score = 0.5 * ocr_overall_confidence + 0.5 * avg_field_confidence
     confidence_score = round(min(max(confidence_score, 0.0), 1.0), 2)
 
     # De-duplicate while preserving order (a field can trip more than one rule).
