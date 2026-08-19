@@ -8,10 +8,34 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytesseract
-from PIL import Image
+from PIL import Image, ImageOps
 
 from app.config import settings
 from app.ocr.base import OCRAdapter, OCRResult, OCRWord
+
+# Tesseract does best on a flat, high-contrast, reasonably large grayscale
+# image. Real uploads are often phone photos (angled, low-contrast, small),
+# so a little cheap preprocessing meaningfully lifts recognition. Target long
+# edge for upscaling small images (Tesseract likes ~30px cap-height text).
+_MIN_LONG_EDGE = 2000
+
+
+def _preprocess(image: Image.Image) -> Image.Image:
+    """Cheap, safe preprocessing before OCR: honor EXIF rotation (phone
+    photos), flatten to grayscale, upscale small images, and stretch contrast.
+    Deliberately conservative -- no binarization/deskew that could distort a
+    clean scan; those (and handwriting) are better handled by a cloud/LLM OCR
+    backend (see app/ocr/llm_fallback_adapter.py)."""
+    image = ImageOps.exif_transpose(image)
+    image = image.convert("L")
+
+    long_edge = max(image.size)
+    if long_edge < _MIN_LONG_EDGE:
+        scale = _MIN_LONG_EDGE / long_edge
+        new_size = (round(image.width * scale), round(image.height * scale))
+        image = image.resize(new_size, Image.LANCZOS)
+
+    return ImageOps.autocontrast(image)
 
 
 class TesseractOCRAdapter(OCRAdapter):
@@ -19,7 +43,7 @@ class TesseractOCRAdapter(OCRAdapter):
         self.language = language or settings.ocr_language
 
     def extract(self, image_path: Path) -> OCRResult:
-        image = Image.open(image_path)
+        image = _preprocess(Image.open(image_path))
 
         text = pytesseract.image_to_string(image, lang=self.language)
 
