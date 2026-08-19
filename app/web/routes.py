@@ -12,7 +12,7 @@ from app.config import BASE_DIR
 from app.db import get_db
 from app.ingestion.storage import store_upload
 from app.models import Batch, Boleta, BoletaRecord, FolioBatch
-from app.ocr.tesseract_adapter import TesseractOCRAdapter
+from app.ocr.factory import get_ocr_adapter
 from app.pipeline.orchestrator import process_boleta
 from app.reporting.summary import build_batch_summary
 from app.review.service import apply_review
@@ -20,7 +20,7 @@ from app.schemas import ReviewCorrection
 
 router = APIRouter(tags=["web"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
-_ocr_adapter = TesseractOCRAdapter()
+_ocr_adapter = get_ocr_adapter()
 
 
 @router.get("/")

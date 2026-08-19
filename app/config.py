@@ -21,6 +21,19 @@ class Settings(BaseSettings):
     rules_config_dir: Path = BASE_DIR / "app" / "rules"
     auto_process_confidence_min: float = 0.75
 
+    # OCR backend selection.
+    #   "tesseract" -> local Tesseract only (offline, no API key).
+    #   "openai"    -> OpenAI vision model only (best on handwriting/photos).
+    #   "auto"      -> Tesseract first; if a key is configured and Tesseract's
+    #                  confidence is below ocr_fallback_min_confidence, re-OCR
+    #                  with OpenAI. Falls back to Tesseract if OpenAI errors or
+    #                  no key is set, so "auto" is always safe.
+    ocr_backend: str = "auto"
+    openai_api_key: str | None = None
+    openai_ocr_model: str = "gpt-4o-mini"
+    # Tesseract overall confidence (0-100) below which "auto" escalates to OpenAI.
+    ocr_fallback_min_confidence: float = 70.0
+
     # Supabase Auth (admin login) + Postgres (set database_url above to a
     # Supabase Postgres connection string to actually use it as the DB;
     # these three are used purely for the Auth REST calls in app/auth/).
