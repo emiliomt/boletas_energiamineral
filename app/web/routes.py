@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 from app.config import BASE_DIR
 from app.db import get_db
 from app.ingestion.storage import store_upload
-from app.models import Batch, Boleta, BoletaRecord
+from app.models import Batch, Boleta, BoletaRecord, FolioBatch
 from app.ocr.tesseract_adapter import TesseractOCRAdapter
 from app.pipeline.orchestrator import process_boleta
 from app.reporting.summary import build_batch_summary
@@ -28,10 +28,19 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     batches = db.query(Batch).order_by(Batch.id.desc()).all()
     review_count = db.query(BoletaRecord).filter(BoletaRecord.status == "needs_review").count()
     total_count = db.query(BoletaRecord).count()
+    # The "Nuevo lote" name is chosen from the registered folio batches
+    # (Lotes de Folios) rather than typed freehand, so a scanning batch is
+    # always tied to a lote that was actually issued/registered.
+    folio_batches = db.query(FolioBatch).order_by(FolioBatch.id.desc()).all()
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {"batches": batches, "review_count": review_count, "total_count": total_count},
+        {
+            "batches": batches,
+            "review_count": review_count,
+            "total_count": total_count,
+            "folio_batches": folio_batches,
+        },
     )
 
 

@@ -16,11 +16,24 @@
 
   <section class="panel">
     <h2>Nuevo lote</h2>
+    {% if folio_batches %}
     <form method="post" action="/batches" class="inline-form">
-      <input type="text" name="label" placeholder="Nombre del lote (ej. Semana 33)" required>
+      <select name="label" required>
+        <option value="" disabled selected>Nombre del lote…</option>
+        {% for fb in folio_batches %}
+        <option value="{{ fb.label }}">{{ fb.label }}</option>
+        {% endfor %}
+      </select>
       <input type="text" name="created_by" placeholder="Tu nombre (opcional)">
       <button type="submit">Crear lote</button>
     </form>
+    {% else %}
+    <p class="muted">
+      No hay lotes registrados. Registra un
+      <a href="/admin/folio-batches">lote de folios</a> primero para poder crear
+      un lote de escaneo.
+    </p>
+    {% endif %}
   </section>
 
   <section class="panel">
