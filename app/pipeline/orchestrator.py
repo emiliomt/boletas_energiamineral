@@ -69,6 +69,7 @@ def process_boleta(db: Session, boleta: Boleta, ocr_adapter: OCRAdapter) -> Bole
     record = existing_record or BoletaRecord(boleta_id=boleta.id)
     record.ocr_text = ocr_result.text
     record.ocr_confidence = round(ocr_result.confidence / 100.0, 3)
+    record.ocr_engine = ocr_result.engine
     record.folio = parsed.folio
     record.date = parsed.date
     record.origin = parsed.origin

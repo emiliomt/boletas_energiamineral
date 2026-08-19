@@ -26,6 +26,7 @@ class OCRResult:
     text: str
     confidence: float  # 0-100 overall average confidence
     words: list[OCRWord] = field(default_factory=list)
+    engine: str = "unknown"  # which backend produced this, e.g. "tesseract" or "openai:gpt-4o-mini"
 
 
 class OCRAdapter(ABC):

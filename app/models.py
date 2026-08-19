@@ -75,6 +75,7 @@ class BoletaRecord(Base):
 
     ocr_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    ocr_engine: Mapped[str | None] = mapped_column(String(64), nullable=True)  # e.g. "tesseract" or "openai:gpt-4o-mini"
 
     folio: Mapped[str | None] = mapped_column(String(128), nullable=True)
     date: Mapped[str | None] = mapped_column(String(32), nullable=True)  # ISO YYYY-MM-DD

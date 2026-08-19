@@ -36,6 +36,7 @@ def _to_detail(record: BoletaRecord) -> BoletaRecordDetail:
         exceptions=record.exceptions or [],
         ocr_text=record.ocr_text,
         ocr_confidence=record.ocr_confidence,
+        ocr_engine=record.ocr_engine,
         secondary_origin=record.secondary_origin,
         contract_number=record.contract_number,
         truck_box_number=record.truck_box_number,

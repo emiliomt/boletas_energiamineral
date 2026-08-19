@@ -37,6 +37,9 @@ def _ensure_columns() -> None:
     """
     # table -> {column_name: SQL type}. All additive and nullable.
     expected: dict[str, dict[str, str]] = {
+        "boleta_records": {
+            "ocr_engine": "VARCHAR(64)",
+        },
         "folio_batches": {
             "proveedor": "VARCHAR(255)",
             "destino": "VARCHAR(255)",

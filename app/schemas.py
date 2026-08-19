@@ -39,6 +39,7 @@ class BoletaRecordDetail(BoletaRecordOut):
     boleta_id_internal: int
     ocr_text: str | None = None
     ocr_confidence: float | None = None
+    ocr_engine: str | None = None
     secondary_origin: str | None = None  # Centro de Acopio
     contract_number: str | None = None
     truck_box_number: str | None = None  # No. Caja

@@ -74,4 +74,4 @@ class TesseractOCRAdapter(OCRAdapter):
             confidences.append(conf)
 
         overall_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-        return OCRResult(text=text, confidence=overall_confidence, words=words)
+        return OCRResult(text=text, confidence=overall_confidence, words=words, engine="tesseract")

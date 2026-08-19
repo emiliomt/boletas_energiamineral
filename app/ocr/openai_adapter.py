@@ -109,4 +109,4 @@ class OpenAIOCRAdapter(OCRAdapter):
             OCRWord(text=tok, confidence=confidence, left=0, top=0, width=0, height=0)
             for tok in text.split()
         ]
-        return OCRResult(text=text, confidence=confidence, words=words)
+        return OCRResult(text=text, confidence=confidence, words=words, engine=f"openai:{self.model}")

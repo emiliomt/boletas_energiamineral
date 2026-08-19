@@ -58,6 +58,7 @@ def test_openai_adapter_returns_transcription_that_parses(tmp_path, monkeypatch)
     result = OpenAIOCRAdapter(api_key="sk-test").extract(_img(tmp_path))
 
     assert result.confidence == 93.0
+    assert result.engine == "openai:gpt-4o-mini"  # so the UI/record can show which backend ran
     assert "Luis Perez" in result.text
 
     parsed = parse_fields(result)
@@ -96,8 +97,8 @@ def test_openai_adapter_wraps_api_errors(tmp_path, monkeypatch):
 
 
 class _StubAdapter:
-    def __init__(self, text: str, confidence: float):
-        self._result = OCRResult(text=text, confidence=confidence, words=[])
+    def __init__(self, text: str, confidence: float, engine: str = "stub"):
+        self._result = OCRResult(text=text, confidence=confidence, words=[], engine=engine)
         self.called = False
 
     def extract(self, image_path):
@@ -122,13 +123,14 @@ def test_fallback_keeps_primary_when_confident(tmp_path):
 
 
 def test_fallback_escalates_when_primary_low_confidence(tmp_path):
-    primary = _StubAdapter("garbled", 20.0)
-    fallback = _StubAdapter("clean transcription", 95.0)
+    primary = _StubAdapter("garbled", 20.0, engine="tesseract")
+    fallback = _StubAdapter("clean transcription", 95.0, engine="openai:gpt-4o-mini")
     adapter = FallbackOCRAdapter(primary, fallback, min_confidence=70.0)
 
     result = adapter.extract(_img(tmp_path))
 
     assert result.text == "clean transcription"
+    assert result.engine == "openai:gpt-4o-mini"  # record reflects the engine actually used
     assert fallback.called is True
 
 
