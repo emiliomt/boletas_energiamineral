@@ -23,6 +23,7 @@ def build_json_export(db: Session, batch_id: int | None = None) -> list[dict]:
             material=r.material,
             fletero=r.fletero,
             weight=r.weight,
+            weight_declared=r.weight_declared,
             weight_source=r.weight_source,
             trip_type=r.trip_type,
             tariff_amount=r.tariff_amount,

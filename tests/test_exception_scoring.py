@@ -2,10 +2,17 @@ from __future__ import annotations
 
 from app.engines.classification import ClassificationResult
 from app.engines.exceptions import evaluate
+from app.engines.folio_registry import FolioCheckResult
 from app.engines.inventory import InventoryResult
 from app.engines.tariff import TariffResult
 from app.ocr.base import OCRResult
 from app.parsing.field_parser import ParsedFields
+
+# Most of these tests are about OCR/field/classification/tariff/inventory
+# scoring, not folio-registry behavior — use a clean "ok" result so it never
+# contributes exceptions/noise here. Folio-registry behavior itself is
+# covered by tests/test_exception_folio_registry.py.
+_OK_FOLIO_CHECK = FolioCheckResult(status="ok")
 
 
 def _complete_parsed(**field_confidences_override) -> ParsedFields:
@@ -30,7 +37,7 @@ def test_clean_high_confidence_boleta_is_auto_processed(db_session):
     tariff = TariffResult(tariff_amount=850.0)
     inventory = InventoryResult(inventory_direction="outbound", inventory_quantity=-9000.0)
 
-    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=False)
+    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=False, folio_check=_OK_FOLIO_CHECK)
 
     assert result.status == "auto_processed"
     assert result.exceptions == []
@@ -45,7 +52,7 @@ def test_missing_required_field_forces_needs_review(db_session):
     tariff = TariffResult(exceptions=["unknown_tariff"])
     inventory = InventoryResult(inventory_direction="unknown", exceptions=["unknown_inventory_direction"])
 
-    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=False)
+    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=False, folio_check=_OK_FOLIO_CHECK)
 
     assert result.status == "needs_review"
     assert "missing_required_field:destination" in result.exceptions
@@ -59,7 +66,7 @@ def test_low_ocr_confidence_forces_needs_review_even_with_all_fields(db_session)
     tariff = TariffResult(tariff_amount=850.0)
     inventory = InventoryResult(inventory_direction="outbound", inventory_quantity=-9000.0)
 
-    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=False)
+    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=False, folio_check=_OK_FOLIO_CHECK)
 
     assert result.status == "needs_review"
     assert "low_ocr_confidence" in result.exceptions
@@ -72,7 +79,7 @@ def test_suspected_duplicate_forces_needs_review(db_session):
     tariff = TariffResult(tariff_amount=850.0)
     inventory = InventoryResult(inventory_direction="outbound", inventory_quantity=-9000.0)
 
-    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=True)
+    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=True, folio_check=_OK_FOLIO_CHECK)
 
     assert result.status == "needs_review"
     assert "suspected_duplicate" in result.exceptions
@@ -87,7 +94,7 @@ def test_confidence_score_below_threshold_needs_review_despite_no_exceptions(db_
     tariff = TariffResult(tariff_amount=850.0)
     inventory = InventoryResult(inventory_direction="outbound", inventory_quantity=-9000.0)
 
-    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=False)
+    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=False, folio_check=_OK_FOLIO_CHECK)
 
     assert result.exceptions == []
     assert result.confidence_score < 0.75

@@ -38,10 +38,19 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(app_db, "engine", test_engine)
     monkeypatch.setattr(app_db, "SessionLocal", sessionmaker(bind=test_engine, autoflush=False, autocommit=False))
 
+    from app.auth.session import require_admin_api, require_admin_web
     from app.main import app
 
-    with TestClient(app) as c:
-        yield c
+    # Bypass real Supabase Auth in tests -- auth itself is covered by
+    # tests/test_auth.py; this fixture just needs an authenticated session
+    # to exercise the rest of the API.
+    app.dependency_overrides[require_admin_api] = lambda: "test-admin@example.com"
+    app.dependency_overrides[require_admin_web] = lambda: "test-admin@example.com"
+    try:
+        with TestClient(app) as c:
+            yield c
+    finally:
+        app.dependency_overrides.clear()
 
 
 @requires_tesseract_and_fixtures

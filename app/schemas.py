@@ -4,9 +4,10 @@
 """
 from __future__ import annotations
 
+import datetime as dt
 from typing import Literal
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, model_validator
 
 
 class BoletaRecordOut(BaseModel):
@@ -19,6 +20,7 @@ class BoletaRecordOut(BaseModel):
     material: str | None = None
     fletero: str | None = None
     weight: float | None = None
+    weight_declared: float | None = None  # Volumen por Entregar (initial/planned); weight itself is Volumen Entregado (actual)
     weight_source: Literal["measured", "estimated", "missing"] = "missing"
     trip_type: str | None = None
     tariff_amount: float | None = None
@@ -37,6 +39,10 @@ class BoletaRecordDetail(BoletaRecordOut):
     boleta_id_internal: int
     ocr_text: str | None = None
     ocr_confidence: float | None = None
+    secondary_origin: str | None = None  # Centro de Acopio
+    contract_number: str | None = None
+    truck_box_number: str | None = None  # No. Caja
+    quality_data: dict[str, str] = {}
     matched_route_rule_id: int | None = None
     matched_tariff_rule_id: int | None = None
     matched_weight_rule_id: int | None = None
@@ -85,3 +91,49 @@ class BatchSummary(BaseModel):
     total_payment_by_fletero: dict[str, float]
     net_inventory_by_material: dict[str, float]
     net_inventory_by_route: dict[str, float]
+
+
+class FolioBatchCreate(BaseModel):
+    """Body for POST /api/folio-batches. `mode="sequential"` generates
+    prefix+start_number..prefix+start_number+count-1; `mode="imported"`
+    uses the explicit `folios` list (e.g. pasted from the client's own
+    existing numbering)."""
+
+    label: str
+    mode: Literal["sequential", "imported"]
+    prefix: str | None = None
+    start_number: int | None = None
+    count: int | None = None
+    folios: list[str] | None = None
+    vendor: str | None = None
+    notes: str | None = None
+    created_by: str | None = None
+
+    @model_validator(mode="after")
+    def _check_mode_fields(self) -> "FolioBatchCreate":
+        if self.mode == "sequential":
+            if self.prefix is None or self.start_number is None or not self.count:
+                raise ValueError("sequential mode requires prefix, start_number, and count")
+        else:
+            if not self.folios:
+                raise ValueError("imported mode requires a non-empty folios list")
+        return self
+
+
+class FolioBatchOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    label: str
+    mode: str
+    count: int
+    vendor: str | None = None
+    notes: str | None = None
+    created_by: str | None = None
+    created_at: dt.datetime
+
+
+class FolioBatchDetail(FolioBatchOut):
+    issued_count: int
+    scanned_count: int
+    void_count: int

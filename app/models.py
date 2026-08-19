@@ -78,13 +78,18 @@ class BoletaRecord(Base):
 
     folio: Mapped[str | None] = mapped_column(String(128), nullable=True)
     date: Mapped[str | None] = mapped_column(String(32), nullable=True)  # ISO YYYY-MM-DD
-    origin: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    origin: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Centro de Explotación
+    secondary_origin: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Centro de Acopio (captured, not classification-relevant)
     destination: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contract_number: Mapped[str | None] = mapped_column(String(64), nullable=True)
     material: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    fletero: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    fletero: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Datos del chofer del camión
+    truck_box_number: Mapped[str | None] = mapped_column(String(64), nullable=True)  # No. Caja
 
-    weight: Mapped[float | None] = mapped_column(Float, nullable=True)
+    weight: Mapped[float | None] = mapped_column(Float, nullable=True)  # Volumen Entregado (actual) -- drives tariff/inventory
+    weight_declared: Mapped[float | None] = mapped_column(Float, nullable=True)  # Volumen por Entregar (initial/planned)
     weight_source: Mapped[str] = mapped_column(String(16), default="missing")  # measured|estimated|missing
+    quality_data: Mapped[dict] = mapped_column(JSON, default=dict)  # coal quality metrics, provenance only -- not used in tariff/inventory math
 
     trip_type: Mapped[str | None] = mapped_column(String(128), nullable=True)
     tariff_amount: Mapped[float | None] = mapped_column(Float, nullable=True)
@@ -170,6 +175,48 @@ class WeightEstimationRule(Base):
     estimated_weight_kg: Mapped[float] = mapped_column(Float)
     conditions: Mapped[str | None] = mapped_column(String(255), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class FolioBatch(Base):
+    """A batch of folios (+ QR codes) we generated and handed to the print
+    vendor. Distinct from `Batch` above, which is a batch of *scanned
+    uploads* — this is a batch of *pre-issued, not-yet-scanned* folios."""
+
+    __tablename__ = "folio_batches"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    label: Mapped[str] = mapped_column(String(255))
+    mode: Mapped[str] = mapped_column(String(16))  # sequential | imported
+    prefix: Mapped[str | None] = mapped_column(String(32), nullable=True)  # sequential mode
+    start_number: Mapped[int | None] = mapped_column(Integer, nullable=True)  # sequential mode
+    count: Mapped[int] = mapped_column(Integer)
+    vendor: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+
+    folios: Mapped[list["Folio"]] = relationship(back_populates="folio_batch", cascade="all, delete-orphan")
+
+
+class Folio(Base):
+    """One pre-issued folio (+ QR payload) within a FolioBatch. Scanning a
+    boleta whose folio isn't `issued` here (or is already `scanned`) is
+    flagged — see app/engines/folio_registry.py."""
+
+    __tablename__ = "folios"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    folio_batch_id: Mapped[int] = mapped_column(ForeignKey("folio_batches.id"))
+    folio: Mapped[str] = mapped_column(String(128), unique=True, index=True)
+    qr_payload: Mapped[str] = mapped_column(String(160))
+    status: Mapped[str] = mapped_column(String(16), default="issued")  # issued | scanned | void
+    issued_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    scanned_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
+    boleta_record_id: Mapped[int | None] = mapped_column(
+        ForeignKey("boleta_records.id"), nullable=True, unique=True
+    )
+
+    folio_batch: Mapped["FolioBatch"] = relationship(back_populates="folios")
 
 
 class ExceptionThreshold(Base):

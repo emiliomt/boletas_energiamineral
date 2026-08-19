@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}Lote de Folios {{ batch.label }} — Boletas Energía Mineral{% endblock %}
+{% block content %}
+  <p><a href="/admin/folio-batches">&larr; Volver</a></p>
+  <h1>Lote de Folios: {{ batch.label }}</h1>
+
+  <section class="panel">
+    <div class="stat-row">
+      <div class="stat-card"><div class="stat-value">{{ batch.count }}</div><div class="stat-label">Total</div></div>
+      <div class="stat-card"><div class="stat-value">{{ counts.issued }}</div><div class="stat-label">Emitidos</div></div>
+      <div class="stat-card"><div class="stat-value">{{ counts.scanned }}</div><div class="stat-label">Escaneados</div></div>
+    </div>
+    <p>
+      <a href="/admin/folio-batches/{{ batch.id }}/print-pdf">Descargar PDF para imprenta</a> ·
+      <a href="/admin/folio-batches/{{ batch.id }}/export-csv">Descargar CSV</a>
+    </p>
+    {% if batch.vendor %}<p class="muted">Proveedor: {{ batch.vendor }}</p>{% endif %}
+    {% if batch.notes %}<p class="muted">Notas: {{ batch.notes }}</p>{% endif %}
+  </section>
+
+  <section class="panel">
+    <h2>Folios</h2>
+    <table>
+      <thead><tr><th>Folio</th><th>Estado</th><th>Emitido</th><th>Escaneado</th></tr></thead>
+      <tbody>
+        {% for f in folios %}
+        <tr class="{{ 'row-review' if f.status == 'scanned' else '' }}">
+          <td>{{ f.folio }}</td>
+          <td><span class="badge badge-{{ 'ok' if f.status == 'issued' else 'warn' }}">{{ f.status }}</span></td>
+          <td>{{ f.issued_at.strftime("%Y-%m-%d %H:%M") if f.issued_at else "—" }}</td>
+          <td>{{ f.scanned_at.strftime("%Y-%m-%d %H:%M") if f.scanned_at else "—" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+{% endblock %}

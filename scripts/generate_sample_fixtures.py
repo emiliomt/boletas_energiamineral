@@ -57,11 +57,11 @@ def main() -> None:
         [
             "Folio: B-2001",
             "Fecha: 20/01/2026",
-            "Origen: Mina San Jose",
+            "Centro de Explotacion: Mina San Jose",
             "Destino: Planta Norte",
-            "Material: Carbon",
-            "Fletero: Juan Perez",
-            "Peso: 9200 kg",
+            "Datos del chofer del camion: Juan Perez",
+            "Volumen por Entregar: 9200",
+            "Volumen Entregado: 9200 kg",
         ],
         OUT_DIR / "sample_boleta_01.png",
     )
@@ -70,10 +70,9 @@ def main() -> None:
         [
             "Folio: B-2002",
             "Fecha: 20/01/2026",
-            "Origen: Planta Norte",
+            "Centro de Explotacion: Planta Norte",
             "Destino: Patio Almacen",
-            "Material: Carbon",
-            "Fletero: Maria Lopez",
+            "Datos del chofer del camion: Maria Lopez",
         ],
         OUT_DIR / "sample_boleta_02.png",
     )

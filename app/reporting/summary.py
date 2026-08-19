@@ -26,7 +26,13 @@ def build_batch_summary(db: Session, batch_id: int) -> BatchSummary:
     inventory_by_material: dict[str, float] = defaultdict(float)
     inventory_by_route: dict[str, float] = defaultdict(float)
 
+    # Only records the pipeline actually confirmed (auto_processed) count
+    # toward money/inventory totals -- a needs_review record hasn't been
+    # verified yet (wrong folio, volumen mismatch, etc.) and must not
+    # inflate what's shown as owed or moved until a reviewer approves it.
     for r in records:
+        if r.status != "auto_processed":
+            continue
         if r.fletero and r.tariff_amount is not None:
             payment_by_fletero[r.fletero] += r.tariff_amount
         if r.material and r.inventory_quantity is not None:

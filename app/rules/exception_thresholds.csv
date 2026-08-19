@@ -10,3 +10,7 @@ unknown_tariff,,hard_block,No matching tariff rule for the classified trip_type/
 missing_weight_no_estimate,,hard_block,Weight missing and no applicable weight-estimation rule
 suspected_duplicate,,hard_block,Same folio+date+fletero+route seen before within the duplicate check window
 duplicate_check_window_days,7,config,Window (days) used for duplicate-boleta detection
+unknown_folio,,hard_block,Scanned QR/folio not found in any issued folio batch
+folio_already_used,,hard_block,Folio already linked to a different scanned record
+volumen_mismatch,,hard_block,Volumen Entregado differs from Volumen por Entregar by more than the tolerance
+volumen_mismatch_pct,10,config,Max percent difference between declared and actual volumen before flagging

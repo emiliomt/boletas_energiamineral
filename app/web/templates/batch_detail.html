@@ -44,7 +44,8 @@
     </table>
     {% else %}<p class="muted">Sin datos aún.</p>{% endif %}
 
-    <p><a href="/api/exports/csv?batch_id={{ batch.id }}">Exportar CSV</a> ·
+    <p><a href="/api/exports/xlsx?batch_id={{ batch.id }}">Exportar Excel (pagos)</a> ·
+       <a href="/api/exports/csv?batch_id={{ batch.id }}">Exportar CSV</a> ·
        <a href="/api/exports/json?batch_id={{ batch.id }}">Exportar JSON</a></p>
   </section>
 

@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Lotes de Folios — Boletas Energía Mineral{% endblock %}
+{% block content %}
+  <p><a href="/">&larr; Volver</a></p>
+  <h1>Lotes de Folios (QR)</h1>
+  <p class="muted">
+    Genera un lote de folios (con su código QR) para enviar al proveedor de
+    impresión. Cada boleta impresa incluirá su folio único y un QR — al
+    escanearse en el punto de entrega, el sistema valida que el folio
+    pertenezca a un lote emitido aquí.
+  </p>
+
+  {% if error %}
+  <div class="panel" style="border-color: var(--warn-text);"><p style="color: var(--warn-text);">{{ error }}</p></div>
+  {% endif %}
+
+  <section class="panel">
+    <h2>Nuevo lote de folios</h2>
+    <form method="post" action="/admin/folio-batches" class="review-form" id="folio-batch-form">
+      <label>Nombre del lote<input type="text" name="label" required></label>
+
+      <label>Modo
+        <select name="mode" id="mode-select" onchange="toggleMode()">
+          <option value="sequential">Secuencial (prefijo + número inicial + cantidad)</option>
+          <option value="imported">Lista pegada (folios ya existentes del proveedor)</option>
+        </select>
+      </label>
+
+      <div id="sequential-fields">
+        <label>Prefijo<input type="text" name="prefix" placeholder="B-"></label>
+        <label>Número inicial<input type="number" name="start_number" placeholder="3201"></label>
+        <label>Cantidad<input type="number" name="count" placeholder="200"></label>
+      </div>
+
+      <div id="imported-fields" style="display: none;">
+        <label>Folios (uno por línea)<textarea name="folios_text" rows="6" style="width: 100%; font-family: monospace;"></textarea></label>
+      </div>
+
+      <label>Proveedor de impresión (opcional)<input type="text" name="vendor"></label>
+      <label>Notas (opcional)<input type="text" name="notes"></label>
+      <label>Tu nombre<input type="text" name="created_by"></label>
+
+      <button type="submit">Crear lote</button>
+    </form>
+    <script>
+      function toggleMode() {
+        var mode = document.getElementById("mode-select").value;
+        document.getElementById("sequential-fields").style.display = mode === "sequential" ? "block" : "none";
+        document.getElementById("imported-fields").style.display = mode === "imported" ? "block" : "none";
+      }
+    </script>
+  </section>
+
+  <section class="panel">
+    <h2>Lotes existentes</h2>
+    {% if batches %}
+    <table>
+      <thead><tr><th>ID</th><th>Nombre</th><th>Modo</th><th>Total</th><th>Emitidos</th><th>Escaneados</th><th></th></tr></thead>
+      <tbody>
+        {% for batch in batches %}
+        {% set counts = counts_by_batch[batch.id] %}
+        <tr>
+          <td>{{ batch.id }}</td>
+          <td>{{ batch.label }}</td>
+          <td>{{ batch.mode }}</td>
+          <td>{{ batch.count }}</td>
+          <td>{{ counts.issued }}</td>
+          <td>{{ counts.scanned }}</td>
+          <td><a href="/admin/folio-batches/{{ batch.id }}">Ver / Descargar</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <p class="muted">Aún no hay lotes de folios.</p>
+    {% endif %}
+  </section>
+{% endblock %}

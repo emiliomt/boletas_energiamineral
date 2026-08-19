@@ -17,6 +17,7 @@ CSV_COLUMNS = [
     "material",
     "fletero",
     "weight",
+    "weight_declared",
     "weight_source",
     "trip_type",
     "tariff_amount",
