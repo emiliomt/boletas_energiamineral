@@ -18,11 +18,12 @@ from app.reporting.summary import build_batch_summary, build_overview
 from app.review.service import apply_review
 from app.schemas import ReviewCorrection
 
-from app.web.exception_display import describe_exceptions
+from app.web.exception_display import describe_exceptions, summarize_exceptions
 
 router = APIRouter(tags=["web"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
 templates.env.globals["describe_exceptions"] = describe_exceptions
+templates.env.globals["summarize_exceptions"] = summarize_exceptions
 _ocr_adapter = get_ocr_adapter()
 
 

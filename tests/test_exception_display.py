@@ -1,7 +1,7 @@
 """Exception codes are mapped to reviewer-friendly, severity-ranked display data."""
 from __future__ import annotations
 
-from app.web.exception_display import describe_exception, describe_exceptions
+from app.web.exception_display import describe_exception, describe_exceptions, summarize_exceptions
 
 
 def test_static_codes_map_to_severity_and_label():
@@ -41,3 +41,20 @@ def test_exceptions_sorted_most_important_first():
     severities = [e["severity"] for e in describe_exceptions(codes)]
     # alta entries first, then media, then baja
     assert severities == ["alta", "alta", "media", "baja"]
+
+
+def test_summarize_exceptions_rolls_up_counts_by_severity():
+    codes = [
+        "suspected_duplicate", "folio_already_used",  # 2 alta
+        "unknown_route", "unknown_tariff", "unknown_inventory_direction",  # 3 media
+        "low_ocr_confidence",  # 1 baja
+    ]
+    summary = summarize_exceptions(codes)
+    assert [(g["severity"], g["count"]) for g in summary] == [("alta", 2), ("media", 3), ("baja", 1)]
+    # full labels are retained (for a hover tooltip)
+    assert len(summary[0]["labels"]) == 2
+
+
+def test_summarize_exceptions_empty():
+    assert summarize_exceptions([]) == []
+    assert summarize_exceptions(None) == []

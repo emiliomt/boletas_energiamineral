@@ -32,6 +32,22 @@ body {
 .topbar nav a { margin-left: 1.25rem; text-decoration: none; color: var(--accent); }
 
 .container { max-width: 1000px; margin: 0 auto; padding: 1.5rem; }
+/* The boletas dashboard has many columns, so it gets a wider canvas. */
+.container-wide { max-width: 1360px; }
+
+/* Horizontally scrollable wrapper so a wide table never overflows the page. */
+.table-scroll { width: 100%; overflow-x: auto; }
+
+/* Compact, single-line table for the dashboard's many columns. */
+.dashboard-table { min-width: 1080px; font-size: 0.85rem; }
+.dashboard-table th, .dashboard-table td {
+  padding: 0.4rem 0.55rem;
+  white-space: nowrap;
+  vertical-align: top;
+}
+/* Compact per-severity count chips keep the exceptions column to one line. */
+.dashboard-table td.exc-cell { white-space: nowrap; }
+.dashboard-table td.exc-cell .exc-chip { font-size: 0.7rem; margin: 0.08rem; }
 
 .panel {
   background: var(--panel);

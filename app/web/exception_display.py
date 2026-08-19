@@ -61,3 +61,21 @@ def describe_exceptions(codes: list[str] | None) -> list[dict]:
     """Describes and sorts codes most-important-first (stable within a tier)."""
     described = [describe_exception(c) for c in (codes or [])]
     return sorted(described, key=lambda e: _SEVERITY_ORDER.get(e["severity"], 1))
+
+
+def summarize_exceptions(codes: list[str] | None) -> list[dict]:
+    """Compact per-severity rollup for dense tables: one entry per severity
+    present, with a count and the full labels (for a hover tooltip). Ordered
+    most-important-first. Keeps table rows short vs. listing every label."""
+    described = describe_exceptions(codes)
+    grouped: dict[str, dict] = {}
+    for e in described:
+        g = grouped.setdefault(e["severity"], {
+            "severity": e["severity"],
+            "severity_label": e["severity_label"],
+            "count": 0,
+            "labels": [],
+        })
+        g["count"] += 1
+        g["labels"].append(e["label"])
+    return sorted(grouped.values(), key=lambda g: _SEVERITY_ORDER.get(g["severity"], 1))

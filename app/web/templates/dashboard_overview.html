@@ -1,5 +1,6 @@
 {% extends "base.html" %}
 {% block title %}Tablero de Boletas — Boletas Energía Mineral{% endblock %}
+{% block container_class %}container-wide{% endblock %}
 {% block content %}
   <h1>Tablero de Boletas</h1>
   <p class="muted">Toda la información de las boletas subidas — la misma que se exporta a Excel — resumida antes de descargarla.</p>
@@ -45,8 +46,8 @@
       </span>
     </div>
     {% if overview.rows %}
-    <div style="overflow-x:auto;">
-    <table>
+    <div class="table-scroll">
+    <table class="dashboard-table">
       <thead>
         <tr>
           <th>Folio</th><th>Fecha</th><th>Lote</th><th>Ruta</th><th>Fletero</th>
@@ -69,8 +70,9 @@
           <td>{{ "%+.0f"|format(r.inventory_quantity) if r.inventory_quantity is not none else "—" }}</td>
           <td>{{ "%.0f"|format(r.confidence_score * 100) }}%</td>
           <td><span class="badge badge-{{ 'ok' if r.status == 'auto_processed' else 'warn' }}">{{ r.status }}</span></td>
-          <td>
-            {% for e in describe_exceptions(r.exceptions) %}<span class="exc-chip exc-{{ e.severity }}" title="{{ e.code }}">{{ e.label }}</span>{% endfor %}
+          <td class="exc-cell">
+            {% for g in summarize_exceptions(r.exceptions) %}<span class="exc-chip exc-{{ g.severity }}" title="{{ g.labels | join(' · ') }}">{{ g.count }} {{ g.severity_label }}</span>{% endfor %}
+            {% if not r.exceptions %}<span class="muted">—</span>{% endif %}
           </td>
           <td>{% if r.status == 'needs_review' %}<a href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
         </tr>
