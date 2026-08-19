@@ -17,6 +17,7 @@ from app.parsing.normalizers import parse_date
         ("Fecha: 19 Agosto 2026", "2026-08-19"),
         ("Fecha: 5-Ene-2026", "2026-01-05"),
         ("Fecha: 3 de diciembre de 2025", "2025-12-03"),
+        ("Fecha: 19/Agosto 12026", "2026-08-19"),  # OCR stray leading digit on the year
     ],
 )
 def test_parse_date_handles_numeric_and_textual_months(text, expected):

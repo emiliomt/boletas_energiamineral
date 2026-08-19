@@ -56,6 +56,16 @@ _LABEL_PATTERNS: dict[str, list[re.Pattern]] = {
     "material": [
         re.compile(r"(?:material|producto)[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE),
     ],
+    "proveedor": [
+        re.compile(r"proveedor[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE),
+    ],
+    "concesion_minera": [
+        re.compile(r"(?:datos\s+de\s+)?concesi[oó]n\s+minera[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE),
+    ],
+    "representante_legal": [
+        re.compile(r"representante\s+legal[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE),
+        re.compile(r"nombre[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE),
+    ],
 }
 
 # Known field labels on the boleta form. Used to truncate a captured value at
@@ -107,6 +117,9 @@ _TEXT_FIELDS = (
     "fletero",
     "truck_box_number",
     "material",
+    "proveedor",
+    "concesion_minera",
+    "representante_legal",
 )
 # Fields required for the exception evaluator / composite score -- keep in
 # sync with app/engines/exceptions.py's REQUIRED_FIELDS.
@@ -141,6 +154,9 @@ class ParsedFields:
     material: str | None = None
     fletero: str | None = None
     truck_box_number: str | None = None
+    proveedor: str | None = None
+    concesion_minera: str | None = None
+    representante_legal: str | None = None
     weight: float | None = None  # Volumen Entregado (actual) -- drives tariff/inventory
     weight_declared: float | None = None  # Volumen por Entregar (initial/planned)
     quality_data: dict[str, str] = field(default_factory=dict)

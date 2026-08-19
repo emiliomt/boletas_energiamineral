@@ -39,6 +39,9 @@ def _ensure_columns() -> None:
     expected: dict[str, dict[str, str]] = {
         "boleta_records": {
             "ocr_engine": "VARCHAR(64)",
+            "proveedor": "VARCHAR(255)",
+            "concesion_minera": "VARCHAR(255)",
+            "representante_legal": "VARCHAR(255)",
         },
         "folio_batches": {
             "proveedor": "VARCHAR(255)",

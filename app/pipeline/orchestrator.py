@@ -79,6 +79,9 @@ def process_boleta(db: Session, boleta: Boleta, ocr_adapter: OCRAdapter) -> Bole
     record.material = parsed.material
     record.fletero = parsed.fletero
     record.truck_box_number = parsed.truck_box_number
+    record.proveedor = parsed.proveedor
+    record.concesion_minera = parsed.concesion_minera
+    record.representante_legal = parsed.representante_legal
     record.weight = inventory.weight
     record.weight_declared = parsed.weight_declared
     record.weight_source = inventory.weight_source

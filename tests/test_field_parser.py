@@ -144,3 +144,18 @@ def test_quality_metrics_captured_best_effort():
     assert parsed.quality_data["poder_calorifico_superior"] == "5200"
     assert parsed.quality_data["humedad_pct"] == "4.3"
     assert parsed.quality_data["fsi"] == "6.5"
+
+
+def test_parses_proveedor_concesion_and_representante():
+    text = (
+        "Proveedor: ENERGIA MINERAL S.A. DE C.V.\n"
+        "Datos de Concesion Minera: Mota del cura y el Carrizo No.1T-198196\n"
+        "Nombre: Andres Montemayor Tatum\n"
+    )
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields(ocr)
+
+    assert parsed.proveedor.startswith("ENERGIA MINERAL")
+    assert parsed.concesion_minera == "Mota del cura y el Carrizo No.1T-198196"
+    assert parsed.representante_legal == "Andres Montemayor Tatum"

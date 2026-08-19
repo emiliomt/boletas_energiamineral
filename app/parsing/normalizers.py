@@ -32,10 +32,12 @@ _MONTHS = {
     "diciembre": 12, "dic": 12, "december": 12, "dec": 12,
 }
 # e.g. "19 de agosto de 2026", "19/Agosto/2026", "19-ago-2026", "19 agosto 2026".
-# Separator allows spaces, slashes, dashes and an optional "de".
+# Separator allows spaces, slashes, dashes and an optional "de". The year is
+# the last 4 digits of its run (\d*(\d{4})) so an OCR stray digit like
+# "19/Agosto 12026" still yields 2026.
 _TEXTUAL_SEP = r"[\s/\-]*(?:de\s+)?[\s/\-]*"
 _TEXTUAL_DATE_PATTERN = re.compile(
-    r"\b(\d{1,2})" + _TEXTUAL_SEP + r"([A-Za-zÁÉÍÓÚáéíóúñ]+)\.?" + _TEXTUAL_SEP + r"(\d{4})\b",
+    r"\b(\d{1,2})" + _TEXTUAL_SEP + r"([A-Za-zÁÉÍÓÚáéíóúñ]+)\.?" + _TEXTUAL_SEP + r"\d*(\d{4})\b",
     re.IGNORECASE,
 )
 

@@ -25,15 +25,38 @@
       {% endif %}
 
       <h2>Corregir campos</h2>
+      <p class="muted">Un campo por cada campo de la boleta; corrige lo que el OCR no haya leído bien.</p>
       <form method="post" action="/review/{{ record.id }}" class="review-form">
+        {% set q = record.quality_data or {} %}
         <label>Folio<input type="text" name="folio" value="{{ record.folio or '' }}"></label>
         <label>Fecha (YYYY-MM-DD)<input type="text" name="date" value="{{ record.date or '' }}"></label>
-        <label>Origen<input type="text" name="origin" value="{{ record.origin or '' }}"></label>
+        <label>Proveedor<input type="text" name="proveedor" value="{{ record.proveedor or '' }}"></label>
         <label>Destino<input type="text" name="destination" value="{{ record.destination or '' }}"></label>
+        <label>Contrato<input type="text" name="contract_number" value="{{ record.contract_number or '' }}"></label>
+        <label>Datos del chofer del camión (Fletero)<input type="text" name="fletero" value="{{ record.fletero or '' }}"></label>
+        <label>No. Caja<input type="text" name="truck_box_number" value="{{ record.truck_box_number or '' }}"></label>
+
+        <h3>Datos de la calidad del carbón</h3>
+        <label>Poder Calorífico Superior<input type="text" name="poder_calorifico_superior" value="{{ q.get('poder_calorifico_superior', '') }}"></label>
+        <label>% Humedad<input type="text" name="humedad_pct" value="{{ q.get('humedad_pct', '') }}"></label>
+        <label>% Ceniza<input type="text" name="ceniza_pct" value="{{ q.get('ceniza_pct', '') }}"></label>
+        <label>% Azufre<input type="text" name="azufre_pct" value="{{ q.get('azufre_pct', '') }}"></label>
+        <label>FSI<input type="text" name="fsi" value="{{ q.get('fsi', '') }}"></label>
+        <label>Granulometría<input type="text" name="granulometria" value="{{ q.get('granulometria', '') }}"></label>
+
+        <h3>Origen del carbón</h3>
+        <label>Centro de Explotación (Origen)<input type="text" name="origin" value="{{ record.origin or '' }}"></label>
+        <label>Centro de Acopio<input type="text" name="secondary_origin" value="{{ record.secondary_origin or '' }}"></label>
+        <label>Datos de Concesión Minera<input type="text" name="concesion_minera" value="{{ record.concesion_minera or '' }}"></label>
+
+        <h3>Volumen</h3>
+        <label>Volumen por Entregar<input type="text" name="weight_declared" value="{{ record.weight_declared or '' }}"></label>
+        <label>Volumen Entregado / Peso (kg)<input type="text" name="weight" value="{{ record.weight or '' }}"></label>
+
+        <label>Representante Legal (Nombre)<input type="text" name="representante_legal" value="{{ record.representante_legal or '' }}"></label>
         <label>Material<input type="text" name="material" value="{{ record.material or '' }}"></label>
-        <label>Fletero<input type="text" name="fletero" value="{{ record.fletero or '' }}"></label>
-        <label>Peso (kg)<input type="text" name="weight" value="{{ record.weight or '' }}"></label>
         <label>Tipo de viaje<input type="text" name="trip_type" value="{{ record.trip_type or '' }}"></label>
+
         <label>Tu nombre<input type="text" name="edited_by"></label>
         <label>Nota<input type="text" name="note"></label>
 

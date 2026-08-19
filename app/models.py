@@ -86,6 +86,9 @@ class BoletaRecord(Base):
     material: Mapped[str | None] = mapped_column(String(255), nullable=True)
     fletero: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Datos del chofer del camión
     truck_box_number: Mapped[str | None] = mapped_column(String(64), nullable=True)  # No. Caja
+    proveedor: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    concesion_minera: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Datos de Concesión Minera
+    representante_legal: Mapped[str | None] = mapped_column(String(255), nullable=True)  # Nombre (Representante Legal)
 
     weight: Mapped[float | None] = mapped_column(Float, nullable=True)  # Volumen Entregado (actual) -- drives tariff/inventory
     weight_declared: Mapped[float | None] = mapped_column(Float, nullable=True)  # Volumen por Entregar (initial/planned)

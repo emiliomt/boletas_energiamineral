@@ -94,6 +94,16 @@ def review_detail_web(request: Request, record_id: int, db: Session = Depends(ge
     return templates.TemplateResponse(request, "review_detail.html", {"record": record})
 
 
+def _num(value: str) -> float | None:
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
 @router.post("/review/{record_id}")
 def review_submit_web(
     request: Request,
@@ -103,12 +113,25 @@ def review_submit_web(
     note: str = Form(""),
     folio: str = Form(""),
     date: str = Form(""),
+    proveedor: str = Form(""),
     origin: str = Form(""),
+    secondary_origin: str = Form(""),
     destination: str = Form(""),
+    contract_number: str = Form(""),
+    concesion_minera: str = Form(""),
     material: str = Form(""),
     fletero: str = Form(""),
+    truck_box_number: str = Form(""),
+    weight_declared: str = Form(""),
     weight: str = Form(""),
+    representante_legal: str = Form(""),
     trip_type: str = Form(""),
+    poder_calorifico_superior: str = Form(""),
+    humedad_pct: str = Form(""),
+    ceniza_pct: str = Form(""),
+    azufre_pct: str = Form(""),
+    fsi: str = Form(""),
+    granulometria: str = Form(""),
     db: Session = Depends(get_db),
 ):
     record = db.get(BoletaRecord, record_id)
@@ -118,12 +141,25 @@ def review_submit_web(
         note=note or None,
         folio=folio or None,
         date=date or None,
+        proveedor=proveedor or None,
         origin=origin or None,
+        secondary_origin=secondary_origin or None,
         destination=destination or None,
+        contract_number=contract_number or None,
+        concesion_minera=concesion_minera or None,
         material=material or None,
         fletero=fletero or None,
-        weight=float(weight) if weight.strip() else None,
+        truck_box_number=truck_box_number or None,
+        weight_declared=_num(weight_declared),
+        weight=_num(weight),
+        representante_legal=representante_legal or None,
         trip_type=trip_type or None,
+        poder_calorifico_superior=poder_calorifico_superior or None,
+        humedad_pct=humedad_pct or None,
+        ceniza_pct=ceniza_pct or None,
+        azufre_pct=azufre_pct or None,
+        fsi=fsi or None,
+        granulometria=granulometria or None,
     )
     apply_review(db, record, correction)
     db.commit()

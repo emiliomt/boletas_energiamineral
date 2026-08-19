@@ -43,6 +43,9 @@ class BoletaRecordDetail(BoletaRecordOut):
     secondary_origin: str | None = None  # Centro de Acopio
     contract_number: str | None = None
     truck_box_number: str | None = None  # No. Caja
+    proveedor: str | None = None
+    concesion_minera: str | None = None  # Datos de Concesión Minera
+    representante_legal: str | None = None  # Nombre (Representante Legal)
     quality_data: dict[str, str] = {}
     matched_route_rule_id: int | None = None
     matched_tariff_rule_id: int | None = None
@@ -66,6 +69,22 @@ class ReviewCorrection(BaseModel):
     fletero: str | None = None
     weight: float | None = None
     trip_type: str | None = None
+
+    # Remaining boleta fields the reviewer can also correct.
+    secondary_origin: str | None = None  # Centro de Acopio
+    contract_number: str | None = None  # Contrato
+    truck_box_number: str | None = None  # No. Caja
+    weight_declared: float | None = None  # Volumen por Entregar
+    proveedor: str | None = None
+    concesion_minera: str | None = None  # Datos de Concesión Minera
+    representante_legal: str | None = None  # Nombre (Representante Legal)
+    # Coal-quality metrics (stored in BoletaRecord.quality_data).
+    poder_calorifico_superior: str | None = None
+    humedad_pct: str | None = None
+    ceniza_pct: str | None = None
+    azufre_pct: str | None = None
+    fsi: str | None = None
+    granulometria: str | None = None
 
 
 class BatchCreate(BaseModel):
