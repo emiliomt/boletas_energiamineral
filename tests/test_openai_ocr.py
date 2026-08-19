@@ -70,6 +70,48 @@ def test_openai_adapter_returns_transcription_that_parses(tmp_path, monkeypatch)
     assert parsed.weight == 900.0
 
 
+def test_openai_adapter_handles_object_transcription(tmp_path, monkeypatch):
+    # The model often returns `transcription` as a JSON object (label->value)
+    # rather than a newline string; the adapter must flatten it so parse_fields
+    # can read it (regression: it used to stringify the dict unparseably).
+    payload = {
+        "transcription": {
+            "Folio": "1000",
+            "Fecha": "19/Agosto/2026",
+            "Destino": "C.T. Jose Lopez Portillo",
+            "Datos del chofer del camion": "Luis Perez",
+            "Centro de Explotacion": "Tajo San Jose",
+            "Volumen Entregado": "800",
+        },
+        "confidence": 95,
+    }
+    _fake_openai(monkeypatch, content=json.dumps(payload))
+
+    result = OpenAIOCRAdapter(api_key="sk-test").extract(_img(tmp_path))
+    parsed = parse_fields(result)
+
+    assert parsed.folio == "1000"
+    assert parsed.date == "2026-08-19"
+    assert parsed.destination == "C.T. Jose Lopez Portillo"
+    assert parsed.fletero == "Luis Perez"
+    assert parsed.origin == "Tajo San Jose"
+    assert parsed.weight == 800.0
+
+
+def test_openai_adapter_handles_top_level_fields(tmp_path, monkeypatch):
+    # Defensive: fields returned at the top level (no "transcription" wrapper).
+    payload = {"Folio": "100", "Destino": "Planta Norte", "confidence": 88}
+    _fake_openai(monkeypatch, content=json.dumps(payload))
+
+    result = OpenAIOCRAdapter(api_key="sk-test").extract(_img(tmp_path))
+    parsed = parse_fields(result)
+
+    assert result.confidence == 88.0
+    assert parsed.folio == "100"
+    assert parsed.destination == "Planta Norte"
+    assert "confidence" not in result.text  # the confidence key isn't treated as a field
+
+
 def test_openai_adapter_sends_model_and_image(tmp_path, monkeypatch):
     calls = _fake_openai(monkeypatch, content=json.dumps({"transcription": "Folio: X", "confidence": 50}))
 

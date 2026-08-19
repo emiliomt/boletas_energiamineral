@@ -28,23 +28,54 @@ _MIME_BY_SUFFIX = {
 }
 
 # Labels must match app/parsing/field_parser.py so parse_fields() can read the
-# transcription back out. Blank fields are omitted rather than guessed.
+# transcription back out. The model returns a label->value object under
+# `transcription`; _transcription_to_text() flattens it to "Label: value" lines.
+_FIELD_LABELS = [
+    "Folio",
+    "Fecha",
+    "Proveedor",
+    "Destino",
+    "Contrato",
+    "Datos del chofer del camion",
+    "No. Caja",
+    "Poder Calorifico Superior",
+    "% Humedad",
+    "% Ceniza",
+    "% Azufre",
+    "FSI",
+    "Granulometria",
+    "Centro de Explotacion",
+    "Centro de Acopio",
+    "Datos de Concesion Minera",
+    "Volumen por Entregar",
+    "Volumen Entregado",
+    "Nombre",
+]
 _SYSTEM_PROMPT = (
     "You transcribe scanned/photographed Mexican coal-delivery boletas "
     '("REPORTE DE CALIDAD Y ORIGEN DEL CARBON"). Read ALL text including '
-    "handwriting. Return ONLY JSON: "
-    '{"transcription": "<lines>", "confidence": <0-100 integer>}. '
-    "In `transcription`, output one 'Label: value' line per field that has a "
-    "value (printed or handwritten), copying the value verbatim. Omit fields "
-    "that are blank. Use EXACTLY these labels when present:\n"
-    "Folio, Fecha, Proveedor, Destino, Contrato, "
-    "Datos del chofer del camion, No. Caja, "
-    "Poder Calorifico Superior, % Humedad, % Ceniza, % Azufre, FSI, "
-    "Granulometria, Centro de Explotacion, Centro de Acopio, "
-    "Datos de Concesion Minera, Volumen por Entregar, Volumen Entregado, "
-    "Nombre.\n"
-    "`confidence` is your overall transcription confidence."
+    "handwriting. Return ONLY JSON of the form "
+    '{"transcription": { "<Label>": "<value>", ... }, "confidence": <0-100 integer>}. '
+    "Include one entry for EVERY field that has a value (printed or "
+    "handwritten), copying the value verbatim; omit fields that are blank. "
+    "Use EXACTLY these label keys when present: " + ", ".join(_FIELD_LABELS) + ". "
+    "`confidence` is your overall transcription confidence (0-100)."
 )
+
+
+def _transcription_to_text(raw: object) -> str:
+    """Normalizes the model's `transcription` into the 'Label: value' line
+    format app/parsing/field_parser.py expects. The model may return it as a
+    JSON object (label->value), as an already-formatted string, or (defensively)
+    the fields may arrive at the top level; all become one labeled line each."""
+    if isinstance(raw, dict):
+        lines = []
+        for label, value in raw.items():
+            if value in (None, "", [], {}):
+                continue
+            lines.append(f"{label}: {value}")
+        return "\n".join(lines)
+    return str(raw or "").strip()
 
 
 class OpenAIError(RuntimeError):
@@ -96,9 +127,19 @@ class OpenAIOCRAdapter(OCRAdapter):
         except json.JSONDecodeError as exc:
             raise OpenAIError(f"OpenAI returned non-JSON content: {content[:200]!r}") from exc
 
-        text = str(payload.get("transcription", "")).strip()
+        if not isinstance(payload, dict):
+            raise OpenAIError(f"OpenAI returned unexpected JSON: {content[:200]!r}")
+
+        raw_conf = payload.get("confidence")
+        raw_transcription = payload.get("transcription")
+        if raw_transcription is None:
+            # Defensive: some responses put the fields at the top level instead
+            # of nesting them under "transcription".
+            raw_transcription = {k: v for k, v in payload.items() if k.lower() != "confidence"}
+
+        text = _transcription_to_text(raw_transcription)
         try:
-            confidence = float(payload.get("confidence", 0))
+            confidence = float(raw_conf if raw_conf is not None else 0)
         except (TypeError, ValueError):
             confidence = 0.0
         confidence = max(0.0, min(100.0, confidence))
