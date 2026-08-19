@@ -195,6 +195,26 @@ class FolioBatch(Base):
     created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
 
+    # Batch-level boleta data entered ONLINE before printing. These are
+    # constant for every boleta in the lote (same contract/route/quality
+    # spec/origin), so they get pre-printed onto each generated boleta page
+    # (see app/qr/batch_pdf.py). The remaining per-trip fields (fecha, chofer,
+    # no. caja, volúmenes, firma) are left blank to be filled by hand at the
+    # delivery point and OCR'd back when the boleta is scanned.
+    proveedor: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    destino: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contrato: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    poder_calorifico_superior: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    humedad_pct: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    ceniza_pct: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    azufre_pct: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fsi: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    granulometria: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    centro_explotacion: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    centro_acopio: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    concesion_minera: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    representante_legal: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
     folios: Mapped[list["Folio"]] = relationship(back_populates="folio_batch", cascade="all, delete-orphan")
 
 

@@ -36,6 +36,34 @@
         <label>Folios (uno por línea)<textarea name="folios_text" rows="6" style="width: 100%; font-family: monospace;"></textarea></label>
       </div>
 
+      <fieldset style="margin-top: 1rem;">
+        <legend>Datos de la boleta (se imprimen en cada folio del lote)</legend>
+        <p class="muted">
+          Estos datos son iguales para todo el lote y se imprimen en cada
+          boleta. La fecha, datos del chofer, No. de caja, volúmenes y la firma
+          se llenan a mano en el punto de entrega y se leen por OCR al escanear.
+        </p>
+
+        <label>Proveedor<input type="text" name="proveedor" value="ENERGIA MINERAL, S.A. DE C.V."></label>
+        <label>Destino<input type="text" name="destino"></label>
+        <label>Contrato<input type="text" name="contrato"></label>
+
+        <h3>Datos de la calidad del carbón a suministrar</h3>
+        <label>Poder Calorífico Superior<input type="text" name="poder_calorifico_superior"></label>
+        <label>% Humedad<input type="text" name="humedad_pct"></label>
+        <label>% Ceniza<input type="text" name="ceniza_pct"></label>
+        <label>% Azufre<input type="text" name="azufre_pct"></label>
+        <label>FSI<input type="text" name="fsi"></label>
+        <label>Granulometría<input type="text" name="granulometria"></label>
+
+        <h3>Origen del carbón</h3>
+        <label>Centro de Explotación<input type="text" name="centro_explotacion"></label>
+        <label>Centro de Acopio<input type="text" name="centro_acopio"></label>
+        <label>Datos de Concesión Minera<input type="text" name="concesion_minera"></label>
+
+        <label>Representante Legal (Nombre)<input type="text" name="representante_legal"></label>
+      </fieldset>
+
       <label>Proveedor de impresión (opcional)<input type="text" name="vendor"></label>
       <label>Notas (opcional)<input type="text" name="notes"></label>
       <label>Tu nombre<input type="text" name="created_by"></label>

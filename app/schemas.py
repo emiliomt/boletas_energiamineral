@@ -109,6 +109,21 @@ class FolioBatchCreate(BaseModel):
     notes: str | None = None
     created_by: str | None = None
 
+    # Batch-level boleta data entered online, pre-printed on every folio.
+    proveedor: str | None = None
+    destino: str | None = None
+    contrato: str | None = None
+    poder_calorifico_superior: str | None = None
+    humedad_pct: str | None = None
+    ceniza_pct: str | None = None
+    azufre_pct: str | None = None
+    fsi: str | None = None
+    granulometria: str | None = None
+    centro_explotacion: str | None = None
+    centro_acopio: str | None = None
+    concesion_minera: str | None = None
+    representante_legal: str | None = None
+
     @model_validator(mode="after")
     def _check_mode_fields(self) -> "FolioBatchCreate":
         if self.mode == "sequential":
@@ -131,6 +146,20 @@ class FolioBatchOut(BaseModel):
     notes: str | None = None
     created_by: str | None = None
     created_at: dt.datetime
+
+    proveedor: str | None = None
+    destino: str | None = None
+    contrato: str | None = None
+    poder_calorifico_superior: str | None = None
+    humedad_pct: str | None = None
+    ceniza_pct: str | None = None
+    azufre_pct: str | None = None
+    fsi: str | None = None
+    granulometria: str | None = None
+    centro_explotacion: str | None = None
+    centro_acopio: str | None = None
+    concesion_minera: str | None = None
+    representante_legal: str | None = None
 
 
 class FolioBatchDetail(FolioBatchOut):

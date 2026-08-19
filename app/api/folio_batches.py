@@ -24,6 +24,23 @@ def _status_counts(db: Session, folio_batch_id: int) -> dict[str, int]:
     return counts
 
 
+_ONLINE_FIELDS = (
+    "proveedor",
+    "destino",
+    "contrato",
+    "poder_calorifico_superior",
+    "humedad_pct",
+    "ceniza_pct",
+    "azufre_pct",
+    "fsi",
+    "granulometria",
+    "centro_explotacion",
+    "centro_acopio",
+    "concesion_minera",
+    "representante_legal",
+)
+
+
 def _to_detail(db: Session, batch: FolioBatch) -> FolioBatchDetail:
     counts = _status_counts(db, batch.id)
     return FolioBatchDetail(
@@ -38,6 +55,7 @@ def _to_detail(db: Session, batch: FolioBatch) -> FolioBatchDetail:
         issued_count=counts["issued"],
         scanned_count=counts["scanned"],
         void_count=counts["void"],
+        **{f: getattr(batch, f) for f in _ONLINE_FIELDS},
     )
 
 
@@ -74,6 +92,7 @@ def create_folio_batch(payload: FolioBatchCreate, db: Session = Depends(get_db))
         vendor=payload.vendor,
         notes=payload.notes,
         created_by=payload.created_by,
+        **{f: getattr(payload, f) for f in _ONLINE_FIELDS},
     )
     db.add(batch)
     db.flush()
