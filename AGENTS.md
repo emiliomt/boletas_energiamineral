@@ -61,9 +61,20 @@ contains the README).
 - There is **no configured linter** (no ruff/flake8/pre-commit); the README only
   documents `pytest`. `python -m compileall app scripts` works as a syntax check.
 
+### OCR backend
+- `OCR_BACKEND` selects the OCR engine (`app/ocr/factory.py`): `tesseract`
+  (offline), `openai` (vision model, best on handwriting/photos), or `auto`
+  (default: Tesseract, escalating to OpenAI only when `OPENAI_API_KEY` is set
+  AND Tesseract confidence is low). With no key, `auto` behaves like Tesseract,
+  so behavior is unchanged out of the box.
+- `OPENAI_API_KEY` IS present in this VM's env, so `auto`/`openai` make real
+  OpenAI calls (cost + ~5-10s latency per boleta). The test suite never calls
+  the API — `tests/test_openai_ocr.py` monkeypatches the client.
+
 ### Notes
 - `scripts/init_db.py` creates the SQLite schema and loads the CSV rule config;
-  it is idempotent. The SQLite file (`data/boletas.db`) and uploaded scans under
-  `data/originals/` are gitignored runtime data.
+  it is idempotent, and also backfills newly added `folio_batches` columns via
+  `ALTER TABLE` (see `app/db._ensure_columns`). The SQLite file
+  (`data/boletas.db`) and uploaded scans under `data/originals/` are gitignored.
 - A `Dockerfile` exists for Railway/PaaS deployment (installs the same system
   deps); it is not used by the Cloud Agent dev environment.
