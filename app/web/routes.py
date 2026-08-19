@@ -14,7 +14,7 @@ from app.ingestion.storage import store_upload
 from app.models import Batch, Boleta, BoletaRecord, FolioBatch
 from app.ocr.factory import get_ocr_adapter
 from app.pipeline.orchestrator import process_boleta
-from app.reporting.summary import build_batch_summary
+from app.reporting.summary import build_batch_summary, build_overview
 from app.review.service import apply_review
 from app.schemas import ReviewCorrection
 
@@ -43,6 +43,37 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "review_count": review_count,
             "total_count": total_count,
             "folio_batches": folio_batches,
+        },
+    )
+
+
+@router.get("/dashboard")
+def dashboard_overview(
+    request: Request,
+    batch_id: int | None = None,
+    status: str | None = None,
+    fletero: str | None = None,
+    db: Session = Depends(get_db),
+):
+    overview = build_overview(db, batch_id=batch_id, status=status or None, fletero=fletero or None)
+    batches = db.query(Batch).order_by(Batch.id.desc()).all()
+    fleteros = [
+        f for (f,) in db.query(BoletaRecord.fletero)
+        .filter(BoletaRecord.fletero.isnot(None))
+        .distinct()
+        .order_by(BoletaRecord.fletero)
+        .all()
+    ]
+    return templates.TemplateResponse(
+        request,
+        "dashboard_overview.html",
+        {
+            "overview": overview,
+            "batches": batches,
+            "fleteros": fleteros,
+            "selected_batch_id": batch_id,
+            "selected_status": status or "",
+            "selected_fletero": fletero or "",
         },
     )
 
