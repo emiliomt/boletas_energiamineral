@@ -85,6 +85,56 @@ def test_bare_volumen_number_captured_without_unit():
     assert parsed.weight_declared == 9200.0
 
 
+# OCR of a freshly generated boleta that has NOT been filled in by hand yet:
+# every field is blank, and (per app/qr/batch_pdf.py's layout) some labels
+# share a line ("Destino:" + "Contrato:") while others are followed by the
+# next field's label on the next line. None of these labels are values.
+BLANK_GENERATED_BOLETA_TEXT = """\
+REPORTE DE CALIDAD Y ORIGEN DEL CARBON
+Folio: B-9001
+Fecha:
+Proveedor: ENERGIA MINERAL, S.A. DE C.V.
+Destino: Contrato:
+Datos del chofer del camion:
+No. Caja:
+ORIGEN DEL CARBON
+Centro de Explotacion:
+Centro de Acopio:
+Volumen por Entregar: Volumen Entregado:
+"""
+
+
+def test_blank_generated_boleta_stores_no_bogus_field_values():
+    # Regression: scanning a blank generated boleta used to store adjacent
+    # field *labels* as values (origin="Centro de Acopio", destination=
+    # "Contrato", fletero="No. Caja"). Empty fields must parse as None.
+    ocr = _fake_ocr_result(BLANK_GENERATED_BOLETA_TEXT)
+
+    parsed = parse_fields(ocr)
+
+    assert parsed.folio == "B-9001"  # the one real datum, from the QR/label
+    assert parsed.origin is None
+    assert parsed.secondary_origin is None
+    assert parsed.destination is None
+    assert parsed.contract_number is None
+    assert parsed.fletero is None
+    assert parsed.truck_box_number is None
+    assert parsed.weight is None
+    assert parsed.weight_declared is None
+
+
+def test_same_line_label_pair_does_not_bleed_into_value():
+    # "Destino: Planta Norte Contrato: C-1234" on one line -> destination is
+    # just "Planta Norte" (the trailing "Contrato:" label is cut off).
+    text = "Destino: Planta Norte Contrato: C-1234\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields(ocr)
+
+    assert parsed.destination == "Planta Norte"
+    assert parsed.contract_number == "C-1234"
+
+
 def test_quality_metrics_captured_best_effort():
     text = "Poder Calorifico Superior: 5200\n% Humedad: 4.3\nFSI: 6.5\n"
     ocr = _fake_ocr_result(text)
