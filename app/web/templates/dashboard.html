@@ -39,22 +39,28 @@
   <section class="panel">
     <h2>Lotes</h2>
     {% if batches %}
-    <table>
-      <thead>
-        <tr><th>ID</th><th>Nombre</th><th>Estado</th><th>Creado por</th><th></th></tr>
-      </thead>
-      <tbody>
-        {% for batch in batches %}
-        <tr>
-          <td>{{ batch.id }}</td>
-          <td>{{ batch.label }}</td>
-          <td>{{ batch.status }}</td>
-          <td>{{ batch.created_by or "—" }}</td>
-          <td><a href="/batches/{{ batch.id }}">Ver / Subir boletas</a></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <form method="post" action="/batches/delete" onsubmit="return confirm('¿Borrar los lotes seleccionados? Se eliminarán sus boletas procesadas. Esta acción no se puede deshacer.');">
+      <table>
+        <thead>
+          <tr><th></th><th>ID</th><th>Nombre</th><th>Estado</th><th>Creado por</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for batch in batches %}
+          <tr>
+            <td><input type="checkbox" name="ids" value="{{ batch.id }}"></td>
+            <td>{{ batch.id }}</td>
+            <td>{{ batch.label }}</td>
+            <td>{{ batch.status }}</td>
+            <td>{{ batch.created_by or "—" }}</td>
+            <td><a href="/batches/{{ batch.id }}">Ver / Subir boletas</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="review-actions">
+        <button type="submit" class="btn-danger">Borrar seleccionados</button>
+      </div>
+    </form>
     {% else %}
     <p class="muted">Aún no hay lotes. Crea uno arriba para empezar a subir boletas.</p>
     {% endif %}

@@ -125,6 +125,16 @@ def create_folio_batch_web(
     return RedirectResponse(url=f"/admin/folio-batches/{batch.id}", status_code=303)
 
 
+@router.post("/delete")
+def delete_folio_batches_web(ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+    """Deletes selected Lotes de Folios; their folios cascade-delete."""
+    if ids:
+        for batch in db.query(FolioBatch).filter(FolioBatch.id.in_(ids)).all():
+            db.delete(batch)  # cascades to its Folios
+        db.commit()
+    return RedirectResponse(url="/admin/folio-batches", status_code=303)
+
+
 @router.get("/{folio_batch_id}")
 def folio_batch_detail_web(request: Request, folio_batch_id: int, db: Session = Depends(get_db)):
     batch = db.get(FolioBatch, folio_batch_id)

@@ -3,15 +3,18 @@ dependency, so it works fully offline) backed by the same DB and services
 the JSON API uses."""
 from __future__ import annotations
 
+import shutil
+
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.config import BASE_DIR
+from app.config import BASE_DIR, settings
 from app.db import get_db
+from app.engines.folio_registry import unlink_folio
 from app.ingestion.storage import store_upload
-from app.models import Batch, Boleta, BoletaRecord, FolioBatch
+from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch
 from app.ocr.factory import get_ocr_adapter
 from app.pipeline.orchestrator import process_boleta
 from app.reporting.summary import build_batch_summary, build_overview
@@ -88,6 +91,33 @@ def create_batch_web(label: str = Form(...), created_by: str = Form(""), db: Ses
     db.add(batch)
     db.commit()
     return RedirectResponse(url=f"/batches/{batch.id}", status_code=303)
+
+
+def _delete_batches(db: Session, ids: list[int]) -> None:
+    """Deletes scanning lotes (proyectos) and everything under them: boletas
+    (which cascade-delete their record + audits), any issued folio linked to
+    those records is unlinked back to 'issued', and the stored scan files are
+    removed."""
+    boletas = db.query(Boleta).filter(Boleta.batch_id.in_(ids)).all()
+    record_ids = [b.record.id for b in boletas if b.record]
+    if record_ids:
+        for folio in db.query(Folio).filter(Folio.boleta_record_id.in_(record_ids)).all():
+            unlink_folio(folio)
+    for boleta in boletas:
+        db.delete(boleta)  # cascades to BoletaRecord -> ReviewAudit
+    db.query(Batch).filter(Batch.id.in_(ids)).delete(synchronize_session=False)
+    for batch_id in ids:
+        batch_dir = settings.originals_dir / str(batch_id)
+        if batch_dir.exists():
+            shutil.rmtree(batch_dir, ignore_errors=True)
+
+
+@router.post("/batches/delete")
+def delete_batches_web(ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+    if ids:
+        _delete_batches(db, ids)
+        db.commit()
+    return RedirectResponse(url="/", status_code=303)
 
 
 @router.get("/batches/{batch_id}")

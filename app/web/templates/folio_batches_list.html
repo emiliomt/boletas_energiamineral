@@ -82,23 +82,29 @@
   <section class="panel">
     <h2>Lotes existentes</h2>
     {% if batches %}
-    <table>
-      <thead><tr><th>ID</th><th>Nombre</th><th>Modo</th><th>Total</th><th>Emitidos</th><th>Escaneados</th><th></th></tr></thead>
-      <tbody>
-        {% for batch in batches %}
-        {% set counts = counts_by_batch[batch.id] %}
-        <tr>
-          <td>{{ batch.id }}</td>
-          <td>{{ batch.label }}</td>
-          <td>{{ batch.mode }}</td>
-          <td>{{ batch.count }}</td>
-          <td>{{ counts.issued }}</td>
-          <td>{{ counts.scanned }}</td>
-          <td><a href="/admin/folio-batches/{{ batch.id }}">Ver / Descargar</a></td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <form method="post" action="/admin/folio-batches/delete" onsubmit="return confirm('¿Borrar los lotes de folios seleccionados? Se eliminarán todos sus folios. Esta acción no se puede deshacer.');">
+      <table>
+        <thead><tr><th></th><th>ID</th><th>Nombre</th><th>Modo</th><th>Total</th><th>Emitidos</th><th>Escaneados</th><th></th></tr></thead>
+        <tbody>
+          {% for batch in batches %}
+          {% set counts = counts_by_batch[batch.id] %}
+          <tr>
+            <td><input type="checkbox" name="ids" value="{{ batch.id }}"></td>
+            <td>{{ batch.id }}</td>
+            <td>{{ batch.label }}</td>
+            <td>{{ batch.mode }}</td>
+            <td>{{ batch.count }}</td>
+            <td>{{ counts.issued }}</td>
+            <td>{{ counts.scanned }}</td>
+            <td><a href="/admin/folio-batches/{{ batch.id }}">Ver / Descargar</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      <div class="review-actions">
+        <button type="submit" class="btn-danger">Borrar seleccionados</button>
+      </div>
+    </form>
     {% else %}
     <p class="muted">Aún no hay lotes de folios.</p>
     {% endif %}
