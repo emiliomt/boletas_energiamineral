@@ -1,0 +1,13 @@
+# PLACEHOLDER SAMPLE DATA — replace with the client's real transportista roster
+# before production use. One row per alias; canonical_name is repeated across
+# each of its aliases' rows and becomes Transportista.canonical_name.
+# alias is normalized on load (parenthetical notes and phone-number-like digit
+# runs are stripped) before being stored/matched -- do not pre-strip it yourself.
+# active (optional, defaults true) disables a single bad/duplicate alias row
+# without deleting it (keeps the CSV as an audit trail).
+canonical_name,alias,active
+ABREGO O TRANSPORTES MAU,ABREGO O TRANSPORTES MAU,true
+ABREGO O TRANSPORTES MAU,TRANSPORTES MAU,true
+CAMAGO,camago,true
+CAMAGO,CAMAGO,true
+POLO RODRIGUEZ,POLO RODRIGUEZ (8641006935),true

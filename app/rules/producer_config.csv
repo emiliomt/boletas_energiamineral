@@ -1,0 +1,8 @@
+# PLACEHOLDER SAMPLE DATA — replace with the client's real producers before production use.
+# name is the natural key (must be unique). format_id is the paper-layout id used
+# for per-producer template matching starting in Phase 4 (leave blank until then).
+# default_origin feeds Entrada classification in Phase 2 (leave blank until then).
+name,format_id,default_origin,active
+Bradfort,,,true
+CTU/MINSA,,,true
+Proveedor Externo Norte,,,true

@@ -57,3 +57,18 @@ def best_fuzzy_match(value: str, choices: list[str], score_cutoff: float = 80.0)
         return None
     choice, score, _idx = result
     return choice, score / 100.0
+
+
+_PAREN_RE = re.compile(r"\([^)]*\)")
+_PHONE_DIGITS_RE = re.compile(r"\b\d{7,}\b")  # bare 7+ digit runs (phone-like)
+
+
+def normalize_alias_text(value: str) -> str:
+    """Strips parenthetical notes (e.g. phone numbers in parens) and bare
+    phone-number-like digit runs from a raw transportista alias string,
+    then collapses whitespace via clean_text. Used both when loading
+    transportista_roster.csv and when resolving a raw name against the
+    alias registry, so both sides compare on the same normalized form."""
+    value = _PAREN_RE.sub(" ", value)
+    value = _PHONE_DIGITS_RE.sub(" ", value)
+    return clean_text(value)

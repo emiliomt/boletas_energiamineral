@@ -6,7 +6,16 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models import ExceptionThreshold, RouteRule, TariffRule, WeightEstimationRule
+from app.models import (
+    ExceptionThreshold,
+    PricingRule,
+    Producer,
+    RouteRule,
+    TariffRule,
+    Transportista,
+    TransportistaAlias,
+    WeightEstimationRule,
+)
 from app.rules.config_loader import reload_all
 
 router = APIRouter(prefix="/api/config", tags=["config"])
@@ -34,6 +43,26 @@ def get_weights(db: Session = Depends(get_db)) -> list[dict]:
 @router.get("/thresholds")
 def get_thresholds_config(db: Session = Depends(get_db)) -> list[dict]:
     return [_as_dict(t) for t in db.query(ExceptionThreshold).order_by(ExceptionThreshold.condition_key).all()]
+
+
+@router.get("/producers")
+def get_producers(db: Session = Depends(get_db)) -> list[dict]:
+    return [_as_dict(p) for p in db.query(Producer).order_by(Producer.name).all()]
+
+
+@router.get("/transportistas")
+def get_transportistas(db: Session = Depends(get_db)) -> list[dict]:
+    return [_as_dict(t) for t in db.query(Transportista).order_by(Transportista.canonical_name).all()]
+
+
+@router.get("/transportista-aliases")
+def get_transportista_aliases(db: Session = Depends(get_db)) -> list[dict]:
+    return [_as_dict(a) for a in db.query(TransportistaAlias).order_by(TransportistaAlias.alias_text).all()]
+
+
+@router.get("/pricing-rules")
+def get_pricing_rules(db: Session = Depends(get_db)) -> list[dict]:
+    return [_as_dict(r) for r in db.query(PricingRule).order_by(PricingRule.rule_id).all()]
 
 
 @router.post("/reload")

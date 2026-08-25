@@ -73,6 +73,11 @@ class BoletaRecord(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     boleta_id: Mapped[int] = mapped_column(ForeignKey("boletas.id"), unique=True)
 
+    kind: Mapped[str] = mapped_column(String(16), default="salida")  # entrada|salida
+    producer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("producers.id"), nullable=True
+    )  # set for kind=entrada, Phase 2+
+
     ocr_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
 
@@ -174,6 +179,75 @@ class WeightEstimationRule(Base):
     material: Mapped[str | None] = mapped_column(String(255), nullable=True)
     estimated_weight_kg: Mapped[float] = mapped_column(Float)
     conditions: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class Producer(Base):
+    """Config table: an Entrada producer/contract (e.g. "Bradfort",
+    "CTU/MINSA"). format_id feeds per-producer template matching (Phase 4);
+    default_origin feeds Entrada classification (Phase 2). Both inert in
+    Phase 1."""
+
+    __tablename__ = "producers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, index=True)  # natural key
+    format_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    default_origin: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class Transportista(Base):
+    """Config table: a canonical transportista identity. Aliases
+    (handwriting/spelling variants) live in TransportistaAlias."""
+
+    __tablename__ = "transportistas"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    canonical_name: Mapped[str] = mapped_column(String(255), unique=True, index=True)  # natural key
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    aliases: Mapped[list["TransportistaAlias"]] = relationship(
+        back_populates="transportista", cascade="all, delete-orphan"
+    )
+
+
+class TransportistaAlias(Base):
+    """One normalized alias string for a Transportista, loaded from
+    transportista_roster.csv (one row per alias). alias_text is stored
+    already normalized (parens/phone-number digit runs stripped — see
+    app/parsing/normalizers.normalize_alias_text) so lookups compare like
+    for like; raw_alias_text keeps the original for audit."""
+
+    __tablename__ = "transportista_aliases"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    transportista_id: Mapped[int] = mapped_column(ForeignKey("transportistas.id"))
+    alias_text: Mapped[str] = mapped_column(String(255), unique=True, index=True)  # normalized, natural key
+    raw_alias_text: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    transportista: Mapped["Transportista"] = relationship(back_populates="aliases")
+
+
+class PricingRule(Base):
+    """Config table: a per-trip pricing rate (flat or weight-multiplied)
+    with an effective date range. Deliberately separate from TariffRule
+    (Salida-era, keyed by trip_type/distance_band) -- see PRD Phase 1 §5.5.
+    `scope` is a plain string (origin name or Producer.name, interpretation
+    depends on `kind`) -- whether it becomes a strict FK for Entradas is an
+    open question for Phase 2/3 (PRD §11)."""
+
+    __tablename__ = "pricing_rules"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    rule_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)  # natural key
+    scope: Mapped[str] = mapped_column(String(255), index=True)
+    pricing_mode: Mapped[str] = mapped_column(String(16))  # flat|per_weight
+    rate: Mapped[float] = mapped_column(Float)  # flat MXN amount, or MXN per ton for per_weight
+    currency: Mapped[str] = mapped_column(String(8), default="MXN")  # added for TariffRule-consistency
+    effective_from: Mapped[str] = mapped_column(String(32))  # ISO YYYY-MM-DD, matches BoletaRecord.date convention
+    effective_to: Mapped[str | None] = mapped_column(String(32), nullable=True)  # null = open-ended
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Generator
 
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, inspect, text
 from sqlalchemy.orm import DeclarativeBase, Session, sessionmaker
 
 from app.config import settings
@@ -26,6 +26,38 @@ def get_db() -> Generator[Session, None, None]:
         db.close()
 
 
+def _ensure_columns(table_name: str) -> None:
+    """Additive-only column migration for a table that may already exist
+    from before this column was added to the model. Base.metadata.create_all()
+    only creates missing TABLES, not missing COLUMNS on tables that already
+    exist -- this fills that gap for in-place upgrades of an existing DB.
+    New tables need no entry here; create_all() creates those in full.
+    Not a general migration framework (no down-migrations, no type changes,
+    no drops) -- if schema evolution needs grow past simple additive
+    columns, adopt Alembic.
+    """
+    import app.models  # noqa: F401  (register models on Base.metadata)
+
+    inspector = inspect(engine)
+    if table_name not in inspector.get_table_names():
+        return  # brand-new table -- create_all() already created it in full
+    table = Base.metadata.tables[table_name]
+    existing_cols = {c["name"] for c in inspector.get_columns(table_name)}
+    with engine.begin() as conn:
+        for column in table.columns:
+            if column.name in existing_cols:
+                continue
+            col_type = column.type.compile(dialect=engine.dialect)
+            ddl = f"ALTER TABLE {table_name} ADD COLUMN {column.name} {col_type}"
+            if column.default is not None and getattr(column.default, "is_scalar", False):
+                default_value = column.default.arg
+                literal = f"'{default_value}'" if isinstance(default_value, str) else str(default_value)
+                ddl += f" DEFAULT {literal}"
+            if not column.nullable:
+                ddl += " NOT NULL"
+            conn.execute(text(ddl))
+
+
 def init_db() -> None:
     """Create all tables and (re)load the rule config CSVs. Idempotent —
     safe to call on every startup; config rows are upserted by natural key,
@@ -33,7 +65,8 @@ def init_db() -> None:
     settings.ensure_dirs()
     import app.models  # noqa: F401  (register models on Base.metadata)
 
-    Base.metadata.create_all(bind=engine)
+    Base.metadata.create_all(bind=engine)  # creates producers, transportistas, transportista_aliases, pricing_rules
+    _ensure_columns("boleta_records")  # additive migration: kind, producer_id on pre-existing DBs
 
     from app.rules.config_loader import reload_all  # deferred: avoids a circular import
 
