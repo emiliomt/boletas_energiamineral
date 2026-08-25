@@ -3,24 +3,31 @@ dependency, so it works fully offline) backed by the same DB and services
 the JSON API uses."""
 from __future__ import annotations
 
+import shutil
+
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
-from app.config import BASE_DIR
+from app.config import BASE_DIR, settings
 from app.db import get_db
+from app.engines.folio_registry import unlink_folio
 from app.ingestion.storage import store_upload
-from app.models import Batch, Boleta, BoletaRecord
-from app.ocr.tesseract_adapter import TesseractOCRAdapter
+from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch
+from app.ocr.factory import get_ocr_adapter
 from app.pipeline.orchestrator import process_boleta
-from app.reporting.summary import build_batch_summary
+from app.reporting.summary import build_batch_summary, build_overview
 from app.review.service import apply_review
 from app.schemas import ReviewCorrection
 
+from app.web.exception_display import describe_exceptions, summarize_exceptions
+
 router = APIRouter(tags=["web"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
-_ocr_adapter = TesseractOCRAdapter()
+templates.env.globals["describe_exceptions"] = describe_exceptions
+templates.env.globals["summarize_exceptions"] = summarize_exceptions
+_ocr_adapter = get_ocr_adapter()
 
 
 @router.get("/")
@@ -28,10 +35,53 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     batches = db.query(Batch).order_by(Batch.id.desc()).all()
     review_count = db.query(BoletaRecord).filter(BoletaRecord.status == "needs_review").count()
     total_count = db.query(BoletaRecord).count()
+    # The "Nuevo lote" name is chosen from the registered folio batches
+    # (Lotes de Folios) rather than typed freehand, so a scanning batch is
+    # always tied to a lote that was actually issued/registered.
+    folio_batches = db.query(FolioBatch).order_by(FolioBatch.id.desc()).all()
     return templates.TemplateResponse(
         request,
         "dashboard.html",
-        {"batches": batches, "review_count": review_count, "total_count": total_count},
+        {
+            "batches": batches,
+            "review_count": review_count,
+            "total_count": total_count,
+            "folio_batches": folio_batches,
+        },
+    )
+
+
+@router.get("/dashboard")
+def dashboard_overview(
+    request: Request,
+    # Strings (not int) so the filter form's empty "Todos los lotes" option
+    # (value="") doesn't 422 on int parsing; parsed to int below when present.
+    batch_id: str = "",
+    status: str = "",
+    fletero: str = "",
+    db: Session = Depends(get_db),
+):
+    selected_batch_id = int(batch_id) if batch_id.strip().isdigit() else None
+    overview = build_overview(db, batch_id=selected_batch_id, status=status or None, fletero=fletero or None)
+    batches = db.query(Batch).order_by(Batch.id.desc()).all()
+    fleteros = [
+        f for (f,) in db.query(BoletaRecord.fletero)
+        .filter(BoletaRecord.fletero.isnot(None))
+        .distinct()
+        .order_by(BoletaRecord.fletero)
+        .all()
+    ]
+    return templates.TemplateResponse(
+        request,
+        "dashboard_overview.html",
+        {
+            "overview": overview,
+            "batches": batches,
+            "fleteros": fleteros,
+            "selected_batch_id": selected_batch_id,
+            "selected_status": status or "",
+            "selected_fletero": fletero or "",
+        },
     )
 
 
@@ -41,6 +91,33 @@ def create_batch_web(label: str = Form(...), created_by: str = Form(""), db: Ses
     db.add(batch)
     db.commit()
     return RedirectResponse(url=f"/batches/{batch.id}", status_code=303)
+
+
+def _delete_batches(db: Session, ids: list[int]) -> None:
+    """Deletes scanning lotes (proyectos) and everything under them: boletas
+    (which cascade-delete their record + audits), any issued folio linked to
+    those records is unlinked back to 'issued', and the stored scan files are
+    removed."""
+    boletas = db.query(Boleta).filter(Boleta.batch_id.in_(ids)).all()
+    record_ids = [b.record.id for b in boletas if b.record]
+    if record_ids:
+        for folio in db.query(Folio).filter(Folio.boleta_record_id.in_(record_ids)).all():
+            unlink_folio(folio)
+    for boleta in boletas:
+        db.delete(boleta)  # cascades to BoletaRecord -> ReviewAudit
+    db.query(Batch).filter(Batch.id.in_(ids)).delete(synchronize_session=False)
+    for batch_id in ids:
+        batch_dir = settings.originals_dir / str(batch_id)
+        if batch_dir.exists():
+            shutil.rmtree(batch_dir, ignore_errors=True)
+
+
+@router.post("/batches/delete")
+def delete_batches_web(ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+    if ids:
+        _delete_batches(db, ids)
+        db.commit()
+    return RedirectResponse(url="/", status_code=303)
 
 
 @router.get("/batches/{batch_id}")
@@ -85,6 +162,16 @@ def review_detail_web(request: Request, record_id: int, db: Session = Depends(ge
     return templates.TemplateResponse(request, "review_detail.html", {"record": record})
 
 
+def _num(value: str) -> float | None:
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        return float(value)
+    except ValueError:
+        return None
+
+
 @router.post("/review/{record_id}")
 def review_submit_web(
     request: Request,
@@ -94,12 +181,25 @@ def review_submit_web(
     note: str = Form(""),
     folio: str = Form(""),
     date: str = Form(""),
+    proveedor: str = Form(""),
     origin: str = Form(""),
+    secondary_origin: str = Form(""),
     destination: str = Form(""),
+    contract_number: str = Form(""),
+    concesion_minera: str = Form(""),
     material: str = Form(""),
     fletero: str = Form(""),
+    truck_box_number: str = Form(""),
+    weight_declared: str = Form(""),
     weight: str = Form(""),
+    representante_legal: str = Form(""),
     trip_type: str = Form(""),
+    poder_calorifico_superior: str = Form(""),
+    humedad_pct: str = Form(""),
+    ceniza_pct: str = Form(""),
+    azufre_pct: str = Form(""),
+    fsi: str = Form(""),
+    granulometria: str = Form(""),
     db: Session = Depends(get_db),
 ):
     record = db.get(BoletaRecord, record_id)
@@ -109,12 +209,25 @@ def review_submit_web(
         note=note or None,
         folio=folio or None,
         date=date or None,
+        proveedor=proveedor or None,
         origin=origin or None,
+        secondary_origin=secondary_origin or None,
         destination=destination or None,
+        contract_number=contract_number or None,
+        concesion_minera=concesion_minera or None,
         material=material or None,
         fletero=fletero or None,
-        weight=float(weight) if weight.strip() else None,
+        truck_box_number=truck_box_number or None,
+        weight_declared=_num(weight_declared),
+        weight=_num(weight),
+        representante_legal=representante_legal or None,
         trip_type=trip_type or None,
+        poder_calorifico_superior=poder_calorifico_superior or None,
+        humedad_pct=humedad_pct or None,
+        ceniza_pct=ceniza_pct or None,
+        azufre_pct=azufre_pct or None,
+        fsi=fsi or None,
+        granulometria=granulometria or None,
     )
     apply_review(db, record, correction)
     db.commit()

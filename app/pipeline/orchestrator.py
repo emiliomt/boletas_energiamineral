@@ -69,6 +69,7 @@ def process_boleta(db: Session, boleta: Boleta, ocr_adapter: OCRAdapter) -> Bole
     record = existing_record or BoletaRecord(boleta_id=boleta.id)
     record.ocr_text = ocr_result.text
     record.ocr_confidence = round(ocr_result.confidence / 100.0, 3)
+    record.ocr_engine = ocr_result.engine
     record.folio = parsed.folio
     record.date = parsed.date
     record.origin = parsed.origin
@@ -78,6 +79,9 @@ def process_boleta(db: Session, boleta: Boleta, ocr_adapter: OCRAdapter) -> Bole
     record.material = parsed.material
     record.fletero = parsed.fletero
     record.truck_box_number = parsed.truck_box_number
+    record.proveedor = parsed.proveedor
+    record.concesion_minera = parsed.concesion_minera
+    record.representante_legal = parsed.representante_legal
     record.weight = inventory.weight
     record.weight_declared = parsed.weight_declared
     record.weight_source = inventory.weight_source

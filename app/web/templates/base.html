@@ -10,6 +10,7 @@
     <a class="brand" href="/">Boletas Energía Mineral</a>
     <nav>
       <a href="/">Inicio</a>
+      <a href="/dashboard">Tablero</a>
       <a href="/admin/folio-batches">Lotes de Folios</a>
       <a href="/review">Cola de Revisión</a>
       <form method="post" action="/logout" style="display: inline;">
@@ -17,7 +18,7 @@
       </form>
     </nav>
   </header>
-  <main class="container">
+  <main class="container {% block container_class %}{% endblock %}">
     {% block content %}{% endblock %}
   </main>
 </body>

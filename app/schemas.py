@@ -39,9 +39,13 @@ class BoletaRecordDetail(BoletaRecordOut):
     boleta_id_internal: int
     ocr_text: str | None = None
     ocr_confidence: float | None = None
+    ocr_engine: str | None = None
     secondary_origin: str | None = None  # Centro de Acopio
     contract_number: str | None = None
     truck_box_number: str | None = None  # No. Caja
+    proveedor: str | None = None
+    concesion_minera: str | None = None  # Datos de Concesión Minera
+    representante_legal: str | None = None  # Nombre (Representante Legal)
     quality_data: dict[str, str] = {}
     matched_route_rule_id: int | None = None
     matched_tariff_rule_id: int | None = None
@@ -65,6 +69,22 @@ class ReviewCorrection(BaseModel):
     fletero: str | None = None
     weight: float | None = None
     trip_type: str | None = None
+
+    # Remaining boleta fields the reviewer can also correct.
+    secondary_origin: str | None = None  # Centro de Acopio
+    contract_number: str | None = None  # Contrato
+    truck_box_number: str | None = None  # No. Caja
+    weight_declared: float | None = None  # Volumen por Entregar
+    proveedor: str | None = None
+    concesion_minera: str | None = None  # Datos de Concesión Minera
+    representante_legal: str | None = None  # Nombre (Representante Legal)
+    # Coal-quality metrics (stored in BoletaRecord.quality_data).
+    poder_calorifico_superior: str | None = None
+    humedad_pct: str | None = None
+    ceniza_pct: str | None = None
+    azufre_pct: str | None = None
+    fsi: str | None = None
+    granulometria: str | None = None
 
 
 class BatchCreate(BaseModel):
@@ -109,6 +129,21 @@ class FolioBatchCreate(BaseModel):
     notes: str | None = None
     created_by: str | None = None
 
+    # Batch-level boleta data entered online, pre-printed on every folio.
+    proveedor: str | None = None
+    destino: str | None = None
+    contrato: str | None = None
+    poder_calorifico_superior: str | None = None
+    humedad_pct: str | None = None
+    ceniza_pct: str | None = None
+    azufre_pct: str | None = None
+    fsi: str | None = None
+    granulometria: str | None = None
+    centro_explotacion: str | None = None
+    centro_acopio: str | None = None
+    concesion_minera: str | None = None
+    representante_legal: str | None = None
+
     @model_validator(mode="after")
     def _check_mode_fields(self) -> "FolioBatchCreate":
         if self.mode == "sequential":
@@ -131,6 +166,20 @@ class FolioBatchOut(BaseModel):
     notes: str | None = None
     created_by: str | None = None
     created_at: dt.datetime
+
+    proveedor: str | None = None
+    destino: str | None = None
+    contrato: str | None = None
+    poder_calorifico_superior: str | None = None
+    humedad_pct: str | None = None
+    ceniza_pct: str | None = None
+    azufre_pct: str | None = None
+    fsi: str | None = None
+    granulometria: str | None = None
+    centro_explotacion: str | None = None
+    centro_acopio: str | None = None
+    concesion_minera: str | None = None
+    representante_legal: str | None = None
 
 
 class FolioBatchDetail(FolioBatchOut):

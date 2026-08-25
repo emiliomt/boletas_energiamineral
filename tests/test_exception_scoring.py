@@ -85,6 +85,24 @@ def test_suspected_duplicate_forces_needs_review(db_session):
     assert "suspected_duplicate" in result.exceptions
 
 
+def test_accuracy_grade_ignores_optional_trip_resolution(db_session):
+    # A boleta whose OCR read every required field well should get a HIGH
+    # accuracy grade even when the route/tariff/inventory can't be resolved
+    # (e.g. the route isn't in config). Trip resolution is optional to the OCR
+    # accuracy grade; it still flags for review via its own exceptions.
+    parsed = _complete_parsed()
+    ocr = OCRResult(text="...", confidence=95.0)
+    classification = ClassificationResult(trip_type=None, confidence=0.0, exceptions=["unknown_route"])
+    tariff = TariffResult(exceptions=["unknown_tariff"])
+    inventory = InventoryResult(inventory_direction="unknown", exceptions=["unknown_inventory_direction"])
+
+    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=False, folio_check=_OK_FOLIO_CHECK)
+
+    assert result.confidence_score >= 0.9  # OCR read everything -> high accuracy grade
+    assert result.status == "needs_review"  # ...but still flagged for the unresolved route
+    assert "unknown_route" in result.exceptions
+
+
 def test_confidence_score_below_threshold_needs_review_despite_no_exceptions(db_session):
     # Every input individually clears its own hard-block/soft-flag checks,
     # but the composite score still lands under the auto-process gate.

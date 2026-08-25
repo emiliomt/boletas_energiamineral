@@ -32,6 +32,10 @@ def _ensure_columns(table_name: str) -> None:
     only creates missing TABLES, not missing COLUMNS on tables that already
     exist -- this fills that gap for in-place upgrades of an existing DB.
     New tables need no entry here; create_all() creates those in full.
+    Derives each column's type/default/nullability straight from the ORM
+    model (rather than a hand-maintained per-table dict) so it stays correct
+    as columns are added, and can express a NOT NULL column with a DEFAULT
+    (e.g. BoletaRecord.kind), not just plain nullable ones.
     Not a general migration framework (no down-migrations, no type changes,
     no drops) -- if schema evolution needs grow past simple additive
     columns, adopt Alembic.
@@ -66,7 +70,8 @@ def init_db() -> None:
     import app.models  # noqa: F401  (register models on Base.metadata)
 
     Base.metadata.create_all(bind=engine)  # creates producers, transportistas, transportista_aliases, pricing_rules
-    _ensure_columns("boleta_records")  # additive migration: kind, producer_id on pre-existing DBs
+    _ensure_columns("boleta_records")  # kind, producer_id, ocr_engine, proveedor, concesion_minera, representante_legal
+    _ensure_columns("folio_batches")  # batch-level pre-printed fields (proveedor, destino, contrato, quality spec, ...)
 
     from app.rules.config_loader import reload_all  # deferred: avoids a circular import
 

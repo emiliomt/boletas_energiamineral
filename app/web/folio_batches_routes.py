@@ -49,6 +49,19 @@ def create_folio_batch_web(
     vendor: str = Form(""),
     notes: str = Form(""),
     created_by: str = Form(""),
+    proveedor: str = Form(""),
+    destino: str = Form(""),
+    contrato: str = Form(""),
+    poder_calorifico_superior: str = Form(""),
+    humedad_pct: str = Form(""),
+    ceniza_pct: str = Form(""),
+    azufre_pct: str = Form(""),
+    fsi: str = Form(""),
+    granulometria: str = Form(""),
+    centro_explotacion: str = Form(""),
+    centro_acopio: str = Form(""),
+    concesion_minera: str = Form(""),
+    representante_legal: str = Form(""),
     db: Session = Depends(get_db),
 ):
     def _error(message: str):
@@ -90,6 +103,19 @@ def create_folio_batch_web(
         vendor=vendor or None,
         notes=notes or None,
         created_by=created_by or None,
+        proveedor=proveedor or None,
+        destino=destino or None,
+        contrato=contrato or None,
+        poder_calorifico_superior=poder_calorifico_superior or None,
+        humedad_pct=humedad_pct or None,
+        ceniza_pct=ceniza_pct or None,
+        azufre_pct=azufre_pct or None,
+        fsi=fsi or None,
+        granulometria=granulometria or None,
+        centro_explotacion=centro_explotacion or None,
+        centro_acopio=centro_acopio or None,
+        concesion_minera=concesion_minera or None,
+        representante_legal=representante_legal or None,
     )
     db.add(batch)
     db.flush()
@@ -97,6 +123,16 @@ def create_folio_batch_web(
         db.add(Folio(folio_batch_id=batch.id, folio=folio_value, qr_payload=qr_payload_for_folio(folio_value)))
     db.commit()
     return RedirectResponse(url=f"/admin/folio-batches/{batch.id}", status_code=303)
+
+
+@router.post("/delete")
+def delete_folio_batches_web(ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+    """Deletes selected Lotes de Folios; their folios cascade-delete."""
+    if ids:
+        for batch in db.query(FolioBatch).filter(FolioBatch.id.in_(ids)).all():
+            db.delete(batch)  # cascades to its Folios
+        db.commit()
+    return RedirectResponse(url="/admin/folio-batches", status_code=303)
 
 
 @router.get("/{folio_batch_id}")

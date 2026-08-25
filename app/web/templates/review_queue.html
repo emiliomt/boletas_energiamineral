@@ -17,7 +17,7 @@
         <td>{{ r.origin or "?" }} &rarr; {{ r.destination or "?" }}</td>
         <td>{{ "%.0f"|format(r.confidence_score * 100) }}%</td>
         <td>
-          {% for exc in r.exceptions %}<span class="tag">{{ exc }}</span>{% endfor %}
+          {% for e in describe_exceptions(r.exceptions) %}<span class="exc-chip exc-{{ e.severity }}" title="{{ e.code }}">{{ e.label }}</span>{% endfor %}
         </td>
         <td><a href="/review/{{ r.id }}">Revisar</a></td>
       </tr>

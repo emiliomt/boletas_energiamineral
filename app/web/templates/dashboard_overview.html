@@ -1,0 +1,132 @@
+{% extends "base.html" %}
+{% block title %}Tablero de Boletas — Boletas Energía Mineral{% endblock %}
+{% block container_class %}container-wide{% endblock %}
+{% block content %}
+  <h1>Tablero de Boletas</h1>
+  <p class="muted">Toda la información de las boletas subidas — la misma que se exporta a Excel — resumida antes de descargarla.</p>
+
+  <section class="panel">
+    <form method="get" action="/dashboard" class="inline-form">
+      <select name="batch_id">
+        <option value="">Todos los lotes</option>
+        {% for b in batches %}
+        <option value="{{ b.id }}" {{ 'selected' if selected_batch_id == b.id else '' }}>{{ b.label }}</option>
+        {% endfor %}
+      </select>
+      <select name="status">
+        <option value="">Todos los estados</option>
+        <option value="auto_processed" {{ 'selected' if selected_status == 'auto_processed' else '' }}>Auto-procesadas</option>
+        <option value="needs_review" {{ 'selected' if selected_status == 'needs_review' else '' }}>Para revisión</option>
+      </select>
+      <select name="fletero">
+        <option value="">Todos los fleteros</option>
+        {% for f in fleteros %}
+        <option value="{{ f }}" {{ 'selected' if selected_fletero == f else '' }}>{{ f }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit">Filtrar</button>
+      <a href="/dashboard" class="muted" style="align-self:center;">Limpiar</a>
+    </form>
+  </section>
+
+  <div class="stat-row">
+    <div class="stat-card"><div class="stat-value">{{ overview.total_boletas }}</div><div class="stat-label">Boletas</div></div>
+    <div class="stat-card"><div class="stat-value">{{ overview.auto_processed_count }}</div><div class="stat-label">Auto-procesadas</div></div>
+    <div class="stat-card {{ 'stat-warn' if overview.needs_review_count else '' }}"><div class="stat-value">{{ overview.needs_review_count }}</div><div class="stat-label">Para revisión</div></div>
+    <div class="stat-card"><div class="stat-value">${{ "%.2f"|format(overview.total_payable) }}</div><div class="stat-label">Pago a confirmar</div></div>
+  </div>
+
+  <section class="panel">
+    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
+      <h2 style="margin:0;">Boletas</h2>
+      <span>
+        <a href="/api/exports/csv{{ '?batch_id=' ~ selected_batch_id if selected_batch_id else '' }}">Exportar CSV</a> ·
+        <a href="/api/exports/json{{ '?batch_id=' ~ selected_batch_id if selected_batch_id else '' }}">Exportar JSON</a>
+        {% if selected_batch_id %} · <a href="/api/exports/xlsx?batch_id={{ selected_batch_id }}">Exportar Excel</a>{% endif %}
+      </span>
+    </div>
+    {% if overview.rows %}
+    <div class="table-scroll">
+    <table class="dashboard-table">
+      <thead>
+        <tr>
+          <th>Folio</th><th>Fecha</th><th>Lote</th><th>Ruta</th><th>Fletero</th>
+          <th>Tipo de viaje</th><th>Tarifa</th><th>Peso (kg)</th><th>Inventario</th>
+          <th>Confianza</th><th>Estado</th><th>Excepciones</th><th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in overview.rows %}
+        {% set r = row.record %}
+        <tr class="{{ 'row-review' if r.status == 'needs_review' else '' }}">
+          <td>{{ r.folio or "—" }}</td>
+          <td>{{ r.date or "—" }}</td>
+          <td>{{ row.batch_label }}</td>
+          <td>{{ r.origin or "?" }} &rarr; {{ r.destination or "?" }}</td>
+          <td>{{ r.fletero or "—" }}</td>
+          <td>{{ r.trip_type or "—" }}</td>
+          <td>{{ "$%.2f"|format(r.tariff_amount) if r.tariff_amount is not none else "—" }}</td>
+          <td>{{ "%.0f"|format(r.weight) if r.weight is not none else "—" }}</td>
+          <td>{{ "%+.0f"|format(r.inventory_quantity) if r.inventory_quantity is not none else "—" }}</td>
+          <td>{{ "%.0f"|format(r.confidence_score * 100) }}%</td>
+          <td><span class="badge badge-{{ 'ok' if r.status == 'auto_processed' else 'warn' }}">{{ r.status }}</span></td>
+          <td class="exc-cell">
+            {% for g in summarize_exceptions(r.exceptions) %}<span class="exc-chip exc-{{ g.severity }}" title="{{ g.labels | join(' · ') }}">{{ g.count }} {{ g.severity_label }}</span>{% endfor %}
+            {% if not r.exceptions %}<span class="muted">—</span>{% endif %}
+          </td>
+          <td>{% if r.status == 'needs_review' %}<a href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="muted">No hay boletas para el filtro seleccionado.</p>
+    {% endif %}
+  </section>
+
+  <div class="review-grid">
+    <section class="panel">
+      <h2>Pago por fletero</h2>
+      <p class="muted">Solo boletas auto-procesadas (confirmadas).</p>
+      {% if overview.total_payment_by_fletero %}
+      <table>
+        <thead><tr><th>Fletero</th><th>Total a pagar</th></tr></thead>
+        <tbody>
+          {% for fletero, amount in overview.total_payment_by_fletero.items() %}
+          <tr><td>{{ fletero }}</td><td>${{ "%.2f"|format(amount) }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="muted">Sin datos aún.</p>{% endif %}
+    </section>
+
+    <section class="panel">
+      <h2>Inventario neto por material</h2>
+      {% if overview.net_inventory_by_material %}
+      <table>
+        <thead><tr><th>Material</th><th>Cantidad neta (kg)</th></tr></thead>
+        <tbody>
+          {% for material, qty in overview.net_inventory_by_material.items() %}
+          <tr><td>{{ material }}</td><td>{{ "%+.1f"|format(qty) }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}<p class="muted">Sin datos aún.</p>{% endif %}
+    </section>
+  </div>
+
+  {% if overview.net_inventory_by_route %}
+  <section class="panel">
+    <h2>Inventario neto por ruta</h2>
+    <table>
+      <thead><tr><th>Ruta</th><th>Cantidad neta (kg)</th></tr></thead>
+      <tbody>
+        {% for route, qty in overview.net_inventory_by_route.items() %}
+        <tr><td>{{ route }}</td><td>{{ "%+.1f"|format(qty) }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </section>
+  {% endif %}
+{% endblock %}

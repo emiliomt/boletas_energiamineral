@@ -8,14 +8,14 @@ from sqlalchemy.orm import Session
 from app.db import get_db
 from app.ingestion.storage import store_upload
 from app.models import Batch
-from app.ocr.tesseract_adapter import TesseractOCRAdapter
+from app.ocr.factory import get_ocr_adapter
 from app.pipeline.orchestrator import process_boleta
 from app.reporting.summary import build_batch_summary
 from app.schemas import BatchCreate, BatchOut, BatchSummary
 
 router = APIRouter(prefix="/api/batches", tags=["batches"])
 
-_ocr_adapter = TesseractOCRAdapter()
+_ocr_adapter = get_ocr_adapter()
 
 
 @router.post("", response_model=BatchOut)

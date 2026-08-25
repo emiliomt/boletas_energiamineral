@@ -25,9 +25,28 @@ from app.schemas import ReviewCorrection
 
 # Fields a reviewer can edit; "trip_type" is assigned directly rather than
 # re-derived, per the PDR's "assign trip type" review capability.
-EDITABLE_FIELDS = ("folio", "date", "origin", "destination", "material", "fletero", "weight", "trip_type")
+EDITABLE_FIELDS = (
+    "folio",
+    "date",
+    "origin",
+    "destination",
+    "material",
+    "fletero",
+    "weight",
+    "trip_type",
+    "secondary_origin",
+    "contract_number",
+    "truck_box_number",
+    "weight_declared",
+    "proveedor",
+    "concesion_minera",
+    "representante_legal",
+)
 # Subset that field_parser also tracks a per-field OCR confidence for.
 _PARSED_TRACKED_FIELDS = ("folio", "date", "origin", "destination", "material", "fletero", "weight")
+# Coal-quality metrics live in BoletaRecord.quality_data (a JSON dict) rather
+# than dedicated columns, so they're corrected separately from EDITABLE_FIELDS.
+_QUALITY_FIELDS = ("poder_calorifico_superior", "humedad_pct", "ceniza_pct", "azufre_pct", "fsi", "granulometria")
 
 
 def _find_route_rule_for_trip_type(db: Session, trip_type: str | None, origin: str | None, destination: str | None):
@@ -70,6 +89,29 @@ def apply_review(db: Session, record: BoletaRecord, correction: ReviewCorrection
         changed_fields.append(field_name)
         if field_name in _PARSED_TRACKED_FIELDS:
             field_confidences[field_name] = 1.0  # human-verified, full confidence
+
+    # Coal-quality metrics are stored in the quality_data JSON dict.
+    quality = dict(record.quality_data or {})
+    for quality_field in _QUALITY_FIELDS:
+        new_value = getattr(correction, quality_field)
+        if new_value is None:
+            continue
+        old_value = quality.get(quality_field)
+        if old_value == new_value:
+            continue
+        db.add(
+            ReviewAudit(
+                boleta_record_id=record.id,
+                field_name=f"quality:{quality_field}",
+                old_value=None if old_value is None else str(old_value),
+                new_value=str(new_value),
+                action="correction",
+                edited_by=correction.edited_by,
+                note=correction.note,
+            )
+        )
+        quality[quality_field] = new_value
+    record.quality_data = quality
 
     trip_type_assigned_explicitly = correction.trip_type is not None
     route_fields_changed = "origin" in changed_fields or "destination" in changed_fields
