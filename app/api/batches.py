@@ -20,7 +20,13 @@ _ocr_adapter = get_ocr_adapter()
 
 @router.post("", response_model=BatchOut)
 def create_batch(payload: BatchCreate, db: Session = Depends(get_db)) -> Batch:
-    batch = Batch(label=payload.label, created_by=payload.created_by, notes=payload.notes)
+    batch = Batch(
+        label=payload.label,
+        created_by=payload.created_by,
+        notes=payload.notes,
+        kind=payload.kind,
+        producer_id=payload.producer_id,
+    )
     db.add(batch)
     db.commit()
     db.refresh(batch)

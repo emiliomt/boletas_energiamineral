@@ -3,3 +3,4 @@
 rule_id,trip_type,material,estimated_weight_kg,conditions,active
 W001,transferencia_interna,carbon,8000,weight missing and distance_band=short,true
 W002,acarreo_material_esteril,esteril,12000,weight missing,true
+W003,recepcion_compra,carbon,10000,Entrada boleta whose producer format has no weight field,true

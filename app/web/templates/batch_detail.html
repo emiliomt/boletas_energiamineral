@@ -2,7 +2,9 @@
 {% block title %}Lote {{ batch.label }} — Boletas Energía Mineral{% endblock %}
 {% block content %}
   <p><a href="/">&larr; Volver</a></p>
-  <h1>Lote: {{ batch.label }}</h1>
+  <h1>Lote: {{ batch.label }}
+    <span class="badge badge-{{ 'ok' if batch.kind == 'entrada' else 'warn' }}">{{ 'Entrada' if batch.kind == 'entrada' else 'Salida' }}</span>
+  </h1>
 
   <section class="panel">
     <h2>Subir boletas</h2>

@@ -14,7 +14,7 @@ from app.config import BASE_DIR, settings
 from app.db import get_db
 from app.engines.folio_registry import unlink_folio
 from app.ingestion.storage import store_upload
-from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch
+from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch, Producer
 from app.ocr.factory import get_ocr_adapter
 from app.pipeline.orchestrator import process_boleta
 from app.reporting.summary import build_batch_summary, build_overview
@@ -39,6 +39,9 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # (Lotes de Folios) rather than typed freehand, so a scanning batch is
     # always tied to a lote that was actually issued/registered.
     folio_batches = db.query(FolioBatch).order_by(FolioBatch.id.desc()).all()
+    # For the "Nuevo lote" kind=entrada path (Phase 2): the operator picks
+    # the producer manually at upload time -- there's no auto-detection.
+    producers = db.query(Producer).filter_by(active=True).order_by(Producer.name).all()
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -47,6 +50,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "review_count": review_count,
             "total_count": total_count,
             "folio_batches": folio_batches,
+            "producers": producers,
         },
     )
 
@@ -86,8 +90,20 @@ def dashboard_overview(
 
 
 @router.post("/batches")
-def create_batch_web(label: str = Form(...), created_by: str = Form(""), db: Session = Depends(get_db)):
-    batch = Batch(label=label, created_by=created_by or None)
+def create_batch_web(
+    label: str = Form(...),
+    created_by: str = Form(""),
+    kind: str = Form("salida"),
+    producer_id: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    resolved_producer_id = int(producer_id) if kind == "entrada" and producer_id.strip().isdigit() else None
+    batch = Batch(
+        label=label,
+        created_by=created_by or None,
+        kind=kind if kind == "entrada" else "salida",
+        producer_id=resolved_producer_id,
+    )
     db.add(batch)
     db.commit()
     return RedirectResponse(url=f"/batches/{batch.id}", status_code=303)

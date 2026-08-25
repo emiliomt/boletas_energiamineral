@@ -6,3 +6,5 @@ R002,Planta Norte,Patio Almacen,transferencia_interna,none,carbon,short,true
 R003,Mina San Jose,Bodega Central,acarreo_material_esteril,outbound,esteril,10-25km,true
 R004,Proveedor Externo,Planta Norte,recepcion_compra,inbound,carbon,any,true
 R005,Mina San Jose,Puerto Terminal,acarreo_exportacion,outbound,carbon,25-50km,true
+R006,Bradfort,Planta Norte,recepcion_compra,inbound,carbon,any,true
+R007,CTU/MINSA,Planta Norte,recepcion_compra,inbound,carbon,any,true

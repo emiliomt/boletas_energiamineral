@@ -1,10 +1,12 @@
 """Resolves a raw (OCR'd or hand-typed) transportista/driver name string
 against the canonical Transportista roster + aliases. Same shape as the
 other lookup engines (classification.py/tariff.py/folio_registry.py): a
-dataclass result carrying its own `.exceptions` list. NOT wired into
-app/pipeline/orchestrator.py yet -- Phase 1 only proves the resolution
-capability works standalone; Phase 2/3 decide when a resolved transportista
-feeds pricing/reporting.
+dataclass result carrying its own `.exceptions` list.
+
+Wired into app/pipeline/orchestrator.py starting Phase 2, for Entrada
+boletas only (per that PRD's goals) -- Salida records don't run this yet,
+so the `unmatched_transportista` exception can't regress the existing
+Salida flow.
 """
 from __future__ import annotations
 
@@ -25,17 +27,17 @@ class TransportistaResolution:
     matched_alias: str | None = None  # the canonical name or normalized alias_text that matched
     confidence: float = 0.0  # 1.0 exact, 0.80-0.99 fuzzy, 0.0 unmatched
     match_note: str | None = None  # "exact:canonical" | "exact:alias" | "fuzzy:0.86"
-    exceptions: list[str] = field(default_factory=list)  # "unknown_transportista"; inert until Phase 2/3 wiring
+    exceptions: list[str] = field(default_factory=list)  # "unmatched_transportista"; inert until Phase 2/3 wiring
 
 
 def resolve_transportista(db: Session, raw_name: str | None) -> TransportistaResolution:
     if not raw_name:
-        return TransportistaResolution(exceptions=["unknown_transportista"])
+        return TransportistaResolution(exceptions=["unmatched_transportista"])
 
     normalized = normalize_alias_text(raw_name)
     transportistas = get_active_transportistas(db)
     if not transportistas:
-        return TransportistaResolution(exceptions=["unknown_transportista"])
+        return TransportistaResolution(exceptions=["unmatched_transportista"])
 
     choice_map: dict[str, Transportista] = {}
     for t in transportistas:
@@ -66,4 +68,4 @@ def resolve_transportista(db: Session, raw_name: str | None) -> TransportistaRes
             match_note=f"fuzzy:{score:.2f}",
         )
 
-    return TransportistaResolution(exceptions=["unknown_transportista"])
+    return TransportistaResolution(exceptions=["unmatched_transportista"])

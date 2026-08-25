@@ -5,6 +5,7 @@ from app.engines.exceptions import evaluate
 from app.engines.folio_registry import FolioCheckResult
 from app.engines.inventory import InventoryResult
 from app.engines.tariff import TariffResult
+from app.engines.transportista_registry import TransportistaResolution
 from app.ocr.base import OCRResult
 from app.parsing.field_parser import ParsedFields
 
@@ -101,6 +102,62 @@ def test_accuracy_grade_ignores_optional_trip_resolution(db_session):
     assert result.confidence_score >= 0.9  # OCR read everything -> high accuracy grade
     assert result.status == "needs_review"  # ...but still flagged for the unresolved route
     assert "unknown_route" in result.exceptions
+
+
+def test_entrada_missing_destination_does_not_flag_required_field(db_session):
+    # Phase 2: Entradas never carry origin/destination -- origin is
+    # satisfied by the selected Producer, destination is implicit ("our
+    # patio"). Neither should trigger missing_required_field.
+    parsed = _complete_parsed()
+    parsed.origin = None
+    parsed.destination = None
+    parsed.field_confidences.pop("origin", None)
+    parsed.field_confidences.pop("destination", None)
+    ocr = OCRResult(text="...", confidence=95.0)
+    classification = ClassificationResult(trip_type="recepcion_compra", confidence=1.0)
+    tariff = TariffResult(tariff_amount=900.0)
+    inventory = InventoryResult(inventory_direction="inbound", inventory_quantity=9000.0)
+
+    result = evaluate(
+        db_session, ocr, parsed, classification, tariff, inventory,
+        is_duplicate=False, folio_check=_OK_FOLIO_CHECK, kind="entrada",
+    )
+
+    assert "missing_required_field:destination" not in result.exceptions
+    assert "missing_required_field:origin" not in result.exceptions
+    assert result.status == "auto_processed"
+    assert result.exceptions == []
+
+
+def test_salida_missing_destination_still_flags_required_field(db_session):
+    # Default kind="salida" preserves today's behavior exactly.
+    parsed = _complete_parsed()
+    parsed.destination = None
+    ocr = OCRResult(text="...", confidence=95.0)
+    classification = ClassificationResult(trip_type=None, confidence=0.0, exceptions=["unknown_route"])
+    tariff = TariffResult(exceptions=["unknown_tariff"])
+    inventory = InventoryResult(inventory_direction="unknown", exceptions=["unknown_inventory_direction"])
+
+    result = evaluate(db_session, ocr, parsed, classification, tariff, inventory, is_duplicate=False, folio_check=_OK_FOLIO_CHECK)
+
+    assert "missing_required_field:destination" in result.exceptions
+
+
+def test_entrada_unmatched_transportista_flags_and_forces_review(db_session):
+    parsed = _complete_parsed()
+    ocr = OCRResult(text="...", confidence=95.0)
+    classification = ClassificationResult(trip_type="recepcion_compra", confidence=1.0)
+    tariff = TariffResult(tariff_amount=900.0)
+    inventory = InventoryResult(inventory_direction="inbound", inventory_quantity=9000.0)
+    transportista = TransportistaResolution(exceptions=["unmatched_transportista"])
+
+    result = evaluate(
+        db_session, ocr, parsed, classification, tariff, inventory,
+        is_duplicate=False, folio_check=_OK_FOLIO_CHECK, kind="entrada", transportista=transportista,
+    )
+
+    assert result.status == "needs_review"
+    assert "unmatched_transportista" in result.exceptions
 
 
 def test_confidence_score_below_threshold_needs_review_despite_no_exceptions(db_session):

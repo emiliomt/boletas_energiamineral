@@ -38,6 +38,15 @@ class Batch(Base):
     status: Mapped[str] = mapped_column(String(32), default="open")  # open | closed
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
+    # kind/producer are selected once per lote at creation time (Phase 2:
+    # Entrada pipeline) -- every Boleta uploaded into this batch inherits
+    # them via `boleta.batch`, so process_boleta() doesn't need its own
+    # kind/producer_id parameters.
+    kind: Mapped[str] = mapped_column(String(16), default="salida")  # entrada|salida
+    producer_id: Mapped[int | None] = mapped_column(
+        ForeignKey("producers.id"), nullable=True
+    )  # required for kind=entrada, set at batch creation
+
     boletas: Mapped[list["Boleta"]] = relationship(back_populates="batch")
 
 

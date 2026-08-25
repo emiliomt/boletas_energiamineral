@@ -72,6 +72,7 @@ def init_db() -> None:
     Base.metadata.create_all(bind=engine)  # creates producers, transportistas, transportista_aliases, pricing_rules
     _ensure_columns("boleta_records")  # kind, producer_id, ocr_engine, proveedor, concesion_minera, representante_legal
     _ensure_columns("folio_batches")  # batch-level pre-printed fields (proveedor, destino, contrato, quality spec, ...)
+    _ensure_columns("batches")  # kind, producer_id (Phase 2: Entrada pipeline)
 
     from app.rules.config_loader import reload_all  # deferred: avoids a circular import
 

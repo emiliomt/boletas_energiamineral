@@ -37,6 +37,8 @@ class BoletaRecordDetail(BoletaRecordOut):
 
     record_id: int
     boleta_id_internal: int
+    kind: Literal["entrada", "salida"] = "salida"
+    producer_id: int | None = None
     ocr_text: str | None = None
     ocr_confidence: float | None = None
     ocr_engine: str | None = None
@@ -91,6 +93,14 @@ class BatchCreate(BaseModel):
     label: str
     created_by: str | None = None
     notes: str | None = None
+    kind: Literal["entrada", "salida"] = "salida"
+    producer_id: int | None = None  # required when kind="entrada"
+
+    @model_validator(mode="after")
+    def _check_producer_required_for_entrada(self) -> "BatchCreate":
+        if self.kind == "entrada" and self.producer_id is None:
+            raise ValueError("producer_id is required when kind='entrada'")
+        return self
 
 
 class BatchOut(BaseModel):
@@ -101,6 +111,8 @@ class BatchOut(BaseModel):
     status: str
     created_by: str | None = None
     notes: str | None = None
+    kind: Literal["entrada", "salida"] = "salida"
+    producer_id: int | None = None
 
 
 class BatchSummary(BaseModel):

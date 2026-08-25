@@ -16,12 +16,19 @@ from app.engines.classification import ClassificationResult
 from app.engines.folio_registry import FolioCheckResult
 from app.engines.inventory import InventoryResult
 from app.engines.tariff import TariffResult
+from app.engines.transportista_registry import TransportistaResolution
 from app.models import BoletaRecord
 from app.ocr.base import OCRResult
 from app.parsing.field_parser import ParsedFields
 from app.rules.config_loader import get_thresholds
 
 REQUIRED_FIELDS = ("folio", "date", "origin", "destination", "fletero")
+# Entradas never carry an OCR'd origin/destination: origin is satisfied by
+# the selected Producer (see classify_entrada), and destination is always
+# implicitly "our patio" -- neither is something the boleta itself states,
+# so requiring them here would flag every single Entrada. See PRD Phase 2
+# §5.6.
+ENTRADA_REQUIRED_FIELDS = ("folio", "date", "fletero")
 
 DEFAULT_OCR_CONFIDENCE_MIN = 0.60
 DEFAULT_FIELD_CONFIDENCE_MIN = 0.55
@@ -95,6 +102,8 @@ def evaluate(
     inventory: InventoryResult,
     is_duplicate: bool,
     folio_check: FolioCheckResult,
+    kind: str = "salida",
+    transportista: TransportistaResolution | None = None,
 ) -> EvaluationResult:
     thresholds = get_thresholds(db)
     ocr_confidence_min = threshold_float(thresholds, "ocr_confidence_min", DEFAULT_OCR_CONFIDENCE_MIN)
@@ -105,9 +114,11 @@ def evaluate(
         thresholds, "overall_confidence_auto_process_min", DEFAULT_AUTO_PROCESS_MIN
     )
 
+    required_fields = ENTRADA_REQUIRED_FIELDS if kind == "entrada" else REQUIRED_FIELDS
+
     exceptions: list[str] = []
 
-    for field_name in REQUIRED_FIELDS:
+    for field_name in required_fields:
         if getattr(parsed, field_name) is None:
             exceptions.append(f"missing_required_field:{field_name}")
 
@@ -115,7 +126,7 @@ def evaluate(
     if ocr_overall_confidence < ocr_confidence_min:
         exceptions.append("low_ocr_confidence")
 
-    for field_name in REQUIRED_FIELDS:
+    for field_name in required_fields:
         conf = parsed.field_confidences.get(field_name, 0.0)
         if getattr(parsed, field_name) is not None and conf < field_confidence_min:
             exceptions.append(f"low_field_confidence:{field_name}")
@@ -124,6 +135,8 @@ def evaluate(
     exceptions.extend(tariff.exceptions)
     exceptions.extend(inventory.exceptions)
     exceptions.extend(folio_check.exceptions)
+    if transportista is not None:
+        exceptions.extend(transportista.exceptions)
 
     if parsed.weight is not None and parsed.weight_declared is not None and parsed.weight_declared != 0:
         volumen_mismatch_pct = threshold_float(thresholds, "volumen_mismatch_pct", DEFAULT_VOLUMEN_MISMATCH_PCT)
@@ -143,7 +156,7 @@ def evaluate(
     # drag down the OCR accuracy number. When trip/route resolution fails it's
     # surfaced as its own exception (unknown_route/tariff/inventory), which
     # still routes the boleta to review without misrepresenting OCR accuracy.
-    required_confidences = [parsed.field_confidences.get(f, 0.0) for f in REQUIRED_FIELDS]
+    required_confidences = [parsed.field_confidences.get(f, 0.0) for f in required_fields]
     avg_field_confidence = sum(required_confidences) / len(required_confidences)
 
     confidence_score = 0.5 * ocr_overall_confidence + 0.5 * avg_field_confidence

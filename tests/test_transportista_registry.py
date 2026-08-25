@@ -85,27 +85,27 @@ def test_alias_with_phone_number_resolves_when_queried_without_phone(db_session)
     assert result.confidence == 1.0
 
 
-def test_no_match_returns_unknown_transportista_exception(db_session):
+def test_no_match_returns_unmatched_transportista_exception(db_session):
     _seed_transportista(db_session, "TEST SOMEONE ELSE", [])
 
     result = resolve_transportista(db_session, "TEST COMPLETELY UNRELATED NAME ZZZ")
 
     assert result.transportista is None
-    assert "unknown_transportista" in result.exceptions
+    assert "unmatched_transportista" in result.exceptions
 
 
-def test_empty_roster_returns_unknown_transportista_exception(db_session):
+def test_empty_roster_returns_unmatched_transportista_exception(db_session):
     # No transportistas seeded beyond whatever placeholder CSV data loaded
     # (which won't match this made-up name), so this exercises the "no
     # match" path when there's effectively nothing relevant in the roster.
     result = resolve_transportista(db_session, "TEST NAME NOT IN ANY ROSTER 12345")
 
     assert result.transportista is None
-    assert "unknown_transportista" in result.exceptions
+    assert "unmatched_transportista" in result.exceptions
 
 
-def test_none_raw_name_returns_unknown_transportista_exception(db_session):
+def test_none_raw_name_returns_unmatched_transportista_exception(db_session):
     result = resolve_transportista(db_session, None)
 
     assert result.transportista is None
-    assert "unknown_transportista" in result.exceptions
+    assert "unmatched_transportista" in result.exceptions

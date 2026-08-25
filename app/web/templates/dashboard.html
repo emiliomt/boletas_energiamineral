@@ -24,9 +24,23 @@
         <option value="{{ fb.label }}">{{ fb.label }}</option>
         {% endfor %}
       </select>
+      <select name="kind">
+        <option value="salida" selected>Salida</option>
+        <option value="entrada">Entrada</option>
+      </select>
+      <select name="producer_id">
+        <option value="">Productor (solo Entrada)…</option>
+        {% for p in producers %}
+        <option value="{{ p.id }}">{{ p.name }}</option>
+        {% endfor %}
+      </select>
       <input type="text" name="created_by" placeholder="Tu nombre (opcional)">
       <button type="submit">Crear lote</button>
     </form>
+    <p class="muted">
+      Para lotes de Entrada, selecciona el productor correspondiente — es
+      obligatorio y no se detecta automáticamente.
+    </p>
     {% else %}
     <p class="muted">
       No hay lotes registrados. Registra un

@@ -1,8 +1,11 @@
 # PLACEHOLDER SAMPLE DATA — replace with the client's real producers before production use.
 # name is the natural key (must be unique). format_id is the paper-layout id used
 # for per-producer template matching starting in Phase 4 (leave blank until then).
-# default_origin feeds Entrada classification in Phase 2 (leave blank until then).
+# default_origin feeds Entrada classification (Phase 2's classify_entrada) --
+# it's matched against route_config.csv's `origin` column (see R004/R006/R007)
+# instead of parsing an origin from the boleta, since Entrada boletas never
+# carry one.
 name,format_id,default_origin,active
-Bradfort,,,true
-CTU/MINSA,,,true
-Proveedor Externo Norte,,,true
+Bradfort,,Bradfort,true
+CTU/MINSA,,CTU/MINSA,true
+Proveedor Externo Norte,,Proveedor Externo,true

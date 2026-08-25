@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 
 from sqlalchemy.orm import Session
 
-from app.models import Folio
+from app.models import BoletaRecord, Folio
 
 
 def _utcnow() -> dt.datetime:
@@ -48,6 +48,40 @@ def check_folio(db: Session, folio: str | None, exclude_record_id: int | None = 
         return FolioCheckResult(status="already_used", folio_row=row, exceptions=["folio_already_used"])
 
     return FolioCheckResult(status="ok", folio_row=row)
+
+
+def check_entrada_folio(
+    db: Session, producer_id: int | None, folio: str | None, exclude_record_id: int | None = None
+) -> FolioCheckResult:
+    """Folio dedup for Entradas (Phase 2). Folio numbers are unique *per
+    producer*, not globally (confirmed from real data: two producers had
+    overlapping folio ranges), and there's no pre-issued registry to check
+    against -- the boleta is the producer's own paper, we never see it
+    before it arrives. So instead of `check_folio`'s Folio-table lookup,
+    this checks for a prior *ingested* Entrada BoletaRecord with the same
+    (producer_id, folio). Same FolioCheckResult shape as check_folio, but
+    `folio_row` is always None here -- there's no Folio table row involved,
+    so the orchestrator's `if folio_check.folio_row is not None: link_folio(...)`
+    guard naturally never fires for Entradas.
+    """
+    if not folio:
+        return FolioCheckResult(status="no_qr")
+    if producer_id is None:
+        # Can't scope a dedup check without a producer -- classify_entrada
+        # already flags this boleta with `unknown_producer` separately.
+        return FolioCheckResult(status="ok")
+
+    query = db.query(BoletaRecord).filter(
+        BoletaRecord.kind == "entrada",
+        BoletaRecord.producer_id == producer_id,
+        BoletaRecord.folio == folio,
+    )
+    if exclude_record_id is not None:
+        query = query.filter(BoletaRecord.id != exclude_record_id)
+    if db.query(query.exists()).scalar():
+        return FolioCheckResult(status="already_used", exceptions=["folio_already_used_for_producer"])
+
+    return FolioCheckResult(status="ok")
 
 
 def link_folio(folio_row: Folio, record_id: int) -> None:
