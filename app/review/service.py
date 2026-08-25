@@ -1,23 +1,28 @@
 """Applies a human reviewer's field corrections and/or approval to a
 BoletaRecord: writes a ReviewAudit row per changed field, re-runs
-classification/tariff/inventory as needed, and recomputes
+classification/tariff/inventory as needed (kind-aware: Entrada uses
+classify_entrada/compute_entrada_tariff/check_entrada_folio; a *complete*
+Salida uses classify_trip/compute_salida_tariff -- PricingRule, per Phase 3
+-- and check_folio/check_duplicate; a still-*partial* Salida skips tariff/
+inventory entirely, since it has no delivered_weight yet and approval can't
+manufacture one -- see the `can_approve` guard below), and recomputes
 confidence_score/status/exceptions from the corrected values.
 """
 from __future__ import annotations
 
 from sqlalchemy.orm import Session
 
-from app.engines.classification import ClassificationResult, classify_trip
+from app.engines.classification import ClassificationResult, classify_entrada, classify_trip
 from app.engines.exceptions import (
     DEFAULT_DUPLICATE_WINDOW_DAYS,
     check_duplicate,
     evaluate,
     threshold_int,
 )
-from app.engines.folio_registry import check_folio, link_folio, unlink_folio
+from app.engines.folio_registry import check_entrada_folio, check_folio, link_folio, unlink_folio
 from app.engines.inventory import InventoryResult
-from app.engines.tariff import compute_tariff
-from app.models import BoletaRecord, Folio, ReviewAudit
+from app.engines.tariff import TariffResult, compute_entrada_tariff, compute_salida_tariff, compute_tariff
+from app.models import BoletaRecord, Folio, Producer, ReviewAudit
 from app.ocr.base import OCRResult
 from app.parsing.field_parser import ParsedFields
 from app.rules.config_loader import get_active_routes, get_thresholds
@@ -113,10 +118,31 @@ def apply_review(db: Session, record: BoletaRecord, correction: ReviewCorrection
         quality[quality_field] = new_value
     record.quality_data = quality
 
+    # A Salida record still waiting on its counterpart document (CFE slip or
+    # boleta -- see app/pipeline/orchestrator.py's reconciliation) has no
+    # delivered_weight yet, so tariff/inventory can't be (re)computed for it
+    # here either -- same "no partial/guessed posting" rule the pipeline
+    # itself follows. `salida_status is None` covers pre-Phase-3 legacy
+    # records, which never went through reconciliation and are treated as
+    # already-complete for backward compatibility.
+    is_partial_salida = record.kind == "salida" and record.salida_status not in (None, "complete")
+
     trip_type_assigned_explicitly = correction.trip_type is not None
     route_fields_changed = "origin" in changed_fields or "destination" in changed_fields
 
-    if not trip_type_assigned_explicitly and route_fields_changed:
+    producer = db.get(Producer, record.producer_id) if record.kind == "entrada" and record.producer_id else None
+
+    if record.kind == "entrada":
+        # Entrada trip_type is producer-derived (see classify_entrada), not
+        # parsed from origin/destination text, so it's recomputed from the
+        # producer regardless of which fields the reviewer touched.
+        classification = classify_entrada(db, producer)
+        if trip_type_assigned_explicitly:
+            classification.trip_type = record.trip_type
+        else:
+            record.trip_type = classification.trip_type
+        matched_rule = classification.matched_rule
+    elif not trip_type_assigned_explicitly and route_fields_changed:
         classification = classify_trip(db, record.origin, record.destination)
         record.trip_type = classification.trip_type
         matched_rule = classification.matched_rule
@@ -131,28 +157,46 @@ def apply_review(db: Session, record: BoletaRecord, correction: ReviewCorrection
         )
 
     distance_band = matched_rule.distance_band if matched_rule else None
-    tariff = compute_tariff(db, record.trip_type, distance_band)
 
-    direction = matched_rule.inventory_direction if matched_rule else (record.inventory_direction or "unknown")
+    if record.kind == "entrada":
+        tariff = compute_entrada_tariff(db, producer, record.weight)
+    elif is_partial_salida:
+        tariff = TariffResult()
+    elif record.kind == "salida":
+        tariff = compute_salida_tariff(db, record.origin, record.delivered_weight)
+    else:
+        tariff = compute_tariff(db, record.trip_type, distance_band)
+
     if correction.weight is not None:
         record.weight_source = "measured"
 
-    inventory_exceptions: list[str] = []
-    quantity: float | None = None
-    if direction == "unknown":
-        inventory_exceptions.append("unknown_inventory_direction")
-    elif direction == "inbound":
-        quantity = record.weight
-    elif direction == "outbound":
-        quantity = -record.weight if record.weight is not None else None
-    if record.weight is None and direction in ("inbound", "outbound"):
-        inventory_exceptions.append("missing_weight_no_estimate")
+    if is_partial_salida:
+        direction = "unknown"
+        quantity = None
+        inventory_exceptions: list[str] = []
+    else:
+        direction = matched_rule.inventory_direction if matched_rule else (record.inventory_direction or "unknown")
+        inventory_exceptions = []
+        quantity = None
+        if direction == "unknown":
+            inventory_exceptions.append("unknown_inventory_direction")
+        elif direction == "inbound":
+            quantity = record.weight
+        elif direction == "outbound":
+            quantity = -record.weight if record.weight is not None else None
+        if record.weight is None and direction in ("inbound", "outbound"):
+            inventory_exceptions.append("missing_weight_no_estimate")
 
     record.inventory_direction = direction
     record.inventory_quantity = quantity
     record.tariff_amount = tariff.tariff_amount
     record.matched_route_rule_id = matched_rule.id if matched_rule else None
-    record.matched_tariff_rule_id = tariff.matched_rule.id if tariff.matched_rule else None
+    # matched_tariff_rule_id's FK is scoped to tariff_rules.id -- a
+    # PricingRule-sourced tariff (Entrada, or a complete Salida) must never
+    # be written here, same FK-safety reasoning as the pipeline itself.
+    record.matched_tariff_rule_id = (
+        tariff.matched_rule.id if record.kind not in ("entrada", "salida") and tariff.matched_rule else None
+    )
     record.field_confidences = field_confidences
 
     inventory_result = InventoryResult(
@@ -181,34 +225,44 @@ def apply_review(db: Session, record: BoletaRecord, correction: ReviewCorrection
 
     # A reviewer can hand-correct the folio, so a manual edit can't silently
     # bypass the issued-folio registry: unlink the old folio (if it was
-    # linked to this record) and re-check/link the corrected one.
-    if "folio" in changed_fields and old_folio:
+    # linked to this record) and re-check/link the corrected one. Only
+    # meaningful for Salida's own pre-issued registry, not Entrada's
+    # per-producer dedup or a CFE slip's folio (not our registry).
+    if record.kind == "salida" and "folio" in changed_fields and old_folio:
         old_folio_row = db.query(Folio).filter_by(folio=old_folio).one_or_none()
         if old_folio_row is not None and old_folio_row.boleta_record_id == record.id:
             unlink_folio(old_folio_row)
 
-    folio_check = check_folio(db, record.folio, exclude_record_id=record.id)
-    if folio_check.status == "ok" and folio_check.folio_row is not None:
-        link_folio(folio_check.folio_row, record.id)
+    if record.kind == "entrada":
+        is_duplicate = False
+        folio_check = check_entrada_folio(db, record.producer_id, record.folio, exclude_record_id=record.id)
+    else:
+        folio_check = check_folio(db, record.folio, exclude_record_id=record.id)
+        if folio_check.status == "ok" and folio_check.folio_row is not None:
+            link_folio(folio_check.folio_row, record.id)
 
-    thresholds = get_thresholds(db)
-    window_days = threshold_int(thresholds, "duplicate_check_window_days", DEFAULT_DUPLICATE_WINDOW_DAYS)
-    is_duplicate = check_duplicate(
-        db,
-        folio=record.folio,
-        date=record.date,
-        fletero=record.fletero,
-        origin=record.origin,
-        destination=record.destination,
-        window_days=window_days,
-        exclude_record_id=record.id,
+        thresholds = get_thresholds(db)
+        window_days = threshold_int(thresholds, "duplicate_check_window_days", DEFAULT_DUPLICATE_WINDOW_DAYS)
+        is_duplicate = check_duplicate(
+            db,
+            folio=record.folio,
+            date=record.date,
+            fletero=record.fletero,
+            origin=record.origin,
+            destination=record.destination,
+            window_days=window_days,
+            exclude_record_id=record.id,
+        )
+
+    evaluation = evaluate(
+        db, ocr, parsed, classification, tariff, inventory_result, is_duplicate, folio_check, kind=record.kind
     )
-
-    evaluation = evaluate(db, ocr, parsed, classification, tariff, inventory_result, is_duplicate, folio_check)
     record.confidence_score = evaluation.confidence_score
     record.exceptions = evaluation.exceptions
 
-    if correction.action == "approve":
+    can_approve = not is_partial_salida
+
+    if correction.action == "approve" and can_approve:
         old_status = record.status
         record.status = "auto_processed"
         db.add(

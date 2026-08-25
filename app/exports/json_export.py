@@ -8,7 +8,11 @@ from app.schemas import BoletaRecordOut
 
 
 def build_json_export(db: Session, batch_id: int | None = None) -> list[dict]:
-    query = db.query(BoletaRecord).join(Boleta, BoletaRecord.boleta_id == Boleta.id)
+    query = (
+        db.query(BoletaRecord)
+        .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
+        .filter(BoletaRecord.reconciled_with_record_id.is_(None))  # see app/reporting/summary.py
+    )
     if batch_id is not None:
         query = query.filter(Boleta.batch_id == batch_id)
     records = query.order_by(BoletaRecord.id).all()

@@ -39,6 +39,10 @@ class BoletaRecordDetail(BoletaRecordOut):
     boleta_id_internal: int
     kind: Literal["entrada", "salida"] = "salida"
     producer_id: int | None = None
+    salida_status: Literal["boleta_only", "cfe_slip_only", "complete"] | None = None
+    cfe_entry_weight: float | None = None
+    cfe_exit_weight: float | None = None
+    delivered_weight: float | None = None
     ocr_text: str | None = None
     ocr_confidence: float | None = None
     ocr_engine: str | None = None

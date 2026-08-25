@@ -143,6 +143,7 @@ def batch_detail(request: Request, batch_id: int, db: Session = Depends(get_db))
         db.query(BoletaRecord)
         .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
         .filter(Boleta.batch_id == batch_id)
+        .filter(BoletaRecord.reconciled_with_record_id.is_(None))  # see app/reporting/summary.py
         .order_by(BoletaRecord.id)
         .all()
     )
@@ -153,13 +154,18 @@ def batch_detail(request: Request, batch_id: int, db: Session = Depends(get_db))
 
 
 @router.post("/batches/{batch_id}/upload")
-def upload_web(batch_id: int, files: list[UploadFile], db: Session = Depends(get_db)):
+def upload_web(
+    batch_id: int,
+    files: list[UploadFile] = [],  # noqa: B006 (FastAPI reconstructs this per-request)
+    cfe_slip_files: list[UploadFile] = [],  # noqa: B006
+    db: Session = Depends(get_db),
+):
     batch = db.get(Batch, batch_id)
-    for upload in files:
+    for upload, document_type in [(f, "boleta") for f in files] + [(f, "cfe_slip") for f in cfe_slip_files]:
         content = upload.file.read()
         if not content:
             continue
-        boletas = store_upload(db, batch, upload.filename, content, upload.content_type or "")
+        boletas = store_upload(db, batch, upload.filename, content, upload.content_type or "", document_type)
         for boleta in boletas:
             process_boleta(db, boleta, _ocr_adapter)
     db.commit()
@@ -168,7 +174,13 @@ def upload_web(batch_id: int, files: list[UploadFile], db: Session = Depends(get
 
 @router.get("/review")
 def review_queue_web(request: Request, db: Session = Depends(get_db)):
-    records = db.query(BoletaRecord).filter(BoletaRecord.status == "needs_review").order_by(BoletaRecord.id).all()
+    records = (
+        db.query(BoletaRecord)
+        .filter(BoletaRecord.status == "needs_review")
+        .filter(BoletaRecord.reconciled_with_record_id.is_(None))
+        .order_by(BoletaRecord.id)
+        .all()
+    )
     return templates.TemplateResponse(request, "review_queue.html", {"records": records})
 
 

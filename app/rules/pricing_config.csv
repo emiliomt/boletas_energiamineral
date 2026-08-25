@@ -1,15 +1,17 @@
 # PLACEHOLDER SAMPLE DATA — replace with the client's real pricing rules
 # before production use. rule_id is the natural key.
-# scope: an origin name (Salida-style rules) or a Producer.name (Entrada-style
-# rules) -- see PRD Phase 1 §11 Open Questions for how `scope` is interpreted
-# per `kind`; Phase 2/3 finalizes the lookup, this table only stores the rate.
-# pricing_mode: flat (rate is a flat MXN amount per trip) or per_weight
-# (rate is MXN per ton, multiplied by the boleta's weight in Phase 2/3).
+# scope: an origin name (Salida-style rules, matched against the classified
+# route's origin) or a Producer.name (Entrada-style rules) -- see PRD Phase 1
+# §11 Open Questions. pricing_mode: flat (rate is a flat MXN amount per trip,
+# Entrada only) or per_weight (rate is MXN per unit weight, multiplied by
+# the boleta's weight for Entrada or by delivered_weight -- |CFE exit -
+# entry| -- for Salida; Phase 3 §6.4: Salida pricing is always per_weight,
+# CFE always weighs).
 # effective_to blank = still active (open-ended); a past effective_to means
 # the rule is historical and is excluded from "active as of today" lookups.
 rule_id,scope,pricing_mode,rate,currency,effective_from,effective_to,active
 P001,Bradfort,flat,850.00,MXN,2024-01-01,2025-06-30,true
 P002,Bradfort,flat,900.00,MXN,2025-07-01,,true
 P003,CTU/MINSA,per_weight,120.00,MXN,2025-01-01,,true
-P004,Mina San Jose,flat,300.00,MXN,2024-01-01,,true
+P004,Mina San Jose,per_weight,0.10,MXN,2024-01-01,,true
 P005,Proveedor Externo Norte,per_weight,110.00,MXN,2024-01-01,,true

@@ -91,7 +91,11 @@ def test_qr_folio_wins_and_gets_linked(db_session, tmp_path):
     assert record.folio == "Q-5001"
     assert record.field_confidences["folio"] == 1.0
     assert "unknown_folio" not in record.exceptions
-    assert record.status == "auto_processed"
+    # Since Phase 3, a lone boleta scan (no matching CFE slip yet) stays
+    # boleta_only/needs_review -- but folio registry linking still happens
+    # regardless of reconciliation status, checked below.
+    assert record.salida_status == "boleta_only"
+    assert record.status == "needs_review"
 
     row = db_session.query(Folio).filter_by(folio="Q-5001").one()
     assert row.status == "scanned"

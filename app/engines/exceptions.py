@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 from app.engines.classification import ClassificationResult
 from app.engines.folio_registry import FolioCheckResult
 from app.engines.inventory import InventoryResult
+from app.engines.salida_reconciliation import ReconciliationMatch
 from app.engines.tariff import TariffResult
 from app.engines.transportista_registry import TransportistaResolution
 from app.models import BoletaRecord
@@ -29,6 +30,10 @@ REQUIRED_FIELDS = ("folio", "date", "origin", "destination", "fletero")
 # so requiring them here would flag every single Entrada. See PRD Phase 2
 # §5.6.
 ENTRADA_REQUIRED_FIELDS = ("folio", "date", "fletero")
+# A CFE weight slip (Phase 3) is CFE's own document -- it only ever carries
+# a folio and a date, never origin/destination/fletero (those live on the
+# boleta side of the pair). See app/parsing/field_parser.parse_cfe_slip_fields.
+SALIDA_CFE_SLIP_REQUIRED_FIELDS = ("folio", "date")
 
 DEFAULT_OCR_CONFIDENCE_MIN = 0.60
 DEFAULT_FIELD_CONFIDENCE_MIN = 0.55
@@ -104,6 +109,8 @@ def evaluate(
     folio_check: FolioCheckResult,
     kind: str = "salida",
     transportista: TransportistaResolution | None = None,
+    required_fields_override: tuple[str, ...] | None = None,
+    reconciliation: ReconciliationMatch | None = None,
 ) -> EvaluationResult:
     thresholds = get_thresholds(db)
     ocr_confidence_min = threshold_float(thresholds, "ocr_confidence_min", DEFAULT_OCR_CONFIDENCE_MIN)
@@ -114,7 +121,10 @@ def evaluate(
         thresholds, "overall_confidence_auto_process_min", DEFAULT_AUTO_PROCESS_MIN
     )
 
-    required_fields = ENTRADA_REQUIRED_FIELDS if kind == "entrada" else REQUIRED_FIELDS
+    if required_fields_override is not None:
+        required_fields = required_fields_override
+    else:
+        required_fields = ENTRADA_REQUIRED_FIELDS if kind == "entrada" else REQUIRED_FIELDS
 
     exceptions: list[str] = []
 
@@ -137,6 +147,8 @@ def evaluate(
     exceptions.extend(folio_check.exceptions)
     if transportista is not None:
         exceptions.extend(transportista.exceptions)
+    if reconciliation is not None:
+        exceptions.extend(reconciliation.exceptions)
 
     if parsed.weight is not None and parsed.weight_declared is not None and parsed.weight_declared != 0:
         volumen_mismatch_pct = threshold_float(thresholds, "volumen_mismatch_pct", DEFAULT_VOLUMEN_MISMATCH_PCT)

@@ -1,16 +1,20 @@
-"""End-to-end API test: upload a fixture through the HTTP layer, confirm it
-was processed, submit a correction through the review endpoint, and confirm
-the audit trail and export reflect it.
+"""End-to-end API tests: upload fixtures/synthetic scans through the HTTP
+layer, confirm processing, and exercise the review endpoint -- including,
+since Phase 3, that a Salida record still missing its CFE slip/boleta
+counterpart can't be force-completed via manual approval (only real
+reconciliation completes it).
 
 Uses a temp SQLite DB and temp originals dir (via monkeypatched app.config
 settings + app.db engine) so it never touches the real data/boletas.db.
 """
 from __future__ import annotations
 
+import io
 import shutil
 
 import pytest
 from fastapi.testclient import TestClient
+from PIL import Image, ImageDraw, ImageFont
 
 from tests.conftest import BOLETAS_FIXTURES_DIR
 
@@ -18,6 +22,27 @@ requires_tesseract_and_fixtures = pytest.mark.skipif(
     shutil.which("tesseract") is None or not BOLETAS_FIXTURES_DIR.exists(),
     reason="tesseract binary or generated fixtures not available",
 )
+requires_tesseract = pytest.mark.skipif(shutil.which("tesseract") is None, reason="tesseract binary not available")
+
+
+def _font(size: int = 22):
+    try:
+        return ImageFont.truetype("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", size)
+    except OSError:
+        return ImageFont.load_default()
+
+
+def _render_text_image(lines: list[str]) -> bytes:
+    canvas = Image.new("RGB", (900, 400), "white")
+    draw = ImageDraw.Draw(canvas)
+    font = _font()
+    y = 30
+    for line in lines:
+        draw.text((40, y), line, fill="black", font=font)
+        y += 42
+    buffer = io.BytesIO()
+    canvas.save(buffer, format="PNG")
+    return buffer.getvalue()
 
 
 @pytest.fixture()
@@ -53,8 +78,71 @@ def client(tmp_path, monkeypatch):
         app.dependency_overrides.clear()
 
 
+@requires_tesseract
+def test_upload_both_documents_completes_reviews_and_exports(client):
+    folio_batch_resp = client.post(
+        "/api/folio-batches", json={"label": "test-folios", "mode": "imported", "folios": ["B-8001"]}
+    )
+    assert folio_batch_resp.status_code == 200
+
+    batch_resp = client.post("/api/batches", json={"label": "test-batch"})
+    assert batch_resp.status_code == 200
+    batch_id = batch_resp.json()["id"]
+
+    boleta_png = _render_text_image(
+        [
+            "Folio: B-8001",
+            "Fecha: 20/01/2026",
+            "Centro de Explotacion: Mina San Jose",
+            "Destino: Planta Norte",
+            "Datos del chofer del camion: Juan Perez",
+        ]
+    )
+    slip_png = _render_text_image(
+        ["Folio: B-8001", "Fecha: 20/01/2026", "Peso de Entrada: 500 kg", "Peso de Salida: 9500 kg"]
+    )
+
+    upload_resp = client.post(
+        f"/api/batches/{batch_id}/upload",
+        files=[("files", ("boleta.png", boleta_png, "image/png"))],
+    )
+    assert upload_resp.status_code == 200
+    assert upload_resp.json()["processed"][0]["status"] == "needs_review"  # boleta_only, waiting
+
+    upload_resp = client.post(
+        f"/api/batches/{batch_id}/upload",
+        files=[("cfe_slip_files", ("slip.png", slip_png, "image/png"))],
+    )
+    assert upload_resp.status_code == 200
+    body = upload_resp.json()
+    record_id = body["processed"][0]["record_id"]
+    assert body["processed"][0]["status"] == "auto_processed"
+
+    record_resp = client.get(f"/api/records/{record_id}")
+    assert record_resp.status_code == 200
+    record = record_resp.json()
+    assert record["boleta_id"] == "B-8001"
+    assert record["trip_type"] == "acarreo_carbon"
+    assert record["tariff_amount"] == 900.0  # 0.10 MXN/kg * 9000kg delivered, PricingRule P004
+    assert record["salida_status"] == "complete"
+    assert record["delivered_weight"] == 9000.0
+
+    # Superseded (the earlier boleta-only row) must not leak into listings.
+    export_resp = client.get(f"/api/exports/json?batch_id={batch_id}")
+    assert export_resp.status_code == 200
+    exported = export_resp.json()
+    assert len(exported) == 1
+    assert exported[0]["boleta_id"] == "B-8001"
+    assert exported[0]["status"] == "auto_processed"
+
+
 @requires_tesseract_and_fixtures
-def test_upload_process_review_and_export_roundtrip(client):
+def test_correcting_and_approving_a_partial_salida_record_cannot_force_complete(client):
+    """Since Phase 3: a Salida record can be corrected via review while it
+    waits on its counterpart document, but "approve" must not force it to
+    auto_processed -- only real reconciliation (the matching CFE slip
+    actually arriving) completes it. See app/review/service.py::apply_review.
+    """
     batch_resp = client.post("/api/batches", json={"label": "test-batch"})
     assert batch_resp.status_code == 200
     batch_id = batch_resp.json()["id"]
@@ -84,19 +172,15 @@ def test_upload_process_review_and_export_roundtrip(client):
             "origin": "Mina San Jose",
             "destination": "Planta Norte",
             "fletero": "Juan Perez",
-            "weight": 9000,
         },
     )
     assert review_resp.status_code == 200
     reviewed = review_resp.json()
-    assert reviewed["status"] == "auto_processed"
+    # Corrections still apply...
     assert reviewed["boleta_id"] == "B-9999"
     assert reviewed["trip_type"] == "acarreo_carbon"
-    assert reviewed["tariff_amount"] == 850.0
-
-    export_resp = client.get(f"/api/exports/json?batch_id={batch_id}")
-    assert export_resp.status_code == 200
-    exported = export_resp.json()
-    assert len(exported) == 1
-    assert exported[0]["boleta_id"] == "B-9999"
-    assert exported[0]["status"] == "auto_processed"
+    # ...but approval can't manufacture a priced/inventoried outcome for a
+    # record still missing its CFE slip.
+    assert reviewed["status"] == "needs_review"
+    assert reviewed["salida_status"] == "boleta_only"
+    assert reviewed["tariff_amount"] is None

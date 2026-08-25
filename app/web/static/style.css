@@ -77,6 +77,10 @@ tr.row-review { background: var(--warn-bg); }
 .badge { padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.8rem; }
 .badge-ok { background: var(--ok-bg); color: var(--ok-text); }
 .badge-warn { background: var(--warn-bg); color: var(--warn-text); }
+/* "Waiting on data" (Phase 3: a Salida record missing its other document)
+   is deliberately not warn/red -- it's not a data-quality problem, just an
+   incomplete pairing. Reuses the "baja"/info blue tone. */
+.badge-waiting { background: #e9f1fd; color: #1a4b8c; }
 
 .tag {
   display: inline-block;

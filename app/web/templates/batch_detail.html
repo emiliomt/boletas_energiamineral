@@ -9,7 +9,16 @@
   <section class="panel">
     <h2>Subir boletas</h2>
     <form method="post" action="/batches/{{ batch.id }}/upload" enctype="multipart/form-data" class="inline-form">
+      {% if batch.kind == 'salida' %}
+      <label>Boleta: <input type="file" name="files" multiple accept="image/*,application/pdf"></label>
+      <label>Comprobante CFE: <input type="file" name="cfe_slip_files" multiple accept="image/*,application/pdf"></label>
+      <p class="muted">
+        Sube la boleta y su comprobante CFE juntos (o por separado, según
+        vayan llegando) -- se enlazan automáticamente por folio.
+      </p>
+      {% else %}
       <input type="file" name="files" multiple accept="image/*,application/pdf" required>
+      {% endif %}
       <button type="submit">Procesar boletas</button>
     </form>
   </section>
@@ -67,7 +76,15 @@
           <td>{{ r.trip_type or "—" }}</td>
           <td>{{ "$%.2f"|format(r.tariff_amount) if r.tariff_amount is not none else "—" }}</td>
           <td>{{ "%.0f"|format(r.confidence_score * 100) }}%</td>
-          <td><span class="badge badge-{{ 'ok' if r.status == 'auto_processed' else 'warn' }}">{{ r.status }}</span></td>
+          <td>
+            {% if r.kind == 'salida' and r.salida_status == 'boleta_only' %}
+            <span class="badge badge-waiting">Esperando comprobante CFE</span>
+            {% elif r.kind == 'salida' and r.salida_status == 'cfe_slip_only' %}
+            <span class="badge badge-waiting">Esperando boleta</span>
+            {% else %}
+            <span class="badge badge-{{ 'ok' if r.status == 'auto_processed' else 'warn' }}">{{ r.status }}</span>
+            {% endif %}
+          </td>
           <td>{% if r.status == 'needs_review' %}<a href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
         </tr>
         {% endfor %}

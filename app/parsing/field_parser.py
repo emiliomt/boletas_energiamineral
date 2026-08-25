@@ -96,6 +96,8 @@ _FIELD_LABEL_KEYWORDS = (
     r"granulometr[ií]a",
     r"representante\s+legal",
     r"origen",
+    r"peso\s+(?:de\s+)?entrada",
+    r"peso\s+(?:de\s+)?salida",
 )
 _LABEL_STOP = re.compile(r"(?:%s)[ \t]*[:\-]" % "|".join(_FIELD_LABEL_KEYWORDS), re.IGNORECASE)
 
@@ -141,6 +143,15 @@ _WEIGHT_DECLARED_PATTERN = re.compile(r"volumen\s+por\s+entregar[ \t]*[:\-]?[ \t
 _WEIGHT_ACTUAL_PATTERN = re.compile(r"volumen\s+entregado[ \t]*[:\-]?[ \t]*([^\n\r]+)", re.IGNORECASE)
 # Legacy label, kept as a fallback for any pre-redesign boleta still in circulation.
 _WEIGHT_LEGACY_PATTERN = re.compile(r"peso[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE)
+
+# CFE weight-slip labels (Phase 3: Salida two-document reconciliation). A
+# separate, much smaller pattern set from the boleta's own -- the slip is
+# CFE's own document, not ours, and only carries a folio (matching our
+# boleta's), a date, and the entry/exit weights that determine delivered
+# volume.
+_CFE_FOLIO_PATTERN = re.compile(r"folio[ \t]*(?:no\.?|#|num(?:ero)?\.?)?[ \t]*[:\-][ \t]*([A-Za-z0-9\-]+)", re.IGNORECASE)
+_CFE_ENTRY_WEIGHT_PATTERN = re.compile(r"peso\s+(?:de\s+)?entrada[ \t]*[:\-]?[ \t]*([^\n\r]+)", re.IGNORECASE)
+_CFE_EXIT_WEIGHT_PATTERN = re.compile(r"peso\s+(?:de\s+)?salida[ \t]*[:\-]?[ \t]*([^\n\r]+)", re.IGNORECASE)
 
 
 @dataclass
@@ -237,5 +248,58 @@ def parse_fields(ocr: OCRResult) -> ParsedFields:
         match = pattern.search(text)
         if match:
             parsed.quality_data[key] = match.group(1).replace(",", ".")
+
+    return parsed
+
+
+@dataclass
+class CfeSlipFields:
+    """Fields parsed from a CFE weight slip (Phase 3) -- a document CFE
+    issues, not us, so it only carries the shared folio, a date, and the
+    entry/exit weights. See app/engines/salida_reconciliation.py for how
+    this reconciles with the matching boleta scan by folio."""
+
+    folio: str | None = None
+    date: str | None = None
+    cfe_entry_weight: float | None = None
+    cfe_exit_weight: float | None = None
+    field_confidences: dict[str, float] = field(default_factory=dict)
+
+
+def parse_cfe_slip_fields(ocr: OCRResult) -> CfeSlipFields:
+    text = ocr.text
+    parsed = CfeSlipFields()
+
+    match = _CFE_FOLIO_PATTERN.search(text)
+    if match:
+        value = clean_text(_strip_trailing_label(match.group(1)))
+        if value:
+            parsed.folio = value
+            parsed.field_confidences["folio"] = _word_confidence_for_value(value, ocr)
+    if parsed.folio is None:
+        parsed.field_confidences["folio"] = 0.0
+
+    parsed.date = parse_date(text)
+    parsed.field_confidences["date"] = (
+        _word_confidence_for_value(parsed.date, ocr) if parsed.date else 0.0
+    )
+
+    entry_match = _CFE_ENTRY_WEIGHT_PATTERN.search(text)
+    entry_source = _strip_trailing_label(entry_match.group(1)) if entry_match else ""
+    parsed.cfe_entry_weight = _extract_quantity(entry_source) if entry_source else None
+    parsed.field_confidences["cfe_entry_weight"] = (
+        _word_confidence_for_value(str(parsed.cfe_entry_weight), ocr)
+        if parsed.cfe_entry_weight is not None
+        else 0.0
+    )
+
+    exit_match = _CFE_EXIT_WEIGHT_PATTERN.search(text)
+    exit_source = _strip_trailing_label(exit_match.group(1)) if exit_match else ""
+    parsed.cfe_exit_weight = _extract_quantity(exit_source) if exit_source else None
+    parsed.field_confidences["cfe_exit_weight"] = (
+        _word_confidence_for_value(str(parsed.cfe_exit_weight), ocr)
+        if parsed.cfe_exit_weight is not None
+        else 0.0
+    )
 
     return parsed

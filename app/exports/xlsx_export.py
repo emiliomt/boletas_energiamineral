@@ -48,6 +48,7 @@ def build_batch_xlsx(db: Session, batch_id: int) -> bytes:
         db.query(BoletaRecord)
         .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
         .filter(Boleta.batch_id == batch_id)
+        .filter(BoletaRecord.reconciled_with_record_id.is_(None))  # see app/reporting/summary.py
         .order_by(BoletaRecord.id)
         .all()
     )

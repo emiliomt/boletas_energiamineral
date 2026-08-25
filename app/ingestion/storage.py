@@ -25,9 +25,16 @@ def _batch_dir(batch_id: int) -> Path:
     return d
 
 
-def store_upload(db: Session, batch: Batch, filename: str, content: bytes, mime_type: str) -> list[Boleta]:
+def store_upload(
+    db: Session, batch: Batch, filename: str, content: bytes, mime_type: str, document_type: str = "boleta"
+) -> list[Boleta]:
     """Saves `content` under data/originals/<batch_id>/, splitting PDFs into
     per-page images, and returns the created (uncommitted-processing) Boleta rows.
+
+    `document_type` (Phase 3: "boleta" | "cfe_slip") tags which of the two
+    Salida documents this upload is -- only meaningful when kind=salida,
+    ignored otherwise. Manually selected by the operator at upload time
+    (which file field they used), not inferred.
     """
     out_dir = _batch_dir(batch.id)
     created: list[Boleta] = []
@@ -44,6 +51,7 @@ def store_upload(db: Session, batch: Batch, filename: str, content: bytes, mime_
                 mime_type="image/png",
                 page_number=page_num,
                 sha256_hash=sha256_of_bytes(page_path.read_bytes()),
+                document_type=document_type,
             )
             db.add(boleta)
             created.append(boleta)
@@ -60,6 +68,7 @@ def store_upload(db: Session, batch: Batch, filename: str, content: bytes, mime_
             mime_type=mime_type or "image/png",
             page_number=1,
             sha256_hash=digest,
+            document_type=document_type,
         )
         db.add(boleta)
         created.append(boleta)

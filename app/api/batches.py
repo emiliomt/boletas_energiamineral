@@ -47,15 +47,24 @@ def get_batch(batch_id: int, db: Session = Depends(get_db)) -> Batch:
 
 
 @router.post("/{batch_id}/upload")
-def upload_to_batch(batch_id: int, files: list[UploadFile], db: Session = Depends(get_db)) -> dict:
+def upload_to_batch(
+    batch_id: int,
+    files: list[UploadFile] = [],  # noqa: B006 (FastAPI reconstructs this per-request)
+    cfe_slip_files: list[UploadFile] = [],  # noqa: B006
+    db: Session = Depends(get_db),
+) -> dict:
+    """`files` are tagged document_type="boleta"; `cfe_slip_files` (Phase 3,
+    only meaningful for a kind=salida batch) are tagged "cfe_slip" -- a
+    Salida trip's two documents (boleta scan + CFE weight slip) are
+    typically uploaded together in one call via these two fields."""
     batch = db.get(Batch, batch_id)
     if not batch:
         raise HTTPException(status_code=404, detail="Batch not found")
 
     processed = []
-    for upload in files:
+    for upload, document_type in [(f, "boleta") for f in files] + [(f, "cfe_slip") for f in cfe_slip_files]:
         content = upload.file.read()
-        boletas = store_upload(db, batch, upload.filename, content, upload.content_type or "")
+        boletas = store_upload(db, batch, upload.filename, content, upload.content_type or "", document_type)
         for boleta in boletas:
             record = process_boleta(db, boleta, _ocr_adapter)
             processed.append({"boleta_id": boleta.id, "record_id": record.id, "status": record.status})

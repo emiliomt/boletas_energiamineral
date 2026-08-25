@@ -18,6 +18,12 @@ def _to_detail(record: BoletaRecord) -> BoletaRecordDetail:
     return BoletaRecordDetail(
         record_id=record.id,
         boleta_id_internal=record.boleta_id,
+        kind=record.kind,
+        producer_id=record.producer_id,
+        salida_status=record.salida_status,
+        cfe_entry_weight=record.cfe_entry_weight,
+        cfe_exit_weight=record.cfe_exit_weight,
+        delivered_weight=record.delivered_weight,
         boleta_id=record.folio,
         date=record.date,
         origin=record.origin,
@@ -61,7 +67,13 @@ def list_records(
     date_to: str | None = None,
     db: Session = Depends(get_db),
 ) -> list[BoletaRecordDetail]:
-    query = db.query(BoletaRecord).join(Boleta, BoletaRecord.boleta_id == Boleta.id)
+    query = (
+        db.query(BoletaRecord)
+        .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
+        # Phase 3: exclude Salida documents merged into another record's
+        # reconciliation -- see app/reporting/summary.py::build_overview.
+        .filter(BoletaRecord.reconciled_with_record_id.is_(None))
+    )
     if batch_id is not None:
         query = query.filter(Boleta.batch_id == batch_id)
     if status is not None:
@@ -96,5 +108,11 @@ def get_record_image(record_id: int, db: Session = Depends(get_db)) -> FileRespo
 
 @router.get("/review-queue", response_model=list[BoletaRecordDetail])
 def review_queue(db: Session = Depends(get_db)) -> list[BoletaRecordDetail]:
-    records = db.query(BoletaRecord).filter(BoletaRecord.status == "needs_review").order_by(BoletaRecord.id).all()
+    records = (
+        db.query(BoletaRecord)
+        .filter(BoletaRecord.status == "needs_review")
+        .filter(BoletaRecord.reconciled_with_record_id.is_(None))
+        .order_by(BoletaRecord.id)
+        .all()
+    )
     return [_to_detail(r) for r in records]

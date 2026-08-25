@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from app.engines.tariff import compute_entrada_tariff, compute_tariff
+from app.engines.tariff import compute_entrada_tariff, compute_salida_tariff, compute_tariff
 from app.models import Producer
 
 
@@ -90,6 +90,43 @@ def test_compute_entrada_tariff_producer_with_no_pricing_rule_flags_exception(db
     db_session.flush()
 
     result = compute_entrada_tariff(db_session, producer, weight=100.0)
+
+    assert result.tariff_amount is None
+    assert "unknown_tariff" in result.exceptions
+
+
+# --- compute_salida_tariff (Phase 3) ---------------------------------------
+
+
+def test_compute_salida_tariff_per_weight_multiplies_rate_by_delivered_weight(db_session):
+    # Real placeholder data: PricingRule P004 (Mina San Jose, per_weight, 0.10/kg).
+    result = compute_salida_tariff(db_session, "Mina San Jose", delivered_weight=9000.0)
+
+    assert result.tariff_amount == 900.0
+    assert result.matched_rule is not None
+    assert result.matched_rule.pricing_mode == "per_weight"
+    assert result.exceptions == []
+
+
+def test_compute_salida_tariff_missing_delivered_weight_flags_exception(db_session):
+    # CFE always weighs -- a Salida PricingRule is always per_weight, so a
+    # missing delivered_weight is never a silent flat-rate fallback.
+    result = compute_salida_tariff(db_session, "Mina San Jose", delivered_weight=None)
+
+    assert result.tariff_amount is None
+    assert "missing_expected_weight" in result.exceptions
+    assert result.matched_rule is not None
+
+
+def test_compute_salida_tariff_unknown_origin_flags_exception(db_session):
+    result = compute_salida_tariff(db_session, "Lugar Sin Tarifa", delivered_weight=1000.0)
+
+    assert result.tariff_amount is None
+    assert "unknown_tariff" in result.exceptions
+
+
+def test_compute_salida_tariff_none_origin_flags_exception(db_session):
+    result = compute_salida_tariff(db_session, None, delivered_weight=1000.0)
 
     assert result.tariff_amount is None
     assert "unknown_tariff" in result.exceptions

@@ -70,9 +70,13 @@ def init_db() -> None:
     import app.models  # noqa: F401  (register models on Base.metadata)
 
     Base.metadata.create_all(bind=engine)  # creates producers, transportistas, transportista_aliases, pricing_rules
-    _ensure_columns("boleta_records")  # kind, producer_id, ocr_engine, proveedor, concesion_minera, representante_legal
+    _ensure_columns(
+        "boleta_records"
+    )  # kind, producer_id, ocr_engine, proveedor, concesion_minera, representante_legal,
+    # salida_status, cfe_entry_weight, cfe_exit_weight, delivered_weight, reconciled_with_record_id
     _ensure_columns("folio_batches")  # batch-level pre-printed fields (proveedor, destino, contrato, quality spec, ...)
     _ensure_columns("batches")  # kind, producer_id (Phase 2: Entrada pipeline)
+    _ensure_columns("boletas")  # document_type (Phase 3: Salida two-document reconciliation)
 
     from app.rules.config_loader import reload_all  # deferred: avoids a circular import
 

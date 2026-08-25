@@ -15,6 +15,8 @@ folio_already_used,,hard_block,Folio already linked to a different scanned recor
 volumen_mismatch,,hard_block,Volumen Entregado differs from Volumen por Entregar by more than the tolerance
 volumen_mismatch_pct,10,config,Max percent difference between declared and actual volumen before flagging
 unknown_producer,,hard_block,Entrada boleta's selected producer is missing/inactive or has no default_origin configured
-missing_expected_weight,,hard_block,Entrada's PricingRule is per_weight but the boleta carried no weight
+missing_expected_weight,,hard_block,PricingRule is per_weight but no weight was available (Entrada boleta; Salida CFE slip missing entry/exit weight)
 folio_already_used_for_producer,,hard_block,Same folio already ingested for this producer's Entrada records
 unmatched_transportista,,hard_block,Entrada's parsed transportista/fletero name didn't match any roster canonical name or alias above the fuzzy threshold
+salida_folio_mismatch,,hard_block,A Salida boleta and CFE slip uploaded together in the same lote carry different folios -- not silently paired
+document_type_mismatch,,hard_block,Upload tagged boleta/cfe_slip but the type-specific fields for that tag weren't found -- likely mis-tagged

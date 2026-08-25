@@ -41,39 +41,60 @@ def compute_tariff(db: Session, trip_type: str | None, distance_band: str | None
 
 
 @dataclass
-class EntradaTariffResult:
+class PricingRuleTariffResult:
+    """Shared result shape for both PricingRule-driven flows: Entrada
+    (Phase 2, scope=Producer.name) and Salida (Phase 3, scope=origin)."""
+
     tariff_amount: float | None = None
     matched_rule: PricingRule | None = None
     exceptions: list[str] = field(default_factory=list)
 
 
-def compute_entrada_tariff(db: Session, producer: Producer | None, weight: float | None) -> EntradaTariffResult:
-    """Entrada pricing (Phase 2): looks up the active `PricingRule` scoped
-    to the selected producer (PricingRule.scope matches Producer.name --
-    see Phase 1's pricing_config.csv convention) as of today, then branches
-    on `pricing_mode`:
+def _compute_pricing_rule_tariff(db: Session, scope: str | None, weight: float | None) -> PricingRuleTariffResult:
+    """Looks up the active PricingRule whose `scope` matches (case-
+    insensitive), then branches on `pricing_mode`:
 
-    - "flat": tariff_amount = rate, regardless of weight (weight is still
-      used for inventory via WeightEstimationRule, just not for pricing).
-    - "per_weight" with a parsed weight: tariff_amount = rate * weight.
-    - "per_weight" with no weight: this is an exception, not a silent
-      flat-rate fallback -- the boleta's format is supposed to carry a
-      weight and didn't, so it's flagged `missing_expected_weight` and
-      routed to review instead of guessing a price.
+    - "flat": tariff_amount = rate, regardless of weight.
+    - "per_weight" with a weight: tariff_amount = rate * weight.
+    - "per_weight" with no weight: an exception, not a silent flat-rate
+      fallback -- flagged `missing_expected_weight` and routed to review
+      instead of guessing a price.
     """
-    if producer is None:
-        return EntradaTariffResult(exceptions=["unknown_tariff"])
+    if not scope:
+        return PricingRuleTariffResult(exceptions=["unknown_tariff"])
 
-    scope_norm = producer.name.strip().lower()
+    scope_norm = scope.strip().lower()
     candidates = [r for r in get_active_pricing_rules(db) if r.scope.strip().lower() == scope_norm]
     if not candidates:
-        return EntradaTariffResult(exceptions=["unknown_tariff"])
+        return PricingRuleTariffResult(exceptions=["unknown_tariff"])
 
     rule = candidates[0]
     if rule.pricing_mode == "per_weight":
         if weight is None:
-            return EntradaTariffResult(matched_rule=rule, exceptions=["missing_expected_weight"])
-        return EntradaTariffResult(tariff_amount=rule.rate * weight, matched_rule=rule)
+            return PricingRuleTariffResult(matched_rule=rule, exceptions=["missing_expected_weight"])
+        return PricingRuleTariffResult(tariff_amount=rule.rate * weight, matched_rule=rule)
 
     # flat
-    return EntradaTariffResult(tariff_amount=rule.rate, matched_rule=rule)
+    return PricingRuleTariffResult(tariff_amount=rule.rate, matched_rule=rule)
+
+
+def compute_entrada_tariff(db: Session, producer: Producer | None, weight: float | None) -> PricingRuleTariffResult:
+    """Entrada pricing (Phase 2): PricingRule scoped to the selected
+    producer (PricingRule.scope matches Producer.name -- see Phase 1's
+    pricing_config.csv convention), as of today. See
+    _compute_pricing_rule_tariff for the flat/per_weight branching."""
+    if producer is None:
+        return PricingRuleTariffResult(exceptions=["unknown_tariff"])
+    return _compute_pricing_rule_tariff(db, producer.name, weight)
+
+
+def compute_salida_tariff(db: Session, origin: str | None, delivered_weight: float | None) -> PricingRuleTariffResult:
+    """Salida pricing (Phase 3): always per_weight -- CFE always weighs, so
+    there's no flat-rate Salida case in practice, though a misconfigured
+    flat PricingRule for a Salida-style scope is still handled the same as
+    Entrada's (rate regardless of weight) rather than treated as an error,
+    consistent with the config-is-the-source-of-truth philosophy. PricingRule
+    scoped to the classified route's origin (Phase 1's Salida-style scope
+    convention), looked up only once `salida_status == "complete"` --
+    `delivered_weight` isn't known before both documents have reconciled."""
+    return _compute_pricing_rule_tariff(db, origin, delivered_weight)

@@ -16,6 +16,17 @@
       <h2>Detalles y excepciones</h2>
       <p>Confianza: <strong>{{ "%.0f"|format(record.confidence_score * 100) }}%</strong></p>
       <p class="muted">Motor OCR: <strong>{{ record.ocr_engine or "—" }}</strong>{% if record.ocr_confidence is not none %} · confianza OCR {{ "%.0f"|format(record.ocr_confidence * 100) }}%{% endif %}</p>
+      {% if record.kind == 'salida' and record.salida_status and record.salida_status != 'complete' %}
+      <p class="badge badge-waiting">
+        {% if record.salida_status == 'boleta_only' %}Esperando el comprobante CFE{% else %}Esperando la boleta{% endif %}
+      </p>
+      {% elif record.kind == 'salida' and record.salida_status == 'complete' %}
+      <p class="muted">
+        Peso entrada CFE: <strong>{{ record.cfe_entry_weight if record.cfe_entry_weight is not none else "—" }}</strong> ·
+        Peso salida CFE: <strong>{{ record.cfe_exit_weight if record.cfe_exit_weight is not none else "—" }}</strong> ·
+        Peso entregado: <strong>{{ record.delivered_weight if record.delivered_weight is not none else "—" }}</strong>
+      </p>
+      {% endif %}
       {% if record.exceptions %}
       <ul class="exc-list">
         {% for e in describe_exceptions(record.exceptions) %}

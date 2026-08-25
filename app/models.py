@@ -64,6 +64,13 @@ class Boleta(Base):
     sha256_hash: Mapped[str] = mapped_column(String(64), index=True)
     uploaded_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
 
+    # Phase 3: which of the two Salida documents this scan is -- "boleta"
+    # (our own template) or "cfe_slip" (CFE's weight slip). Meaningless for
+    # kind=entrada (always "boleta", unused there). Tagged manually at
+    # upload time (operator selects which file field it went into) rather
+    # than inferred from layout -- see app/pipeline/orchestrator.py.
+    document_type: Mapped[str] = mapped_column(String(16), default="boleta")
+
     batch: Mapped["Batch"] = relationship(back_populates="boletas")
     record: Mapped["BoletaRecord"] = relationship(
         back_populates="boleta", uselist=False, cascade="all, delete-orphan"
@@ -86,6 +93,24 @@ class BoletaRecord(Base):
     producer_id: Mapped[int | None] = mapped_column(
         ForeignKey("producers.id"), nullable=True
     )  # set for kind=entrada, Phase 2+
+
+    # Phase 3: Salida two-document reconciliation. Only meaningful for
+    # kind=salida -- entrada records leave all of these at their defaults
+    # (None). A Salida boleta and its CFE weight slip arrive as two separate
+    # scans (two Boleta rows, each still getting its own BoletaRecord, per
+    # the existing 1:1 invariant) sharing a folio; whichever arrives second
+    # gets merged into the first via `reconciled_with_record_id` rather than
+    # the two rows being combined into one -- see
+    # app/engines/salida_reconciliation.py and app/pipeline/orchestrator.py.
+    salida_status: Mapped[str | None] = mapped_column(
+        String(16), nullable=True
+    )  # boleta_only|cfe_slip_only|complete
+    cfe_entry_weight: Mapped[float | None] = mapped_column(Float, nullable=True)
+    cfe_exit_weight: Mapped[float | None] = mapped_column(Float, nullable=True)
+    delivered_weight: Mapped[float | None] = mapped_column(Float, nullable=True)  # |exit - entry|
+    reconciled_with_record_id: Mapped[int | None] = mapped_column(
+        ForeignKey("boleta_records.id"), nullable=True
+    )  # set on the superseded (second-arrived) record once merged into the primary
 
     ocr_text: Mapped[str | None] = mapped_column(Text, nullable=True)
     ocr_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)

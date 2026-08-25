@@ -24,6 +24,14 @@ _EXCEPTION_META: dict[str, tuple[str, str]] = {
     "unknown_tariff": ("media", "Tarifa no encontrada para el tipo de viaje"),
     "unknown_inventory_direction": ("media", "Dirección de inventario desconocida"),
     "low_ocr_confidence": ("baja", "Baja confianza general del OCR"),
+    # Phase 2: Entrada pipeline
+    "unknown_producer": ("alta", "Productor no seleccionado, inactivo o sin origen configurado"),
+    "missing_expected_weight": ("alta", "Se esperaba un peso y no se encontró"),
+    "folio_already_used_for_producer": ("alta", "Folio ya usado para este productor"),
+    "unmatched_transportista": ("alta", "Transportista no reconocido en el padrón"),
+    # Phase 3: Salida two-document reconciliation
+    "salida_folio_mismatch": ("alta", "Folios distintos entre la boleta y el comprobante CFE"),
+    "document_type_mismatch": ("alta", "El documento no corresponde con el tipo seleccionado (boleta / comprobante CFE)"),
 }
 
 # Spanish labels for field names used in `missing_required_field:<field>` and

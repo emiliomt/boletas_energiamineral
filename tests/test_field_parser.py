@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from app.ocr.base import OCRResult, OCRWord
-from app.parsing.field_parser import parse_fields
+from app.parsing.field_parser import parse_cfe_slip_fields, parse_fields
 
 SAMPLE_TEXT = """\
 Folio: B-4521
@@ -159,3 +159,69 @@ def test_parses_proveedor_concesion_and_representante():
     assert parsed.proveedor.startswith("ENERGIA MINERAL")
     assert parsed.concesion_minera == "Mota del cura y el Carrizo No.1T-198196"
     assert parsed.representante_legal == "Andres Montemayor Tatum"
+
+
+# --- parse_cfe_slip_fields (Phase 3) ---------------------------------------
+
+CFE_SLIP_TEXT = """\
+Folio: B-4521
+Fecha: 12/03/2026
+Peso de Entrada: 15000 kg
+Peso de Salida: 24500 kg
+"""
+
+
+def test_parses_cfe_slip_folio_date_and_weights():
+    ocr = _fake_ocr_result(CFE_SLIP_TEXT)
+
+    parsed = parse_cfe_slip_fields(ocr)
+
+    assert parsed.folio == "B-4521"
+    assert parsed.date == "2026-03-12"
+    assert parsed.cfe_entry_weight == 15000.0
+    assert parsed.cfe_exit_weight == 24500.0
+
+
+def test_cfe_slip_never_parses_boleta_only_fields():
+    # CfeSlipFields simply has no origin/destination/fletero attributes --
+    # confirms the dataclass shape stays minimal even if boleta-style text
+    # happens to appear on the same document.
+    text = CFE_SLIP_TEXT + "Datos del chofer del camion: Juan Perez\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_cfe_slip_fields(ocr)
+
+    assert not hasattr(parsed, "fletero")
+    assert not hasattr(parsed, "origin")
+
+
+def test_cfe_slip_missing_weight_fields_are_none_with_zero_confidence():
+    text = "Folio: B-4521\nFecha: 12/03/2026\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_cfe_slip_fields(ocr)
+
+    assert parsed.cfe_entry_weight is None
+    assert parsed.cfe_exit_weight is None
+    assert parsed.field_confidences["cfe_entry_weight"] == 0.0
+    assert parsed.field_confidences["cfe_exit_weight"] == 0.0
+
+
+def test_cfe_slip_entry_weight_label_does_not_bleed_into_exit_weight_value():
+    text = "Peso de Entrada: 15000 kg Peso de Salida: 24500 kg\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_cfe_slip_fields(ocr)
+
+    assert parsed.cfe_entry_weight == 15000.0
+    assert parsed.cfe_exit_weight == 24500.0
+
+
+def test_cfe_slip_missing_folio_flags_zero_confidence():
+    text = "Fecha: 12/03/2026\nPeso de Entrada: 500 kg\nPeso de Salida: 9500 kg\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_cfe_slip_fields(ocr)
+
+    assert parsed.folio is None
+    assert parsed.field_confidences["folio"] == 0.0

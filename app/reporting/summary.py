@@ -48,6 +48,11 @@ def build_overview(
         db.query(BoletaRecord, Batch.label)
         .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
         .join(Batch, Boleta.batch_id == Batch.id)
+        # Phase 3: a Salida document merged into another record's
+        # reconciliation is superseded -- its own row still exists (every
+        # Boleta always gets one) but the merged, computed truth lives on
+        # the primary, so it must not double-count here.
+        .filter(BoletaRecord.reconciled_with_record_id.is_(None))
     )
     if batch_id is not None:
         query = query.filter(Boleta.batch_id == batch_id)
@@ -94,6 +99,7 @@ def build_batch_summary(db: Session, batch_id: int) -> BatchSummary:
         db.query(BoletaRecord)
         .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
         .filter(Boleta.batch_id == batch_id)
+        .filter(BoletaRecord.reconciled_with_record_id.is_(None))  # see build_overview
         .all()
     )
 
