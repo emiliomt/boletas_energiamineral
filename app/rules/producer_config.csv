@@ -9,6 +9,9 @@
 # it's matched against route_config.csv's `origin` column (see R004/R006/R007)
 # instead of parsing an origin from the boleta, since Entrada boletas never
 # carry one.
+# Optional columns precio_caja_carbon / precio_transporte (MXN) seed the
+# Proveedores rate card. Blank leaves the DB value unchanged so prices
+# entered in the UI survive CSV reload.
 name,format_id,default_origin,active
 Bradfort,BRAD-STD,Bradfort,true
 CTU/MINSA,CTU-STD,CTU/MINSA,true
