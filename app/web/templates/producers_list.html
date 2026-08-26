@@ -1,25 +1,34 @@
 {% extends "base.html" %}
+{% from "_macros.html" import empty_state %}
 {% block title %}Proveedores — Boletas Energía Mineral{% endblock %}
 {% block content %}
-  <p><a href="/">&larr; Volver</a></p>
-  <h1>Proveedores</h1>
-  <p class="muted">
-    Catálogo de proveedores de carbón. El <strong>precio por caja de carbón</strong>
-    es lo que se paga al proveedor por caja. El <strong>precio de transporte</strong>
-    es lo que se paga al fletero por el viaje; en boletas de Entrada se usa
-    como tarifa cuando está definido.
-  </p>
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/">Inicio</a> / Proveedores</p>
+      <h1>Proveedores</h1>
+      <p class="page-lede">
+        Catálogo de proveedores de carbón. El <strong>precio por caja de carbón</strong>
+        es lo que se paga al proveedor por caja. El <strong>precio de transporte</strong>
+        es lo que se paga al fletero por el viaje; en boletas de Entrada se usa
+        como tarifa cuando está definido.
+      </p>
+    </div>
+  </header>
 
   {% if error %}
-  <div class="panel" style="border-color: var(--warn-text);"><p style="color: var(--warn-text);">{{ error }}</p></div>
+  <div class="alert alert-error" role="alert">
+    <p>{{ error }}</p>
+  </div>
   {% endif %}
 
-  <section class="panel">
-    <h2>Nuevo proveedor</h2>
+  <section class="panel" aria-labelledby="nuevo-proveedor-heading">
+    <h2 id="nuevo-proveedor-heading">Nuevo proveedor</h2>
     <form method="post" action="/admin/proveedores" class="review-form">
-      <label>Nombre<input type="text" name="name" required placeholder="Ej. Mina El Roble"></label>
-      <label>Origen / mina (opcional)<input type="text" name="default_origin" placeholder="Si se omite, se usa el nombre"></label>
-      <div class="price-grid">
+      <div class="form-grid">
+        <label>Nombre<input type="text" name="name" required placeholder="Ej. Mina El Roble"></label>
+        <label>Origen / mina (opcional)<input type="text" name="default_origin" placeholder="Si se omite, se usa el nombre"></label>
+      </div>
+      <div class="form-grid">
         <label>Precio por caja de carbón (MXN)
           <input type="number" name="precio_caja_carbon" step="0.01" min="0" placeholder="0.00">
         </label>
@@ -31,8 +40,8 @@
     </form>
   </section>
 
-  <section class="panel">
-    <h2>Proveedores registrados</h2>
+  <section class="panel" aria-labelledby="proveedores-registrados-heading">
+    <h2 id="proveedores-registrados-heading">Proveedores registrados</h2>
     {% if producers %}
     <div class="producer-list">
       <div class="producer-row producer-head">
@@ -54,7 +63,7 @@
           <input type="number" name="precio_transporte" step="0.01" min="0"
                  value="{{ '%.2f'|format(p.precio_transporte) if p.precio_transporte is not none else '' }}"
                  placeholder="—" aria-label="Precio transporte de {{ p.name }}">
-          <span>{% if p.active %}<span class="badge badge-ok">activo</span>{% else %}<span class="badge">inactivo</span>{% endif %}</span>
+          <span>{% if p.active %}<span class="badge badge-ok">activo</span>{% else %}<span class="badge badge-neutral">inactivo</span>{% endif %}</span>
           <button type="submit">Guardar</button>
         </form>
         <form method="post" action="/admin/proveedores/{{ p.id }}/toggle">
@@ -66,7 +75,7 @@
       {% endfor %}
     </div>
     {% else %}
-    <p class="muted">Aún no hay proveedores. Agrega uno arriba.</p>
+    {% call empty_state("Aún no hay proveedores", "Agrega uno arriba para armar el catálogo de precios.") %}{% endcall %}
     {% endif %}
   </section>
 {% endblock %}
