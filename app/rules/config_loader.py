@@ -126,6 +126,14 @@ def load_producers(db: Session, csv_path: Path | None = None) -> int:
         obj.format_id = (row.get("format_id") or "").strip() or None
         obj.default_origin = (row.get("default_origin") or "").strip() or None
         obj.active = _to_bool(row.get("active", "true"))
+        # Optional price columns: only overwrite when the CSV actually has a
+        # value, so prices entered in the Proveedores UI survive reload_all().
+        caja = (row.get("precio_caja_carbon") or "").strip()
+        if caja:
+            obj.precio_caja_carbon = float(caja.replace(",", "."))
+        transporte = (row.get("precio_transporte") or "").strip()
+        if transporte:
+            obj.precio_transporte = float(transporte.replace(",", "."))
         if not existing:
             db.add(obj)
         count += 1

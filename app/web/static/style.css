@@ -185,4 +185,23 @@ button.btn-danger { background: #b3261e; }
 
 @media (max-width: 720px) {
   .review-grid { grid-template-columns: 1fr; }
+  .price-grid { grid-template-columns: 1fr; }
+}
+
+.price-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+.price-grid label { margin-bottom: 0.6rem; }
+
+tr.row-inactive { opacity: 0.55; }
+
+table input[type="text"],
+table input[type="number"] {
+  width: 100%;
+  min-width: 6rem;
+  padding: 0.35rem;
+  border: 1px solid var(--border);
+  border-radius: 4px;
 }

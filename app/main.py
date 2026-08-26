@@ -21,6 +21,7 @@ from app.config import BASE_DIR, settings
 from app.db import init_db
 from app.web import auth_routes
 from app.web import folio_batches_routes as folio_batches_web
+from app.web import producers_routes as producers_web
 from app.web import routes as web_routes
 
 
@@ -60,6 +61,7 @@ app.include_router(folio_batches_api.router, dependencies=_api_auth)
 
 _web_auth = [Depends(require_admin_web)]
 app.include_router(folio_batches_web.router, dependencies=_web_auth)
+app.include_router(producers_web.router, dependencies=_web_auth)
 app.include_router(web_routes.router, dependencies=_web_auth)
 
 static_dir = BASE_DIR / "app" / "web" / "static"
