@@ -34,50 +34,36 @@
   <section class="panel">
     <h2>Proveedores registrados</h2>
     {% if producers %}
-    <div class="table-scroll">
-    <table>
-      <thead>
-        <tr>
-          <th>Nombre</th>
-          <th>Origen</th>
-          <th>Precio caja carbón</th>
-          <th>Precio transporte</th>
-          <th>Estado</th>
-          <th></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for p in producers %}
-        <tr class="{{ '' if p.active else 'row-inactive' }}">
-          <td>{{ p.name }}</td>
-          <td>
-            <input form="edit-{{ p.id }}" type="text" name="default_origin" value="{{ p.default_origin or '' }}" aria-label="Origen de {{ p.name }}">
-          </td>
-          <td>
-            <input form="edit-{{ p.id }}" type="number" name="precio_caja_carbon" step="0.01" min="0"
-                   value="{{ '%.2f'|format(p.precio_caja_carbon) if p.precio_caja_carbon is not none else '' }}"
-                   placeholder="—" aria-label="Precio caja de {{ p.name }}">
-          </td>
-          <td>
-            <input form="edit-{{ p.id }}" type="number" name="precio_transporte" step="0.01" min="0"
-                   value="{{ '%.2f'|format(p.precio_transporte) if p.precio_transporte is not none else '' }}"
-                   placeholder="—" aria-label="Precio transporte de {{ p.name }}">
-          </td>
-          <td>{% if p.active %}<span class="badge badge-ok">activo</span>{% else %}<span class="badge">inactivo</span>{% endif %}</td>
-          <td>
-            <form id="edit-{{ p.id }}" method="post" action="/admin/proveedores/{{ p.id }}" class="inline-form">
-              <button type="submit">Guardar</button>
-            </form>
-            <form method="post" action="/admin/proveedores/{{ p.id }}/toggle" class="inline-form">
-              <button type="submit" class="{{ 'btn-danger' if p.active else 'btn-approve' }}">
-                {{ "Desactivar" if p.active else "Activar" }}
-              </button>
-            </form>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+    <div class="producer-list">
+      <div class="producer-row producer-head">
+        <span>Nombre</span>
+        <span>Origen</span>
+        <span>Precio caja carbón</span>
+        <span>Precio transporte</span>
+        <span>Estado</span>
+        <span></span>
+      </div>
+      {% for p in producers %}
+      <div class="producer-row-wrap {{ '' if p.active else 'row-inactive' }}">
+        <form method="post" action="/admin/proveedores/{{ p.id }}" class="producer-row">
+          <span class="producer-name">{{ p.name }}</span>
+          <input type="text" name="default_origin" value="{{ p.default_origin or '' }}" aria-label="Origen de {{ p.name }}">
+          <input type="number" name="precio_caja_carbon" step="0.01" min="0"
+                 value="{{ '%.2f'|format(p.precio_caja_carbon) if p.precio_caja_carbon is not none else '' }}"
+                 placeholder="—" aria-label="Precio caja de {{ p.name }}">
+          <input type="number" name="precio_transporte" step="0.01" min="0"
+                 value="{{ '%.2f'|format(p.precio_transporte) if p.precio_transporte is not none else '' }}"
+                 placeholder="—" aria-label="Precio transporte de {{ p.name }}">
+          <span>{% if p.active %}<span class="badge badge-ok">activo</span>{% else %}<span class="badge">inactivo</span>{% endif %}</span>
+          <button type="submit">Guardar</button>
+        </form>
+        <form method="post" action="/admin/proveedores/{{ p.id }}/toggle">
+          <button type="submit" class="{{ 'btn-danger' if p.active else 'btn-approve' }}">
+            {{ "Desactivar" if p.active else "Activar" }}
+          </button>
+        </form>
+      </div>
+      {% endfor %}
     </div>
     {% else %}
     <p class="muted">Aún no hay proveedores. Agrega uno arriba.</p>

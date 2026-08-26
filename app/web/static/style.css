@@ -195,13 +195,40 @@ button.btn-danger { background: #b3261e; }
 }
 .price-grid label { margin-bottom: 0.6rem; }
 
-tr.row-inactive { opacity: 0.55; }
+.row-inactive { opacity: 0.55; }
 
-table input[type="text"],
-table input[type="number"] {
+.producer-list { margin-top: 0.5rem; }
+.producer-head {
+  font-size: 0.85rem;
+  color: var(--muted);
+  font-weight: 600;
+  padding-bottom: 0.35rem;
+}
+.producer-row-wrap {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.45rem 0;
+  border-bottom: 1px solid var(--border);
+}
+.producer-row {
+  display: grid;
+  grid-template-columns: 1.1fr 1fr 1fr 1fr auto auto;
+  gap: 0.5rem;
+  align-items: center;
+}
+.producer-name { font-weight: 600; }
+.producer-row input[type="text"],
+.producer-row input[type="number"] {
   width: 100%;
-  min-width: 6rem;
+  min-width: 0;
   padding: 0.35rem;
   border: 1px solid var(--border);
   border-radius: 4px;
+}
+@media (max-width: 720px) {
+  .producer-head { display: none; }
+  .producer-row { grid-template-columns: 1fr; }
+  .producer-row-wrap { grid-template-columns: 1fr; }
 }
