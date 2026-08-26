@@ -524,13 +524,13 @@ button.btn-ghost:hover {
 }
 
 button.btn-approve {
-  background: var(--surface-raised);
+  background: var(--success-bg);
   color: var(--success-text);
   border: 2px solid var(--success);
 }
 button.btn-approve:hover {
-  background: var(--success-bg);
-  color: var(--success-text);
+  background: var(--success);
+  color: var(--text-inverse);
 }
 
 button.btn-danger {
@@ -802,6 +802,15 @@ th.num { text-align: right; }
   color: var(--text-inverse);
   text-decoration: none;
 }
+.col-action {
+  position: sticky;
+  right: 0;
+  background: var(--surface-raised);
+  box-shadow: -6px 0 10px rgba(31, 26, 20, 0.06);
+  z-index: 1;
+}
+.table-scroll th.col-action { z-index: 3; }
+tr.row-review .col-action { background: var(--warning-bg); }
 
 /* ---------- Badges, tags, confidence ---------- */
 
@@ -1113,7 +1122,20 @@ th.num { text-align: right; }
     width: 100%;
   }
   .inline-form button { width: 100%; }
-  .toolbar-exports { margin-left: 0; width: 100%; }
+  .toolbar,
+  .toolbar .field,
+  .toolbar select,
+  .toolbar button,
+  .toolbar .btn {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
+  }
+  .toolbar-exports,
+  .toolbar-exports .btn {
+    margin-left: 0;
+    width: 100%;
+  }
 }
 
 @media (max-width: 479px) {

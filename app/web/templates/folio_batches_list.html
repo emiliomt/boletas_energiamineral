@@ -103,7 +103,7 @@
             <th class="num">Total</th>
             <th class="num">Emitidos</th>
             <th class="num">Escaneados</th>
-            <th><span class="visually-hidden">Acciones</span></th>
+            <th class="col-action"><span class="visually-hidden">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -117,7 +117,7 @@
             <td class="num">{{ batch.count }}</td>
             <td class="num">{{ counts.issued }}</td>
             <td class="num">{{ counts.scanned }}</td>
-            <td><a class="table-action" href="/admin/folio-batches/{{ batch.id }}">Ver / Descargar</a></td>
+            <td class="col-action"><a class="table-action" href="/admin/folio-batches/{{ batch.id }}">Ver / Descargar</a></td>
           </tr>
           {% endfor %}
         </tbody>

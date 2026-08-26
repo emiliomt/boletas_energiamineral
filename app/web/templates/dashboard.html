@@ -84,7 +84,7 @@
             <th>Nombre</th>
             <th>Estado</th>
             <th>Creado por</th>
-            <th><span class="visually-hidden">Acciones</span></th>
+            <th class="col-action"><span class="visually-hidden">Acciones</span></th>
           </tr>
         </thead>
         <tbody>
@@ -95,7 +95,7 @@
             <td>{{ batch.label }}</td>
             <td>{{ status_badge(batch.status) }}</td>
             <td>{{ batch.created_by or "—" }}</td>
-            <td><a class="table-action" href="/batches/{{ batch.id }}">Ver / Subir boletas</a></td>
+            <td class="col-action"><a class="table-action" href="/batches/{{ batch.id }}">Ver / Subir boletas</a></td>
           </tr>
           {% endfor %}
         </tbody>

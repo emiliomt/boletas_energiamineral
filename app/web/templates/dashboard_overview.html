@@ -85,7 +85,7 @@
         <tr>
           <th>Folio</th><th>Fecha</th><th>Lote</th><th>Ruta</th><th>Fletero</th>
           <th>Tipo de viaje</th><th class="num">Tarifa</th><th class="num">Peso (kg)</th><th class="num">Inventario</th>
-          <th>Confianza</th><th>Estado</th><th>Excepciones</th><th><span class="visually-hidden">Acciones</span></th>
+          <th>Confianza</th><th>Estado</th><th>Excepciones</th><th class="col-action"><span class="visually-hidden">Acciones</span></th>
         </tr>
       </thead>
       <tbody>
@@ -107,7 +107,7 @@
             {% for g in summarize_exceptions(r.exceptions) %}<span class="exc-chip exc-{{ g.severity }}" title="{{ g.labels | join(' · ') }}">{{ g.count }} {{ g.severity_label }}</span>{% endfor %}
             {% if not r.exceptions %}<span class="muted">—</span>{% endif %}
           </td>
-          <td>{% if r.status == 'needs_review' %}<a class="table-action" href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
+          <td class="col-action">{% if r.status == 'needs_review' %}<a class="table-action" href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>

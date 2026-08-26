@@ -22,7 +22,7 @@
           <th>Estado</th>
           <th>Confianza</th>
           <th>Excepciones</th>
-          <th><span class="visually-hidden">Acciones</span></th>
+          <th class="col-action"><span class="visually-hidden">Acciones</span></th>
         </tr>
       </thead>
       <tbody>
@@ -44,7 +44,7 @@
           <td>
             {% for e in describe_exceptions(r.exceptions) %}<span class="exc-chip exc-{{ e.severity }}" title="{{ e.code }}">{{ e.label }}</span>{% endfor %}
           </td>
-          <td><a class="table-action" href="/review/{{ r.id }}">Revisar</a></td>
+          <td class="col-action"><a class="table-action" href="/review/{{ r.id }}">Revisar</a></td>
         </tr>
         {% endfor %}
       </tbody>

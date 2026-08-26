@@ -105,7 +105,7 @@
           <th class="num">Tarifa</th>
           <th>Confianza</th>
           <th>Estado</th>
-          <th><span class="visually-hidden">Acciones</span></th>
+          <th class="col-action"><span class="visually-hidden">Acciones</span></th>
         </tr>
       </thead>
       <tbody>
@@ -126,7 +126,7 @@
             {{ status_badge(r.status) }}
             {% endif %}
           </td>
-          <td>{% if r.status == 'needs_review' %}<a class="table-action" href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
+          <td class="col-action">{% if r.status == 'needs_review' %}<a class="table-action" href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
