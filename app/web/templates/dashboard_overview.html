@@ -1,49 +1,82 @@
 {% extends "base.html" %}
+{% from "_macros.html" import status_badge, confidence, empty_state %}
 {% block title %}Tablero de Boletas — Boletas Energía Mineral{% endblock %}
 {% block container_class %}container-wide{% endblock %}
 {% block content %}
-  <h1>Tablero de Boletas</h1>
-  <p class="muted">Toda la información de las boletas subidas — la misma que se exporta a Excel — resumida antes de descargarla.</p>
+  <header class="page-header">
+    <div>
+      <h1>Tablero de Boletas</h1>
+      <p class="page-lede">Toda la información de las boletas subidas — la misma que se exporta a Excel — resumida antes de descargarla.</p>
+    </div>
+  </header>
 
-  <section class="panel">
-    <form method="get" action="/dashboard" class="inline-form">
-      <select name="batch_id">
-        <option value="">Todos los lotes</option>
-        {% for b in batches %}
-        <option value="{{ b.id }}" {{ 'selected' if selected_batch_id == b.id else '' }}>{{ b.label }}</option>
-        {% endfor %}
-      </select>
-      <select name="status">
-        <option value="">Todos los estados</option>
-        <option value="auto_processed" {{ 'selected' if selected_status == 'auto_processed' else '' }}>Auto-procesadas</option>
-        <option value="needs_review" {{ 'selected' if selected_status == 'needs_review' else '' }}>Para revisión</option>
-      </select>
-      <select name="fletero">
-        <option value="">Todos los fleteros</option>
-        {% for f in fleteros %}
-        <option value="{{ f }}" {{ 'selected' if selected_fletero == f else '' }}>{{ f }}</option>
-        {% endfor %}
-      </select>
+  <section class="panel" aria-labelledby="filtros-heading">
+    <h2 id="filtros-heading" class="visually-hidden">Filtros y exportación</h2>
+    <form method="get" action="/dashboard" class="toolbar">
+      <label class="field" for="filter-batch">
+        <span class="field-label">Lote</span>
+        <select name="batch_id" id="filter-batch">
+          <option value="">Todos los lotes</option>
+          {% for b in batches %}
+          <option value="{{ b.id }}" {{ 'selected' if selected_batch_id == b.id else '' }}>{{ b.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field" for="filter-status">
+        <span class="field-label">Estado</span>
+        <select name="status" id="filter-status">
+          <option value="">Todos los estados</option>
+          <option value="auto_processed" {{ 'selected' if selected_status == 'auto_processed' else '' }}>Auto-procesadas</option>
+          <option value="needs_review" {{ 'selected' if selected_status == 'needs_review' else '' }}>Para revisión</option>
+        </select>
+      </label>
+      <label class="field" for="filter-fletero">
+        <span class="field-label">Fletero</span>
+        <select name="fletero" id="filter-fletero">
+          <option value="">Todos los fleteros</option>
+          {% for f in fleteros %}
+          <option value="{{ f }}" {{ 'selected' if selected_fletero == f else '' }}>{{ f }}</option>
+          {% endfor %}
+        </select>
+      </label>
       <button type="submit">Filtrar</button>
-      <a href="/dashboard" class="muted" style="align-self:center;">Limpiar</a>
+      <a href="/dashboard" class="btn btn-ghost">Limpiar</a>
+      <div class="toolbar-exports" aria-label="Exportar">
+        <a class="btn btn-secondary btn-sm" href="/api/exports/csv{{ '?batch_id=' ~ selected_batch_id if selected_batch_id else '' }}">Exportar CSV</a>
+        <a class="btn btn-secondary btn-sm" href="/api/exports/json{{ '?batch_id=' ~ selected_batch_id if selected_batch_id else '' }}">Exportar JSON</a>
+        {% if selected_batch_id %}
+        <a class="btn btn-secondary btn-sm" href="/api/exports/xlsx?batch_id={{ selected_batch_id }}">Exportar Excel</a>
+        {% endif %}
+      </div>
     </form>
   </section>
 
   <div class="stat-row">
-    <div class="stat-card"><div class="stat-value">{{ overview.total_boletas }}</div><div class="stat-label">Boletas</div></div>
-    <div class="stat-card"><div class="stat-value">{{ overview.auto_processed_count }}</div><div class="stat-label">Auto-procesadas</div></div>
-    <div class="stat-card {{ 'stat-warn' if overview.needs_review_count else '' }}"><div class="stat-value">{{ overview.needs_review_count }}</div><div class="stat-label">Para revisión</div></div>
-    <div class="stat-card"><div class="stat-value">${{ "%.2f"|format(overview.total_payable) }}</div><div class="stat-label">Pago a confirmar</div></div>
+    <article class="stat-card">
+      <p class="stat-label">Boletas</p>
+      <p class="stat-value">{{ overview.total_boletas }}</p>
+      <p class="stat-hint">Según el filtro actual</p>
+    </article>
+    <article class="stat-card stat-ok">
+      <p class="stat-label">Auto-procesadas</p>
+      <p class="stat-value">{{ overview.auto_processed_count }}</p>
+      <p class="stat-hint">Sin revisión manual</p>
+    </article>
+    <article class="stat-card {{ 'stat-warn' if overview.needs_review_count else '' }}">
+      <p class="stat-label">Para revisión</p>
+      <p class="stat-value">{{ overview.needs_review_count }}</p>
+      <p class="stat-hint">{% if overview.needs_review_count %}Pendientes de corrección{% else %}Ninguna pendiente{% endif %}</p>
+    </article>
+    <article class="stat-card stat-info">
+      <p class="stat-label">Pago a confirmar</p>
+      <p class="stat-value">${{ "%.2f"|format(overview.total_payable) }}</p>
+      <p class="stat-hint">Solo boletas auto-procesadas</p>
+    </article>
   </div>
 
-  <section class="panel">
-    <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem;">
-      <h2 style="margin:0;">Boletas</h2>
-      <span>
-        <a href="/api/exports/csv{{ '?batch_id=' ~ selected_batch_id if selected_batch_id else '' }}">Exportar CSV</a> ·
-        <a href="/api/exports/json{{ '?batch_id=' ~ selected_batch_id if selected_batch_id else '' }}">Exportar JSON</a>
-        {% if selected_batch_id %} · <a href="/api/exports/xlsx?batch_id={{ selected_batch_id }}">Exportar Excel</a>{% endif %}
-      </span>
+  <section class="panel" aria-labelledby="boletas-heading">
+    <div class="panel-header">
+      <h2 id="boletas-heading">Boletas</h2>
     </div>
     {% if overview.rows %}
     <div class="table-scroll">
@@ -51,8 +84,8 @@
       <thead>
         <tr>
           <th>Folio</th><th>Fecha</th><th>Lote</th><th>Ruta</th><th>Fletero</th>
-          <th>Tipo de viaje</th><th>Tarifa</th><th>Peso (kg)</th><th>Inventario</th>
-          <th>Confianza</th><th>Estado</th><th>Excepciones</th><th></th>
+          <th>Tipo de viaje</th><th class="num">Tarifa</th><th class="num">Peso (kg)</th><th class="num">Inventario</th>
+          <th>Confianza</th><th>Estado</th><th>Excepciones</th><th><span class="visually-hidden">Acciones</span></th>
         </tr>
       </thead>
       <tbody>
@@ -65,68 +98,76 @@
           <td>{{ r.origin or "?" }} &rarr; {{ r.destination or "?" }}</td>
           <td>{{ r.fletero or "—" }}</td>
           <td>{{ r.trip_type or "—" }}</td>
-          <td>{{ "$%.2f"|format(r.tariff_amount) if r.tariff_amount is not none else "—" }}</td>
-          <td>{{ "%.0f"|format(r.weight) if r.weight is not none else "—" }}</td>
-          <td>{{ "%+.0f"|format(r.inventory_quantity) if r.inventory_quantity is not none else "—" }}</td>
-          <td>{{ "%.0f"|format(r.confidence_score * 100) }}%</td>
-          <td><span class="badge badge-{{ 'ok' if r.status == 'auto_processed' else 'warn' }}">{{ r.status }}</span></td>
+          <td class="num">{{ "$%.2f"|format(r.tariff_amount) if r.tariff_amount is not none else "—" }}</td>
+          <td class="num">{{ "%.0f"|format(r.weight) if r.weight is not none else "—" }}</td>
+          <td class="num">{{ "%+.0f"|format(r.inventory_quantity) if r.inventory_quantity is not none else "—" }}</td>
+          <td>{{ confidence(r.confidence_score) }}</td>
+          <td>{{ status_badge(r.status) }}</td>
           <td class="exc-cell">
             {% for g in summarize_exceptions(r.exceptions) %}<span class="exc-chip exc-{{ g.severity }}" title="{{ g.labels | join(' · ') }}">{{ g.count }} {{ g.severity_label }}</span>{% endfor %}
             {% if not r.exceptions %}<span class="muted">—</span>{% endif %}
           </td>
-          <td>{% if r.status == 'needs_review' %}<a href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
+          <td>{% if r.status == 'needs_review' %}<a class="table-action" href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
     </div>
     {% else %}
-    <p class="muted">No hay boletas para el filtro seleccionado.</p>
+    {% call empty_state("No hay boletas para el filtro seleccionado", "Ajusta los filtros o sube boletas a un lote de escaneo.") %}
+      <a class="btn btn-secondary" href="/">Ir al panel</a>
+    {% endcall %}
     {% endif %}
   </section>
 
-  <div class="review-grid">
-    <section class="panel">
-      <h2>Pago por fletero</h2>
+  <div class="split-grid">
+    <section class="panel" aria-labelledby="pago-fletero-heading">
+      <h2 id="pago-fletero-heading">Pago por fletero</h2>
       <p class="muted">Solo boletas auto-procesadas (confirmadas).</p>
       {% if overview.total_payment_by_fletero %}
+      <div class="table-scroll">
       <table>
-        <thead><tr><th>Fletero</th><th>Total a pagar</th></tr></thead>
+        <thead><tr><th>Fletero</th><th class="num">Total a pagar</th></tr></thead>
         <tbody>
           {% for fletero, amount in overview.total_payment_by_fletero.items() %}
-          <tr><td>{{ fletero }}</td><td>${{ "%.2f"|format(amount) }}</td></tr>
+          <tr><td>{{ fletero }}</td><td class="num">${{ "%.2f"|format(amount) }}</td></tr>
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% else %}<p class="muted">Sin datos aún.</p>{% endif %}
     </section>
 
-    <section class="panel">
-      <h2>Inventario neto por material</h2>
+    <section class="panel" aria-labelledby="inventario-heading">
+      <h2 id="inventario-heading">Inventario neto por material</h2>
       {% if overview.net_inventory_by_material %}
+      <div class="table-scroll">
       <table>
-        <thead><tr><th>Material</th><th>Cantidad neta (kg)</th></tr></thead>
+        <thead><tr><th>Material</th><th class="num">Cantidad neta (kg)</th></tr></thead>
         <tbody>
           {% for material, qty in overview.net_inventory_by_material.items() %}
-          <tr><td>{{ material }}</td><td>{{ "%+.1f"|format(qty) }}</td></tr>
+          <tr><td>{{ material }}</td><td class="num">{{ "%+.1f"|format(qty) }}</td></tr>
           {% endfor %}
         </tbody>
       </table>
+      </div>
       {% else %}<p class="muted">Sin datos aún.</p>{% endif %}
     </section>
   </div>
 
   {% if overview.net_inventory_by_route %}
-  <section class="panel">
-    <h2>Inventario neto por ruta</h2>
+  <section class="panel" aria-labelledby="inventario-ruta-heading">
+    <h2 id="inventario-ruta-heading">Inventario neto por ruta</h2>
+    <div class="table-scroll">
     <table>
-      <thead><tr><th>Ruta</th><th>Cantidad neta (kg)</th></tr></thead>
+      <thead><tr><th>Ruta</th><th class="num">Cantidad neta (kg)</th></tr></thead>
       <tbody>
         {% for route, qty in overview.net_inventory_by_route.items() %}
-        <tr><td>{{ route }}</td><td>{{ "%+.1f"|format(qty) }}</td></tr>
+        <tr><td>{{ route }}</td><td class="num">{{ "%+.1f"|format(qty) }}</td></tr>
         {% endfor %}
       </tbody>
     </table>
+    </div>
   </section>
   {% endif %}
 {% endblock %}

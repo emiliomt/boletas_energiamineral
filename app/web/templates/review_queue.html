@@ -1,39 +1,59 @@
 {% extends "base.html" %}
+{% from "_macros.html" import confidence, empty_state %}
 {% block title %}Cola de Revisión — Boletas Energía Mineral{% endblock %}
 {% block content %}
-  <p><a href="/">&larr; Volver</a></p>
-  <h1>Cola de Revisión</h1>
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/">Inicio</a> / Cola de revisión</p>
+      <h1>Cola de Revisión</h1>
+      <p class="page-lede">Boletas que el sistema no pudo confirmar automáticamente. Revisa excepciones y corrige campos antes de aprobar.</p>
+    </div>
+  </header>
 
   {% if records %}
-  <table>
-    <thead>
-      <tr><th>Folio</th><th>Fecha</th><th>Ruta</th><th>Estado</th><th>Confianza</th><th>Excepciones</th><th></th></tr>
-    </thead>
-    <tbody>
-      {% for r in records %}
-      <tr>
-        <td>{{ r.folio or "—" }}</td>
-        <td>{{ r.date or "—" }}</td>
-        <td>{{ r.origin or "?" }} &rarr; {{ r.destination or "?" }}</td>
-        <td>
-          {% if r.kind == 'salida' and r.salida_status == 'boleta_only' %}
-          <span class="badge badge-waiting" title="Falta el comprobante CFE">Esperando comprobante CFE</span>
-          {% elif r.kind == 'salida' and r.salida_status == 'cfe_slip_only' %}
-          <span class="badge badge-waiting" title="Falta la boleta">Esperando boleta</span>
-          {% else %}
-          <span class="muted">—</span>
-          {% endif %}
-        </td>
-        <td>{{ "%.0f"|format(r.confidence_score * 100) }}%</td>
-        <td>
-          {% for e in describe_exceptions(r.exceptions) %}<span class="exc-chip exc-{{ e.severity }}" title="{{ e.code }}">{{ e.label }}</span>{% endfor %}
-        </td>
-        <td><a href="/review/{{ r.id }}">Revisar</a></td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <section class="panel">
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Folio</th>
+          <th>Fecha</th>
+          <th>Ruta</th>
+          <th>Estado</th>
+          <th>Confianza</th>
+          <th>Excepciones</th>
+          <th><span class="visually-hidden">Acciones</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in records %}
+        <tr class="row-review">
+          <td>{{ r.folio or "—" }}</td>
+          <td>{{ r.date or "—" }}</td>
+          <td>{{ r.origin or "?" }} &rarr; {{ r.destination or "?" }}</td>
+          <td>
+            {% if r.kind == 'salida' and r.salida_status == 'boleta_only' %}
+            <span class="badge badge-waiting" title="Falta el comprobante CFE"><span class="badge-mark" aria-hidden="true"></span>Esperando comprobante CFE</span>
+            {% elif r.kind == 'salida' and r.salida_status == 'cfe_slip_only' %}
+            <span class="badge badge-waiting" title="Falta la boleta"><span class="badge-mark" aria-hidden="true"></span>Esperando boleta</span>
+            {% else %}
+            <span class="badge badge-warn"><span class="badge-mark" aria-hidden="true"></span>Para revisión</span>
+            {% endif %}
+          </td>
+          <td>{{ confidence(r.confidence_score) }}</td>
+          <td>
+            {% for e in describe_exceptions(r.exceptions) %}<span class="exc-chip exc-{{ e.severity }}" title="{{ e.code }}">{{ e.label }}</span>{% endfor %}
+          </td>
+          <td><a class="table-action" href="/review/{{ r.id }}">Revisar</a></td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+  </section>
   {% else %}
-  <p class="muted">No hay boletas pendientes de revisión. 🎉</p>
+  {% call empty_state("No hay boletas pendientes de revisión", "Las boletas que requieran corrección aparecerán aquí. Puedes seguir el trabajo en el tablero.") %}
+    <a class="btn" href="/dashboard">Ver tablero</a>
+  {% endcall %}
   {% endif %}
 {% endblock %}

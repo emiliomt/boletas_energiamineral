@@ -1,0 +1,53 @@
+{# Shared presentation helpers. Display-only — do not change backend contracts. #}
+
+{% macro status_badge(status) -%}
+  {%- if status == "auto_processed" -%}
+  <span class="badge badge-ok"><span class="badge-mark" aria-hidden="true"></span>Auto-procesada</span>
+  {%- elif status == "needs_review" -%}
+  <span class="badge badge-warn"><span class="badge-mark" aria-hidden="true"></span>Para revisión</span>
+  {%- elif status == "open" -%}
+  <span class="badge badge-info"><span class="badge-mark" aria-hidden="true"></span>Abierto</span>
+  {%- elif status == "closed" -%}
+  <span class="badge badge-neutral"><span class="badge-mark" aria-hidden="true"></span>Cerrado</span>
+  {%- elif status == "issued" -%}
+  <span class="badge badge-ok"><span class="badge-mark" aria-hidden="true"></span>Emitido</span>
+  {%- elif status == "scanned" -%}
+  <span class="badge badge-info"><span class="badge-mark" aria-hidden="true"></span>Escaneado</span>
+  {%- elif status == "void" -%}
+  <span class="badge badge-neutral"><span class="badge-mark" aria-hidden="true"></span>Anulado</span>
+  {%- else -%}
+  <span class="badge badge-neutral"><span class="badge-mark" aria-hidden="true"></span>{{ status }}</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro kind_badge(kind) -%}
+  {%- if kind == "entrada" -%}
+  <span class="badge badge-ok"><span class="badge-mark" aria-hidden="true"></span>Entrada</span>
+  {%- else -%}
+  <span class="badge badge-info"><span class="badge-mark" aria-hidden="true"></span>Salida</span>
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro mode_label(mode) -%}
+  {%- if mode == "sequential" -%}Secuencial
+  {%- elif mode == "imported" -%}Lista pegada
+  {%- else -%}{{ mode }}
+  {%- endif -%}
+{%- endmacro %}
+
+{% macro confidence(score) -%}
+  {%- set pct = "%.0f"|format((score or 0) * 100) -%}
+  {%- set level = "high" if (score or 0) >= 0.8 else ("mid" if (score or 0) >= 0.5 else "low") -%}
+  <span class="confidence confidence-{{ level }}">
+    <meter min="0" max="100" low="50" high="80" optimum="100" value="{{ pct }}" title="Confianza {{ pct }}%">{{ pct }}%</meter>
+    <span class="confidence-label">{{ pct }}%</span>
+  </span>
+{%- endmacro %}
+
+{% macro empty_state(title, body) -%}
+  <div class="empty-state" role="status">
+    <p class="empty-state-title">{{ title }}</p>
+    {% if body %}<p class="empty-state-body">{{ body }}</p>{% endif %}
+    {{ caller() if caller else "" }}
+  </div>
+{%- endmacro %}

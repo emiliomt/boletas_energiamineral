@@ -1,0 +1,23 @@
+---
+description: Project frontend rules for the FastAPI/Jinja2 boletas UI
+globs: app/web/**/*.{html,css,js}
+alwaysApply: false
+---
+
+# Frontend design (Boletas Energía Mineral)
+
+Keep the existing FastAPI + Jinja2 + vanilla CSS architecture. Do not add
+React, Vue, Svelte, Tailwind, shadcn, or a Node build. UI component catalogs
+are references, not dependencies.
+
+Preserve routes, form field names, action values, Jinja variables, Spanish
+copy, and backend behavior. Change presentation in `app/web/templates/` and
+`app/web/static/style.css`; reuse tokens and semantic HTML (landmarks,
+labels, fieldsets).
+
+Avoid inline styles. JavaScript must stay local, optional, and must not
+replace server form/link actions.
+
+Verify keyboard use, mobile layout, contrast, and reduced-motion. After
+frontend edits run the existing pytest suite with the SQLite `DATABASE_URL`
+override from `AGENTS.md`.

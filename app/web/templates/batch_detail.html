@@ -1,71 +1,112 @@
 {% extends "base.html" %}
+{% from "_macros.html" import status_badge, kind_badge, confidence, empty_state %}
 {% block title %}Lote {{ batch.label }} — Boletas Energía Mineral{% endblock %}
 {% block content %}
-  <p><a href="/">&larr; Volver</a></p>
-  <h1>Lote: {{ batch.label }}
-    <span class="badge badge-{{ 'ok' if batch.kind == 'entrada' else 'warn' }}">{{ 'Entrada' if batch.kind == 'entrada' else 'Salida' }}</span>
-  </h1>
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/">Inicio</a> / Lote {{ batch.label }}</p>
+      <h1>Lote: {{ batch.label }} {{ kind_badge(batch.kind) }}</h1>
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-secondary" href="/api/exports/xlsx?batch_id={{ batch.id }}">Exportar Excel (pagos)</a>
+      <a class="btn btn-secondary" href="/api/exports/csv?batch_id={{ batch.id }}">Exportar CSV</a>
+      <a class="btn btn-secondary" href="/api/exports/json?batch_id={{ batch.id }}">Exportar JSON</a>
+    </div>
+  </header>
 
-  <section class="panel">
-    <h2>Subir boletas</h2>
-    <form method="post" action="/batches/{{ batch.id }}/upload" enctype="multipart/form-data" class="inline-form">
+  <section class="panel" aria-labelledby="upload-heading">
+    <h2 id="upload-heading">Subir boletas</h2>
+    <form method="post" action="/batches/{{ batch.id }}/upload" enctype="multipart/form-data" class="inline-form" data-busy-on-submit>
       {% if batch.kind == 'salida' %}
-      <label>Boleta: <input type="file" name="files" multiple accept="image/*,application/pdf"></label>
-      <label>Comprobante CFE: <input type="file" name="cfe_slip_files" multiple accept="image/*,application/pdf"></label>
+      <label class="file-field">
+        <span class="field-label">Boleta</span>
+        <input type="file" name="files" multiple accept="image/*,application/pdf">
+      </label>
+      <label class="file-field">
+        <span class="field-label">Comprobante CFE</span>
+        <input type="file" name="cfe_slip_files" multiple accept="image/*,application/pdf">
+      </label>
       <p class="muted">
         Sube la boleta y su comprobante CFE juntos (o por separado, según
         vayan llegando) -- se enlazan automáticamente por folio.
       </p>
       {% else %}
-      <input type="file" name="files" multiple accept="image/*,application/pdf" required>
+      <label class="file-field">
+        <span class="field-label">Archivos</span>
+        <input type="file" name="files" multiple accept="image/*,application/pdf" required>
+      </label>
       {% endif %}
-      <button type="submit">Procesar boletas</button>
+      <button type="submit" data-busy-label="Procesando…">Procesar boletas</button>
     </form>
   </section>
 
-  <section class="panel">
-    <h2>Resumen</h2>
+  <section class="panel" aria-labelledby="resumen-heading">
+    <h2 id="resumen-heading">Resumen</h2>
     <div class="stat-row">
-      <div class="stat-card"><div class="stat-value">{{ summary.total_boletas }}</div><div class="stat-label">Total</div></div>
-      <div class="stat-card"><div class="stat-value">{{ summary.auto_processed_count }}</div><div class="stat-label">Auto-procesadas</div></div>
-      <div class="stat-card {{ 'stat-warn' if summary.needs_review_count else '' }}"><div class="stat-value">{{ summary.needs_review_count }}</div><div class="stat-label">Para revisión</div></div>
+      <article class="stat-card">
+        <p class="stat-label">Total</p>
+        <p class="stat-value">{{ summary.total_boletas }}</p>
+      </article>
+      <article class="stat-card stat-ok">
+        <p class="stat-label">Auto-procesadas</p>
+        <p class="stat-value">{{ summary.auto_processed_count }}</p>
+      </article>
+      <article class="stat-card {{ 'stat-warn' if summary.needs_review_count else '' }}">
+        <p class="stat-label">Para revisión</p>
+        <p class="stat-value">{{ summary.needs_review_count }}</p>
+      </article>
     </div>
 
-    <h3>Pago total por fletero</h3>
-    {% if summary.total_payment_by_fletero %}
-    <table>
-      <thead><tr><th>Fletero</th><th>Total</th></tr></thead>
-      <tbody>
-        {% for fletero, amount in summary.total_payment_by_fletero.items() %}
-        <tr><td>{{ fletero }}</td><td>${{ "%.2f"|format(amount) }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}<p class="muted">Sin datos aún.</p>{% endif %}
-
-    <h3>Movimiento neto de inventario por material</h3>
-    {% if summary.net_inventory_by_material %}
-    <table>
-      <thead><tr><th>Material</th><th>Cantidad neta (kg)</th></tr></thead>
-      <tbody>
-        {% for material, qty in summary.net_inventory_by_material.items() %}
-        <tr><td>{{ material }}</td><td>{{ "%.1f"|format(qty) }}</td></tr>
-        {% endfor %}
-      </tbody>
-    </table>
-    {% else %}<p class="muted">Sin datos aún.</p>{% endif %}
-
-    <p><a href="/api/exports/xlsx?batch_id={{ batch.id }}">Exportar Excel (pagos)</a> ·
-       <a href="/api/exports/csv?batch_id={{ batch.id }}">Exportar CSV</a> ·
-       <a href="/api/exports/json?batch_id={{ batch.id }}">Exportar JSON</a></p>
+    <div class="split-grid">
+      <div>
+        <h3>Pago total por fletero</h3>
+        {% if summary.total_payment_by_fletero %}
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>Fletero</th><th class="num">Total</th></tr></thead>
+          <tbody>
+            {% for fletero, amount in summary.total_payment_by_fletero.items() %}
+            <tr><td>{{ fletero }}</td><td class="num">${{ "%.2f"|format(amount) }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% else %}<p class="muted">Sin datos aún.</p>{% endif %}
+      </div>
+      <div>
+        <h3>Movimiento neto de inventario por material</h3>
+        {% if summary.net_inventory_by_material %}
+        <div class="table-scroll">
+        <table>
+          <thead><tr><th>Material</th><th class="num">Cantidad neta (kg)</th></tr></thead>
+          <tbody>
+            {% for material, qty in summary.net_inventory_by_material.items() %}
+            <tr><td>{{ material }}</td><td class="num">{{ "%.1f"|format(qty) }}</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        </div>
+        {% else %}<p class="muted">Sin datos aún.</p>{% endif %}
+      </div>
+    </div>
   </section>
 
-  <section class="panel">
-    <h2>Boletas del lote</h2>
+  <section class="panel" aria-labelledby="boletas-lote-heading">
+    <h2 id="boletas-lote-heading">Boletas del lote</h2>
     {% if records %}
+    <div class="table-scroll">
     <table>
       <thead>
-        <tr><th>Folio</th><th>Fecha</th><th>Ruta</th><th>Tipo de viaje</th><th>Tarifa</th><th>Confianza</th><th>Estado</th><th></th></tr>
+        <tr>
+          <th>Folio</th>
+          <th>Fecha</th>
+          <th>Ruta</th>
+          <th>Tipo de viaje</th>
+          <th class="num">Tarifa</th>
+          <th>Confianza</th>
+          <th>Estado</th>
+          <th><span class="visually-hidden">Acciones</span></th>
+        </tr>
       </thead>
       <tbody>
         {% for r in records %}
@@ -74,24 +115,25 @@
           <td>{{ r.date or "—" }}</td>
           <td>{{ r.origin or "?" }} &rarr; {{ r.destination or "?" }}</td>
           <td>{{ r.trip_type or "—" }}</td>
-          <td>{{ "$%.2f"|format(r.tariff_amount) if r.tariff_amount is not none else "—" }}</td>
-          <td>{{ "%.0f"|format(r.confidence_score * 100) }}%</td>
+          <td class="num">{{ "$%.2f"|format(r.tariff_amount) if r.tariff_amount is not none else "—" }}</td>
+          <td>{{ confidence(r.confidence_score) }}</td>
           <td>
             {% if r.kind == 'salida' and r.salida_status == 'boleta_only' %}
-            <span class="badge badge-waiting">Esperando comprobante CFE</span>
+            <span class="badge badge-waiting"><span class="badge-mark" aria-hidden="true"></span>Esperando comprobante CFE</span>
             {% elif r.kind == 'salida' and r.salida_status == 'cfe_slip_only' %}
-            <span class="badge badge-waiting">Esperando boleta</span>
+            <span class="badge badge-waiting"><span class="badge-mark" aria-hidden="true"></span>Esperando boleta</span>
             {% else %}
-            <span class="badge badge-{{ 'ok' if r.status == 'auto_processed' else 'warn' }}">{{ r.status }}</span>
+            {{ status_badge(r.status) }}
             {% endif %}
           </td>
-          <td>{% if r.status == 'needs_review' %}<a href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
+          <td>{% if r.status == 'needs_review' %}<a class="table-action" href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    </div>
     {% else %}
-    <p class="muted">Aún no se han subido boletas a este lote.</p>
+    {% call empty_state("Aún no se han subido boletas a este lote", "Usa el formulario de arriba para procesar escaneos o PDFs.") %}{% endcall %}
     {% endif %}
   </section>
 {% endblock %}

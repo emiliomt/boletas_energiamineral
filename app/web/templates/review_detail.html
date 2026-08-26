@@ -1,23 +1,44 @@
 {% extends "base.html" %}
+{% from "_macros.html" import confidence %}
 {% block title %}Revisar boleta {{ record.id }} — Boletas Energía Mineral{% endblock %}
 {% block content %}
-  <p><a href="/review">&larr; Volver a la cola</a></p>
-  <h1>Revisar boleta #{{ record.id }}</h1>
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/review">Cola de revisión</a> / Boleta #{{ record.id }}</p>
+      <h1>Revisar boleta #{{ record.id }}</h1>
+      <p class="page-lede">Corrige lo que el OCR no haya leído bien y guarda antes de aprobar.</p>
+    </div>
+  </header>
 
   <div class="review-grid">
-    <section class="panel">
-      <h2>Escaneo original</h2>
-      <img class="scan-preview" src="/api/records/{{ record.id }}/image" alt="Boleta escaneada">
+    <section class="panel review-preview" aria-labelledby="scan-heading">
+      <h2 id="scan-heading">Escaneo original</h2>
+      <img class="scan-preview" src="/api/records/{{ record.id }}/image" alt="Boleta escaneada, folio {{ record.folio or 'sin folio' }}">
       <h3>Texto detectado por OCR</h3>
       <pre class="ocr-text">{{ record.ocr_text or "(sin texto)" }}</pre>
     </section>
 
-    <section class="panel">
-      <h2>Detalles y excepciones</h2>
-      <p>Confianza: <strong>{{ "%.0f"|format(record.confidence_score * 100) }}%</strong></p>
-      <p class="muted">Motor OCR: <strong>{{ record.ocr_engine or "—" }}</strong>{% if record.ocr_confidence is not none %} · confianza OCR {{ "%.0f"|format(record.ocr_confidence * 100) }}%{% endif %}</p>
+    <section class="panel" aria-labelledby="detalle-heading">
+      <h2 id="detalle-heading">Detalles y excepciones</h2>
+      <dl class="ocr-meta">
+        <div class="ocr-meta-item">
+          <dt>Confianza</dt>
+          <dd>{{ confidence(record.confidence_score) }}</dd>
+        </div>
+        <div class="ocr-meta-item">
+          <dt>Motor OCR</dt>
+          <dd>{{ record.ocr_engine or "—" }}</dd>
+        </div>
+        {% if record.ocr_confidence is not none %}
+        <div class="ocr-meta-item">
+          <dt>Confianza OCR</dt>
+          <dd>{{ "%.0f"|format(record.ocr_confidence * 100) }}%</dd>
+        </div>
+        {% endif %}
+      </dl>
       {% if record.kind == 'salida' and record.salida_status and record.salida_status != 'complete' %}
       <p class="badge badge-waiting">
+        <span class="badge-mark" aria-hidden="true"></span>
         {% if record.salida_status == 'boleta_only' %}Esperando el comprobante CFE{% else %}Esperando la boleta{% endif %}
       </p>
       {% elif record.kind == 'salida' and record.salida_status == 'complete' %}
@@ -38,46 +59,80 @@
         {% endfor %}
       </ul>
       {% else %}
-      <p class="badge badge-ok">Sin excepciones ✓</p>
+      <p class="badge badge-ok"><span class="badge-mark" aria-hidden="true"></span>Sin excepciones</p>
       {% endif %}
 
       <h2>Corregir campos</h2>
       <p class="muted">Un campo por cada campo de la boleta; corrige lo que el OCR no haya leído bien.</p>
       <form method="post" action="/review/{{ record.id }}" class="review-form">
         {% set q = record.quality_data or {} %}
-        <label>Folio<input type="text" name="folio" value="{{ record.folio or '' }}"></label>
-        <label>Fecha (YYYY-MM-DD)<input type="text" name="date" value="{{ record.date or '' }}"></label>
-        <label>Proveedor<input type="text" name="proveedor" value="{{ record.proveedor or '' }}"></label>
-        <label>Destino<input type="text" name="destination" value="{{ record.destination or '' }}"></label>
-        <label>Contrato<input type="text" name="contract_number" value="{{ record.contract_number or '' }}"></label>
-        <label>Datos del chofer del camión (Fletero)<input type="text" name="fletero" value="{{ record.fletero or '' }}"></label>
-        <label>No. Caja<input type="text" name="truck_box_number" value="{{ record.truck_box_number or '' }}"></label>
 
-        <h3>Datos de la calidad del carbón</h3>
-        <label>Poder Calorífico Superior<input type="text" name="poder_calorifico_superior" value="{{ q.get('poder_calorifico_superior', '') }}"></label>
-        <label>% Humedad<input type="text" name="humedad_pct" value="{{ q.get('humedad_pct', '') }}"></label>
-        <label>% Ceniza<input type="text" name="ceniza_pct" value="{{ q.get('ceniza_pct', '') }}"></label>
-        <label>% Azufre<input type="text" name="azufre_pct" value="{{ q.get('azufre_pct', '') }}"></label>
-        <label>FSI<input type="text" name="fsi" value="{{ q.get('fsi', '') }}"></label>
-        <label>Granulometría<input type="text" name="granulometria" value="{{ q.get('granulometria', '') }}"></label>
+        <fieldset class="fieldset">
+          <legend>Identificación</legend>
+          <div class="form-grid">
+            <label>Folio<input type="text" name="folio" value="{{ record.folio or '' }}"></label>
+            <label>Fecha (YYYY-MM-DD)<input type="text" name="date" value="{{ record.date or '' }}"></label>
+            <label>Proveedor<input type="text" name="proveedor" value="{{ record.proveedor or '' }}"></label>
+            <label>Contrato<input type="text" name="contract_number" value="{{ record.contract_number or '' }}"></label>
+            <label>Representante Legal (Nombre)<input type="text" name="representante_legal" value="{{ record.representante_legal or '' }}"></label>
+          </div>
+        </fieldset>
 
-        <h3>Origen del carbón</h3>
-        <label>Centro de Explotación (Origen)<input type="text" name="origin" value="{{ record.origin or '' }}"></label>
-        <label>Centro de Acopio<input type="text" name="secondary_origin" value="{{ record.secondary_origin or '' }}"></label>
-        <label>Datos de Concesión Minera<input type="text" name="concesion_minera" value="{{ record.concesion_minera or '' }}"></label>
+        <fieldset class="fieldset">
+          <legend>Ruta y transporte</legend>
+          <div class="form-grid">
+            <label>Destino<input type="text" name="destination" value="{{ record.destination or '' }}"></label>
+            <label>Datos del chofer del camión (Fletero)<input type="text" name="fletero" value="{{ record.fletero or '' }}"></label>
+            <label>No. Caja<input type="text" name="truck_box_number" value="{{ record.truck_box_number or '' }}"></label>
+          </div>
+        </fieldset>
 
-        <h3>Volumen</h3>
-        <label>Volumen por Entregar<input type="text" name="weight_declared" value="{{ record.weight_declared or '' }}"></label>
-        <label>Volumen Entregado / Peso (kg)<input type="text" name="weight" value="{{ record.weight or '' }}"></label>
+        <fieldset class="fieldset">
+          <legend>Calidad del carbón</legend>
+          <div class="form-grid">
+            <label>Poder Calorífico Superior<input type="text" name="poder_calorifico_superior" value="{{ q.get('poder_calorifico_superior', '') }}"></label>
+            <label>% Humedad<input type="text" name="humedad_pct" value="{{ q.get('humedad_pct', '') }}"></label>
+            <label>% Ceniza<input type="text" name="ceniza_pct" value="{{ q.get('ceniza_pct', '') }}"></label>
+            <label>% Azufre<input type="text" name="azufre_pct" value="{{ q.get('azufre_pct', '') }}"></label>
+            <label>FSI<input type="text" name="fsi" value="{{ q.get('fsi', '') }}"></label>
+            <label>Granulometría<input type="text" name="granulometria" value="{{ q.get('granulometria', '') }}"></label>
+          </div>
+        </fieldset>
 
-        <label>Representante Legal (Nombre)<input type="text" name="representante_legal" value="{{ record.representante_legal or '' }}"></label>
-        <label>Material (opcional)<input type="text" name="material" value="{{ record.material or '' }}"></label>
-        <label>Tipo de viaje (opcional)<input type="text" name="trip_type" value="{{ record.trip_type or '' }}"></label>
+        <fieldset class="fieldset">
+          <legend>Origen</legend>
+          <div class="form-grid">
+            <label>Centro de Explotación (Origen)<input type="text" name="origin" value="{{ record.origin or '' }}"></label>
+            <label>Centro de Acopio<input type="text" name="secondary_origin" value="{{ record.secondary_origin or '' }}"></label>
+            <label>Datos de Concesión Minera<input type="text" name="concesion_minera" value="{{ record.concesion_minera or '' }}"></label>
+          </div>
+        </fieldset>
 
-        <label>Tu nombre<input type="text" name="edited_by"></label>
-        <label>Nota<input type="text" name="note"></label>
+        <fieldset class="fieldset">
+          <legend>Volumen</legend>
+          <div class="form-grid">
+            <label>Volumen por Entregar<input type="text" name="weight_declared" value="{{ record.weight_declared or '' }}"></label>
+            <label>Volumen Entregado / Peso (kg)<input type="text" name="weight" value="{{ record.weight or '' }}"></label>
+          </div>
+        </fieldset>
 
-        <div class="review-actions">
+        <fieldset class="fieldset">
+          <legend>Clasificación</legend>
+          <div class="form-grid">
+            <label>Material (opcional)<input type="text" name="material" value="{{ record.material or '' }}"></label>
+            <label>Tipo de viaje (opcional)<input type="text" name="trip_type" value="{{ record.trip_type or '' }}"></label>
+          </div>
+        </fieldset>
+
+        <fieldset class="fieldset">
+          <legend>Información de auditoría</legend>
+          <div class="form-grid">
+            <label>Tu nombre<input type="text" name="edited_by" autocomplete="name"></label>
+            <label>Nota<input type="text" name="note"></label>
+          </div>
+        </fieldset>
+
+        <div class="review-actions review-actions-sticky">
           <button type="submit" name="action" value="correct">Guardar correcciones</button>
           <button type="submit" name="action" value="approve" class="btn-approve">Aprobar</button>
         </div>

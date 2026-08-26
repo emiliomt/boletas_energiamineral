@@ -78,3 +78,24 @@ contains the README).
   (`data/boletas.db`) and uploaded scans under `data/originals/` are gitignored.
 - A `Dockerfile` exists for Railway/PaaS deployment (installs the same system
   deps); it is not used by the Cloud Agent dev environment.
+
+## Frontend (Jinja2 + vanilla CSS)
+
+The UI is server-rendered FastAPI/Jinja2 with `app/web/static/style.css` and a
+small optional `app/web/static/app.js`. Do **not** introduce React, Vue,
+Svelte, Tailwind, shadcn/ui, a Node build, or CSS-in-JS. Catalogs such as
+Beautiful UI, shadcn, beUI, Rare UI, and transitions.dev are visual
+**references only** — translate ideas into semantic HTML and local CSS.
+
+Preserve routes, form `action`s, input `name`s, `action` values, Jinja
+variables, Spanish copy, and backend contracts. Prefer tokens and shared
+classes in `style.css` over inline styles. Keep JavaScript dependency-free and
+progressive: forms and links must work without it.
+
+Verify keyboard access, visible `:focus-visible`, mobile reflow (~375/768/1440),
+and `@media (prefers-reduced-motion: reduce)`. Status must not rely on color
+alone. After UI changes run:
+
+```bash
+DATABASE_URL="sqlite:///./data/boletas.db" .venv/bin/python -m pytest -q
+```
