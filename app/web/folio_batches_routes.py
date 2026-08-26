@@ -12,7 +12,7 @@ from sqlalchemy.orm import Session
 from app.config import BASE_DIR
 from app.db import get_db
 from app.exports.folio_batch_export import build_folio_batch_csv
-from app.models import Folio, FolioBatch
+from app.models import BOLETA_DATA_FIELDS, BoletaDataTemplate, Folio, FolioBatch
 from app.qr.batch_pdf import generate_batch_pdf
 from app.qr.generator import qr_payload_for_folio
 
@@ -28,13 +28,35 @@ def _status_counts(db: Session, folio_batch_id: int) -> dict[str, int]:
     return counts
 
 
+def _blank_to_none(value: str) -> str | None:
+    text = (value or "").strip()
+    return text or None
+
+
+def _templates_payload(templates: list[BoletaDataTemplate]) -> dict[str, dict[str, str]]:
+    payload: dict[str, dict[str, str]] = {}
+    for template in templates:
+        payload[str(template.id)] = {
+            field: getattr(template, field) or "" for field in BOLETA_DATA_FIELDS
+        }
+    return payload
+
+
+def _page_context(db: Session, error: str | None = None) -> dict:
+    batches = db.query(FolioBatch).order_by(FolioBatch.id.desc()).all()
+    templates = db.query(BoletaDataTemplate).order_by(BoletaDataTemplate.name).all()
+    return {
+        "batches": batches,
+        "counts_by_batch": {b.id: _status_counts(db, b.id) for b in batches},
+        "boleta_templates": templates,
+        "boleta_templates_json": _templates_payload(templates),
+        "error": error,
+    }
+
+
 @router.get("")
 def list_folio_batches_web(request: Request, db: Session = Depends(get_db)):
-    batches = db.query(FolioBatch).order_by(FolioBatch.id.desc()).all()
-    counts_by_batch = {b.id: _status_counts(db, b.id) for b in batches}
-    return templates.TemplateResponse(
-        request, "folio_batches_list.html", {"batches": batches, "counts_by_batch": counts_by_batch}
-    )
+    return templates.TemplateResponse(request, "folio_batches_list.html", _page_context(db))
 
 
 @router.post("")
@@ -65,12 +87,10 @@ def create_folio_batch_web(
     db: Session = Depends(get_db),
 ):
     def _error(message: str):
-        batches = db.query(FolioBatch).order_by(FolioBatch.id.desc()).all()
-        counts_by_batch = {b.id: _status_counts(db, b.id) for b in batches}
         return templates.TemplateResponse(
             request,
             "folio_batches_list.html",
-            {"batches": batches, "counts_by_batch": counts_by_batch, "error": message},
+            _page_context(db, message),
         )
 
     if mode == "sequential":
@@ -133,6 +153,65 @@ def delete_folio_batches_web(ids: list[int] = Form(default=[]), db: Session = De
     if ids:
         db.query(Folio).filter(Folio.folio_batch_id.in_(ids)).delete(synchronize_session=False)
         db.query(FolioBatch).filter(FolioBatch.id.in_(ids)).delete(synchronize_session=False)
+        db.commit()
+    return RedirectResponse(url="/admin/folio-batches", status_code=303)
+
+
+@router.post("/templates")
+def upsert_boleta_template_web(
+    request: Request,
+    template_name: str = Form(""),
+    proveedor: str = Form(""),
+    destino: str = Form(""),
+    contrato: str = Form(""),
+    poder_calorifico_superior: str = Form(""),
+    humedad_pct: str = Form(""),
+    ceniza_pct: str = Form(""),
+    azufre_pct: str = Form(""),
+    fsi: str = Form(""),
+    granulometria: str = Form(""),
+    centro_explotacion: str = Form(""),
+    centro_acopio: str = Form(""),
+    concesion_minera: str = Form(""),
+    representante_legal: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    name = template_name.strip()
+    if not name:
+        return templates.TemplateResponse(
+            request,
+            "folio_batches_list.html",
+            _page_context(db, "Escribe un nombre para guardar la plantilla."),
+        )
+    values = {
+        "proveedor": _blank_to_none(proveedor),
+        "destino": _blank_to_none(destino),
+        "contrato": _blank_to_none(contrato),
+        "poder_calorifico_superior": _blank_to_none(poder_calorifico_superior),
+        "humedad_pct": _blank_to_none(humedad_pct),
+        "ceniza_pct": _blank_to_none(ceniza_pct),
+        "azufre_pct": _blank_to_none(azufre_pct),
+        "fsi": _blank_to_none(fsi),
+        "granulometria": _blank_to_none(granulometria),
+        "centro_explotacion": _blank_to_none(centro_explotacion),
+        "centro_acopio": _blank_to_none(centro_acopio),
+        "concesion_minera": _blank_to_none(concesion_minera),
+        "representante_legal": _blank_to_none(representante_legal),
+    }
+    existing = db.query(BoletaDataTemplate).filter_by(name=name).one_or_none()
+    if existing is None:
+        db.add(BoletaDataTemplate(name=name, **values))
+    else:
+        for field, value in values.items():
+            setattr(existing, field, value)
+    db.commit()
+    return RedirectResponse(url="/admin/folio-batches", status_code=303)
+
+
+@router.post("/templates/delete")
+def delete_boleta_templates_web(ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+    if ids:
+        db.query(BoletaDataTemplate).filter(BoletaDataTemplate.id.in_(ids)).delete(synchronize_session=False)
         db.commit()
     return RedirectResponse(url="/admin/folio-batches", status_code=303)
 

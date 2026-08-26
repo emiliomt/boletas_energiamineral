@@ -46,6 +46,29 @@
     });
   }
 
+  function bindBoletaTemplates() {
+    var select = document.getElementById("boleta-template-select");
+    var dataEl = document.getElementById("boleta-templates-data");
+    var form = document.getElementById("folio-batch-form");
+    if (!select || !dataEl || !form) return;
+    var templates;
+    try {
+      templates = JSON.parse(dataEl.textContent || "{}");
+    } catch (err) {
+      return;
+    }
+    select.addEventListener("change", function () {
+      var payload = templates[select.value];
+      if (!payload) return;
+      Object.keys(payload).forEach(function (name) {
+        var input = form.elements.namedItem(name);
+        if (input && "value" in input) {
+          input.value = payload[name] == null ? "" : String(payload[name]);
+        }
+      });
+    });
+  }
+
   onReady(function () {
     var modeSelect = document.getElementById("mode-select");
     if (modeSelect) {
@@ -53,6 +76,7 @@
       toggleFolioMode();
     }
 
+    bindBoletaTemplates();
     document.querySelectorAll(".js-select-all").forEach(bindSelectAll);
     document.querySelectorAll("form[data-busy-on-submit]").forEach(bindBusyForm);
   });
