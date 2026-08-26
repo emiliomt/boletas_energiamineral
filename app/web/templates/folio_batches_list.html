@@ -45,7 +45,27 @@
         <label>Folios (uno por línea)<textarea name="folios_text" rows="6"></textarea></label>
       </div>
 
-      <fieldset class="fieldset">
+      <div class="toolbar" id="boleta-template-toolbar">
+        <label class="field" for="boleta-template-select">
+          <span class="field-label">Plantilla de datos</span>
+          <select id="boleta-template-select" aria-controls="boleta-data-fields">
+            <option value="">Elegir plantilla…</option>
+            {% for t in boleta_templates %}
+            <option value="{{ t.id }}">{{ t.name }}</option>
+            {% endfor %}
+          </select>
+        </label>
+        <label class="field" for="template-name">
+          <span class="field-label">Nombre de plantilla</span>
+          <input type="text" id="template-name" name="template_name" placeholder="Ej. CFE López Portillo" autocomplete="off">
+        </label>
+        <button type="submit" formaction="/admin/folio-batches/templates" formnovalidate>
+          Guardar como plantilla
+        </button>
+      </div>
+      <script type="application/json" id="boleta-templates-data">{{ boleta_templates_json | default({}) | tojson }}</script>
+
+      <fieldset class="fieldset" id="boleta-data-fields">
         <legend>Datos de la boleta (se imprimen en cada folio del lote)</legend>
         <p class="muted">
           Estos datos son iguales para todo el lote y se imprimen en cada
@@ -130,6 +150,44 @@
     </form>
     {% else %}
     {% call empty_state("Aún no hay lotes de folios", "Crea uno con el formulario de arriba para generar QR y PDF de imprenta.") %}{% endcall %}
+    {% endif %}
+  </section>
+
+  <section class="panel" aria-labelledby="plantillas-heading">
+    <h2 id="plantillas-heading">Plantillas de datos de boleta</h2>
+    {% if boleta_templates %}
+    <form method="post" action="/admin/folio-batches/templates/delete" onsubmit="return confirm('¿Borrar las plantillas seleccionadas? Esta acción no se puede deshacer.');">
+      <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="row-check"><input type="checkbox" class="js-select-all" aria-label="Seleccionar todas las plantillas"></th>
+            <th>Nombre</th>
+            <th>Proveedor</th>
+            <th>Destino</th>
+            <th>Contrato</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in boleta_templates %}
+          <tr>
+            <td class="row-check"><input type="checkbox" name="ids" value="{{ t.id }}" aria-label="Seleccionar plantilla {{ t.name }}"></td>
+            <td>{{ t.name }}</td>
+            <td>{{ t.proveedor or "—" }}</td>
+            <td>{{ t.destino or "—" }}</td>
+            <td>{{ t.contrato or "—" }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      <div class="danger-zone">
+        <p class="danger-note">Borrar una plantilla no afecta lotes ya creados.</p>
+        <button type="submit" class="btn-danger">Borrar seleccionadas</button>
+      </div>
+    </form>
+    {% else %}
+    {% call empty_state("Aún no hay plantillas", "Llena los datos de la boleta arriba, ponle un nombre y pulsa Guardar como plantilla.") %}{% endcall %}
     {% endif %}
   </section>
 {% endblock %}

@@ -381,6 +381,7 @@ code, .exc-code {
   margin-left: auto;
   align-items: center;
 }
+#boleta-template-toolbar { margin-bottom: var(--space-4); }
 
 .split-grid {
   display: grid;
@@ -1135,6 +1136,14 @@ tr.row-review .col-action { background: var(--warning-bg); }
   .toolbar-exports .btn {
     margin-left: 0;
     width: 100%;
+  }
+  #boleta-template-toolbar .field,
+  #boleta-template-toolbar select,
+  #boleta-template-toolbar input,
+  #boleta-template-toolbar button {
+    width: 100%;
+    min-width: 0;
+    flex: 1 1 100%;
   }
 }
 
