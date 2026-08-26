@@ -127,10 +127,12 @@ def create_folio_batch_web(
 
 @router.post("/delete")
 def delete_folio_batches_web(ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
-    """Deletes selected Lotes de Folios; their folios cascade-delete."""
+    """Deletes selected Lotes de Folios and their folio rows via bulk SQL
+    (avoids loading every Folio into the session, and does not depend on
+    ORM cascade order)."""
     if ids:
-        for batch in db.query(FolioBatch).filter(FolioBatch.id.in_(ids)).all():
-            db.delete(batch)  # cascades to its Folios
+        db.query(Folio).filter(Folio.folio_batch_id.in_(ids)).delete(synchronize_session=False)
+        db.query(FolioBatch).filter(FolioBatch.id.in_(ids)).delete(synchronize_session=False)
         db.commit()
     return RedirectResponse(url="/admin/folio-batches", status_code=303)
 

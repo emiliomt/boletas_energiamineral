@@ -223,3 +223,60 @@ def test_delete_multiple_lotes_at_once(client_and_session):
         assert db.query(BoletaRecord).filter_by(folio="A-1").count() == 0
     finally:
         db.close()
+
+
+def test_delete_lote_with_boleta_but_no_record(client_and_session):
+    client, session_local = client_and_session
+    db = session_local()
+    try:
+        batch = Batch(label="orphan-scan")
+        db.add(batch)
+        db.flush()
+        db.add(Boleta(
+            batch_id=batch.id,
+            original_filename="x.png",
+            stored_path="x.png",
+            mime_type="image/png",
+            page_number=1,
+            sha256_hash="x",
+        ))
+        db.commit()
+        batch_id = batch.id
+    finally:
+        db.close()
+
+    resp = client.post("/batches/delete", data={"ids": [batch_id]}, follow_redirects=False)
+    assert resp.status_code == 303
+    db = session_local()
+    try:
+        assert db.get(Batch, batch_id) is None
+        assert db.query(Boleta).count() == 0
+    finally:
+        db.close()
+
+
+def test_delete_lotes_browser_urlencoded_form(client_and_session):
+    """HTML checkboxes post application/x-www-form-urlencoded, not JSON."""
+    client, session_local = client_and_session
+    db = session_local()
+    try:
+        a = Batch(label="a")
+        b = Batch(label="b")
+        db.add_all([a, b])
+        db.commit()
+        a_id, b_id = a.id, b.id
+    finally:
+        db.close()
+
+    resp = client.post(
+        "/batches/delete",
+        content=f"ids={a_id}&ids={b_id}",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 303
+    db = session_local()
+    try:
+        assert db.query(Batch).count() == 0
+    finally:
+        db.close()

@@ -3,6 +3,7 @@ dependency, so it works fully offline) backed by the same DB and services
 the JSON API uses."""
 from __future__ import annotations
 
+import logging
 import shutil
 
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
@@ -12,9 +13,8 @@ from sqlalchemy.orm import Session
 
 from app.config import BASE_DIR, settings
 from app.db import get_db
-from app.engines.folio_registry import unlink_folio
 from app.ingestion.storage import store_upload
-from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch, Producer
+from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch, Producer, ReviewAudit
 from app.ocr.factory import get_ocr_adapter
 from app.pipeline.orchestrator import process_boleta
 from app.reporting.summary import build_batch_summary, build_overview
@@ -28,6 +28,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"
 templates.env.globals["describe_exceptions"] = describe_exceptions
 templates.env.globals["summarize_exceptions"] = summarize_exceptions
 _ocr_adapter = get_ocr_adapter()
+logger = logging.getLogger(__name__)
 
 
 @router.get("/")
@@ -42,6 +43,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     # For the "Nuevo lote" kind=entrada path (Phase 2): the operator picks
     # the producer manually at upload time -- there's no auto-detection.
     producers = db.query(Producer).filter_by(active=True).order_by(Producer.name).all()
+    flash_error = request.session.pop("flash_error", None)
     return templates.TemplateResponse(
         request,
         "dashboard.html",
@@ -51,6 +53,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "total_count": total_count,
             "folio_batches": folio_batches,
             "producers": producers,
+            "flash_error": flash_error,
         },
     )
 
@@ -110,33 +113,42 @@ def create_batch_web(
 
 
 def _delete_batches(db: Session, ids: list[int]) -> None:
-    """Deletes scanning lotes (proyectos) and everything under them: boletas
-    (which cascade-delete their record + audits), any issued folio linked to
-    those records is unlinked back to 'issued', and the stored scan files are
-    removed."""
-    boletas = db.query(Boleta).filter(Boleta.batch_id.in_(ids)).all()
-    record_ids = [b.record.id for b in boletas if b.record]
-    if record_ids:
-        for folio in db.query(Folio).filter(Folio.boleta_record_id.in_(record_ids)).all():
-            unlink_folio(folio)
-        # Salida pairs: the superseded record points at the primary via
-        # reconciled_with_record_id. SQLAlchemy emits per-row DELETEs, so a
-        # live self-FK makes Postgres/SQLite reject deleting the primary.
-        # Flush the NULLs before marking those rows deleted, otherwise the
-        # ORM skips the UPDATE on objects that are also in the delete set.
-        db.query(BoletaRecord).filter(
-            BoletaRecord.reconciled_with_record_id.in_(record_ids)
-        ).update(
-            {BoletaRecord.reconciled_with_record_id: None},
-            synchronize_session="fetch",
+    """Deletes scanning lotes and everything under them.
+
+    Uses bulk SQL in FK order (not ORM cascade). The session has autoflush
+    off, and SQLAlchemy's per-row DELETEs lose to Postgres/SQLite FKs:
+    boletas.batch_id, review_audits.boleta_record_id, folios.boleta_record_id,
+    and boleta_records.reconciled_with_record_id (Salida boleta/CFE pairs).
+    """
+    if not ids:
+        return
+    record_ids = [
+        record_id
+        for (record_id,) in (
+            db.query(BoletaRecord.id)
+            .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
+            .filter(Boleta.batch_id.in_(ids))
+            .all()
         )
-        db.flush()
-    for boleta in boletas:
-        db.delete(boleta)  # cascades to BoletaRecord -> ReviewAudit
-    # autoflush is off: the bulk parent DELETE would otherwise run while
-    # boletas.batch_id still points at these rows (IntegrityError on Postgres).
-    db.flush()
+    ]
+    if record_ids:
+        db.query(Folio).filter(Folio.boleta_record_id.in_(record_ids)).update(
+            {Folio.boleta_record_id: None, Folio.status: "issued", Folio.scanned_at: None},
+            synchronize_session=False,
+        )
+        db.query(BoletaRecord).filter(BoletaRecord.reconciled_with_record_id.in_(record_ids)).update(
+            {BoletaRecord.reconciled_with_record_id: None},
+            synchronize_session=False,
+        )
+        db.query(ReviewAudit).filter(ReviewAudit.boleta_record_id.in_(record_ids)).delete(
+            synchronize_session=False
+        )
+        db.query(BoletaRecord).filter(BoletaRecord.id.in_(record_ids)).delete(
+            synchronize_session=False
+        )
+    db.query(Boleta).filter(Boleta.batch_id.in_(ids)).delete(synchronize_session=False)
     db.query(Batch).filter(Batch.id.in_(ids)).delete(synchronize_session=False)
+    db.expire_all()
     for batch_id in ids:
         batch_dir = settings.originals_dir / str(batch_id)
         if batch_dir.exists():
@@ -144,10 +156,19 @@ def _delete_batches(db: Session, ids: list[int]) -> None:
 
 
 @router.post("/batches/delete")
-def delete_batches_web(ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+def delete_batches_web(
+    request: Request, ids: list[int] = Form(default=[]), db: Session = Depends(get_db)
+):
     if ids:
-        _delete_batches(db, ids)
-        db.commit()
+        try:
+            _delete_batches(db, ids)
+            db.commit()
+        except Exception:
+            db.rollback()
+            logger.exception("Failed to delete lotes %s", ids)
+            request.session["flash_error"] = (
+                "No se pudieron borrar los lotes seleccionados. Inténtalo de nuevo."
+            )
     return RedirectResponse(url="/", status_code=303)
 
 

@@ -2,6 +2,9 @@
 {% block title %}Inicio — Boletas Energía Mineral{% endblock %}
 {% block content %}
   <h1>Panel de Control</h1>
+  {% if flash_error %}
+  <div class="panel" style="border-color: var(--warn-text);"><p style="color: var(--warn-text);">{{ flash_error }}</p></div>
+  {% endif %}
 
   <div class="stat-row">
     <div class="stat-card">
@@ -71,6 +74,7 @@
           {% endfor %}
         </tbody>
       </table>
+      <p class="muted">Borrar un lote elimina sus boletas procesadas. Esta acción no se puede deshacer.</p>
       <div class="review-actions">
         <button type="submit" class="btn-danger">Borrar seleccionados</button>
       </div>
