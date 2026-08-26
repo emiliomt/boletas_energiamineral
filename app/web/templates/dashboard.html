@@ -15,11 +15,17 @@
   </div>
 
   <section class="panel">
-    <h2>Nuevo lote</h2>
+    <h2>Nuevo lote de escaneo</h2>
     {% if folio_batches %}
+    <p class="muted">
+      Elige un <a href="/admin/folio-batches">lote de folios</a> ya registrado
+      (impresos con QR) para abrir un lote de escaneo en el punto de entrega.
+      El desplegable no son lotes de escaneo: son los folios emitidos en
+      <a href="/admin/folio-batches">Lotes de Folios</a>.
+    </p>
     <form method="post" action="/batches" class="inline-form">
-      <select name="label" required>
-        <option value="" disabled selected>Nombre del lote…</option>
+      <select name="label" required aria-label="Lote de folios registrado">
+        <option value="" disabled selected>Lote de folios registrado…</option>
         {% for fb in folio_batches %}
         <option value="{{ fb.label }}">{{ fb.label }}</option>
         {% endfor %}
@@ -43,7 +49,7 @@
     </p>
     {% else %}
     <p class="muted">
-      No hay lotes registrados. Registra un
+      No hay lotes de folios registrados. Registra un
       <a href="/admin/folio-batches">lote de folios</a> primero para poder crear
       un lote de escaneo.
     </p>
@@ -51,9 +57,9 @@
   </section>
 
   <section class="panel">
-    <h2>Lotes</h2>
+    <h2>Lotes de escaneo</h2>
     {% if batches %}
-    <form method="post" action="/batches/delete" onsubmit="return confirm('¿Borrar los lotes seleccionados? Se eliminarán sus boletas procesadas. Esta acción no se puede deshacer.');">
+    <form method="post" action="/batches/delete" onsubmit="return confirm('¿Borrar los lotes de escaneo seleccionados? Se eliminarán sus boletas procesadas. Esta acción no se puede deshacer.');">
       <table>
         <thead>
           <tr><th></th><th>ID</th><th>Nombre</th><th>Estado</th><th>Creado por</th><th></th></tr>
@@ -76,7 +82,10 @@
       </div>
     </form>
     {% else %}
-    <p class="muted">Aún no hay lotes. Crea uno arriba para empezar a subir boletas.</p>
+    <div class="empty-state">
+      <h3>Aún no hay lotes de escaneo</h3>
+      <p class="muted">Crea uno arriba para empezar a subir boletas. Los nombres del desplegable son lotes de folios ya registrados, no lotes de escaneo abiertos.</p>
+    </div>
     {% endif %}
   </section>
 {% endblock %}

@@ -35,11 +35,11 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     batches = db.query(Batch).order_by(Batch.id.desc()).all()
     review_count = db.query(BoletaRecord).filter(BoletaRecord.status == "needs_review").count()
     total_count = db.query(BoletaRecord).count()
-    # The "Nuevo lote" name is chosen from the registered folio batches
-    # (Lotes de Folios) rather than typed freehand, so a scanning batch is
-    # always tied to a lote that was actually issued/registered.
+    # The "Nuevo lote de escaneo" name is chosen from the registered folio
+    # batches (Lotes de Folios) rather than typed freehand, so a scanning
+    # batch is always tied to a lote that was actually issued/registered.
     folio_batches = db.query(FolioBatch).order_by(FolioBatch.id.desc()).all()
-    # For the "Nuevo lote" kind=entrada path (Phase 2): the operator picks
+    # For the "Nuevo lote de escaneo" kind=entrada path (Phase 2): the operator picks
     # the producer manually at upload time -- there's no auto-detection.
     producers = db.query(Producer).filter_by(active=True).order_by(Producer.name).all()
     return templates.TemplateResponse(
