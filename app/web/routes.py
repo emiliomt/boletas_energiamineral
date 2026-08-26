@@ -119,8 +119,23 @@ def _delete_batches(db: Session, ids: list[int]) -> None:
     if record_ids:
         for folio in db.query(Folio).filter(Folio.boleta_record_id.in_(record_ids)).all():
             unlink_folio(folio)
+        # Salida pairs: the superseded record points at the primary via
+        # reconciled_with_record_id. SQLAlchemy emits per-row DELETEs, so a
+        # live self-FK makes Postgres/SQLite reject deleting the primary.
+        # Flush the NULLs before marking those rows deleted, otherwise the
+        # ORM skips the UPDATE on objects that are also in the delete set.
+        db.query(BoletaRecord).filter(
+            BoletaRecord.reconciled_with_record_id.in_(record_ids)
+        ).update(
+            {BoletaRecord.reconciled_with_record_id: None},
+            synchronize_session="fetch",
+        )
+        db.flush()
     for boleta in boletas:
         db.delete(boleta)  # cascades to BoletaRecord -> ReviewAudit
+    # autoflush is off: the bulk parent DELETE would otherwise run while
+    # boletas.batch_id still points at these rows (IntegrityError on Postgres).
+    db.flush()
     db.query(Batch).filter(Batch.id.in_(ids)).delete(synchronize_session=False)
     for batch_id in ids:
         batch_dir = settings.originals_dir / str(batch_id)

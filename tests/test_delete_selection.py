@@ -3,8 +3,23 @@ from __future__ import annotations
 
 import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine, event
+from sqlalchemy.orm import sessionmaker
 
-from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch
+from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch, ReviewAudit
+
+
+def _sqlite_engine(url: str):
+    """SQLite engine with FOREIGN KEY enforcement, matching Postgres."""
+    engine = create_engine(url, connect_args={"check_same_thread": False})
+
+    @event.listens_for(engine, "connect")
+    def _enable_sqlite_foreign_keys(dbapi_connection, _connection_record):
+        cursor = dbapi_connection.cursor()
+        cursor.execute("PRAGMA foreign_keys=ON")
+        cursor.close()
+
+    return engine
 
 
 @pytest.fixture()
@@ -16,10 +31,8 @@ def client_and_session(tmp_path, monkeypatch):
     monkeypatch.setattr(app_config.settings, "originals_dir", tmp_path / "originals")
 
     import app.db as app_db
-    from sqlalchemy import create_engine
-    from sqlalchemy.orm import sessionmaker
 
-    engine = create_engine(f"sqlite:///{db_path}", connect_args={"check_same_thread": False})
+    engine = _sqlite_engine(f"sqlite:///{db_path}")
     session_local = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     monkeypatch.setattr(app_db, "engine", engine)
     monkeypatch.setattr(app_db, "SessionLocal", session_local)
@@ -123,5 +136,90 @@ def test_delete_with_no_selection_is_a_noop(client_and_session):
     db = session_local()
     try:
         assert db.query(Batch).count() == 1
+    finally:
+        db.close()
+
+
+def _add_boleta(db, batch, *, filename, sha, folio, **record_kw):
+    boleta = Boleta(
+        batch_id=batch.id,
+        original_filename=filename,
+        stored_path=filename,
+        mime_type="image/png",
+        page_number=1,
+        sha256_hash=sha,
+    )
+    db.add(boleta)
+    db.flush()
+    record = BoletaRecord(boleta_id=boleta.id, folio=folio, status="needs_review", **record_kw)
+    db.add(record)
+    db.flush()
+    return boleta, record
+
+
+def test_delete_lote_with_reconciled_salida_pair(client_and_session):
+    """A Salida boleta + CFE slip share a self-FK; deleting the lote must not 500."""
+    client, session_local = client_and_session
+    db = session_local()
+    try:
+        batch = Batch(label="salida-par", kind="salida")
+        db.add(batch)
+        db.flush()
+        _, primary = _add_boleta(db, batch, filename="boleta.png", sha="a", folio="S-1", kind="salida")
+        _add_boleta(
+            db,
+            batch,
+            filename="cfe.png",
+            sha="c",
+            folio="S-1",
+            kind="salida",
+            reconciled_with_record_id=primary.id,
+        )
+        db.add(ReviewAudit(boleta_record_id=primary.id, field_name="folio", action="approval"))
+        db.commit()
+        batch_id, primary_id = batch.id, primary.id
+    finally:
+        db.close()
+
+    resp = client.post("/batches/delete", data={"ids": [batch_id]}, follow_redirects=False)
+    assert resp.status_code == 303
+
+    db = session_local()
+    try:
+        assert db.get(Batch, batch_id) is None
+        assert db.query(Boleta).count() == 0
+        assert db.get(BoletaRecord, primary_id) is None
+        assert db.query(ReviewAudit).count() == 0
+    finally:
+        db.close()
+
+
+def test_delete_multiple_lotes_at_once(client_and_session):
+    client, session_local = client_and_session
+    db = session_local()
+    try:
+        keep = Batch(label="keep")
+        drop_a = Batch(label="drop-a")
+        drop_b = Batch(label="drop-b")
+        db.add_all([keep, drop_a, drop_b])
+        db.flush()
+        _add_boleta(db, keep, filename="k.png", sha="k", folio="K-1")
+        _add_boleta(db, drop_a, filename="a.png", sha="a", folio="A-1")
+        _add_boleta(db, drop_b, filename="b.png", sha="b", folio="B-1")
+        db.commit()
+        keep_id, drop_ids = keep.id, [drop_a.id, drop_b.id]
+    finally:
+        db.close()
+
+    resp = client.post("/batches/delete", data={"ids": drop_ids}, follow_redirects=False)
+    assert resp.status_code == 303
+
+    db = session_local()
+    try:
+        assert db.get(Batch, keep_id) is not None
+        assert db.query(Batch).count() == 1
+        assert db.query(Boleta).count() == 1
+        assert db.query(BoletaRecord).filter_by(folio="K-1").count() == 1
+        assert db.query(BoletaRecord).filter_by(folio="A-1").count() == 0
     finally:
         db.close()
