@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 
 from app.db import get_db
 from app.models import (
+    BoletaFormatTemplate,
     ExceptionThreshold,
     PricingRule,
     Producer,
@@ -63,6 +64,11 @@ def get_transportista_aliases(db: Session = Depends(get_db)) -> list[dict]:
 @router.get("/pricing-rules")
 def get_pricing_rules(db: Session = Depends(get_db)) -> list[dict]:
     return [_as_dict(r) for r in db.query(PricingRule).order_by(PricingRule.rule_id).all()]
+
+
+@router.get("/boleta-format-templates")
+def get_boleta_format_templates(db: Session = Depends(get_db)) -> list[dict]:
+    return [_as_dict(t) for t in db.query(BoletaFormatTemplate).order_by(BoletaFormatTemplate.format_id).all()]
 
 
 @router.post("/reload")

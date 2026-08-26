@@ -222,9 +222,12 @@ class WeightEstimationRule(Base):
 
 class Producer(Base):
     """Config table: an Entrada producer/contract (e.g. "Bradfort",
-    "CTU/MINSA"). format_id feeds per-producer template matching (Phase 4);
-    default_origin feeds Entrada classification (Phase 2). Both inert in
-    Phase 1."""
+    "CTU/MINSA"). default_origin feeds Entrada classification (Phase 2).
+    format_id is a documentary string (conventionally mirroring the
+    natural-key `format_id` of this producer's BoletaFormatTemplate row,
+    Phase 4) -- the actual template lookup used by the pipeline goes via
+    BoletaFormatTemplate.producer_id, not this column; see
+    BoletaFormatTemplate's docstring below."""
 
     __tablename__ = "producers"
 
@@ -286,6 +289,51 @@ class PricingRule(Base):
     currency: Mapped[str] = mapped_column(String(8), default="MXN")  # added for TariffRule-consistency
     effective_from: Mapped[str] = mapped_column(String(32))  # ISO YYYY-MM-DD, matches BoletaRecord.date convention
     effective_to: Mapped[str | None] = mapped_column(String(32), nullable=True)  # null = open-ended
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
+class BoletaFormatTemplate(Base):
+    """Config table (Phase 4): a producer-specific field-extraction template
+    for Entrada boletas. Real producer paper varies in label wording and in
+    whether a weight field is even present at all (confirmed during Phase 4
+    discovery -- e.g. CTU/MINSA's paper carries a scale reading, Bradfort's
+    doesn't), so the single universal `_LABEL_PATTERNS` in
+    app/parsing/field_parser.py can't serve every producer well. This table
+    lets `parse_fields_with_template()` use per-producer label regexes
+    instead.
+
+    `producer_id` is this table's own FK -- the "real foreign key ... into
+    BoletaFormatTemplate" PRD Phase 4 §5.1 calls for -- so the lookup
+    (app.rules.config_loader.get_active_template_for_producer) goes
+    template-row-first rather than through Producer.format_id string
+    matching. Producer.format_id (Phase 1) is left as a plain, documentary
+    string column that conventionally mirrors this row's `format_id`
+    natural key, rather than hard-FK'd, to avoid disturbing the
+    already-shipped Producer schema for a lookup path this table's own FK
+    already covers.
+
+    A producer with no active row here (or no producer_id match) degrades
+    gracefully to Phase 2's generic parse_fields() -- see
+    app.pipeline.orchestrator._process_entrada -- consistent with the
+    system's config-is-optional-until-configured philosophy elsewhere
+    (missing route/tariff/weight rules behave the same way)."""
+
+    __tablename__ = "boleta_format_templates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    format_id: Mapped[str] = mapped_column(String(64), unique=True, index=True)  # natural key
+    producer_id: Mapped[int] = mapped_column(ForeignKey("producers.id"), index=True)
+    # JSON object: field_name -> list of regex pattern strings (source text,
+    # not compiled) -- same shape as _LABEL_PATTERNS in field_parser.py, and
+    # the same "admin-editable text in a CSV cell" convention used
+    # everywhere else in this file's config tables.
+    label_patterns_json: Mapped[str] = mapped_column(Text)
+    expects_weight: Mapped[bool] = mapped_column(Boolean, default=True)
+    # A distinguishing string (e.g. a producer name/logo text near the top
+    # of their form) used only by the standalone, opt-in
+    # app/engines/format_detection.py -- not required for template-based
+    # parsing itself.
+    detection_signal: Mapped[str | None] = mapped_column(String(255), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 

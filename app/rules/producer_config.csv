@@ -1,11 +1,15 @@
 # PLACEHOLDER SAMPLE DATA — replace with the client's real producers before production use.
-# name is the natural key (must be unique). format_id is the paper-layout id used
-# for per-producer template matching starting in Phase 4 (leave blank until then).
+# name is the natural key (must be unique). format_id is documentary only (Phase 4) --
+# it conventionally mirrors the natural-key format_id of this producer's row in
+# boleta_format_templates.csv, but the actual template lookup used by the pipeline
+# goes via BoletaFormatTemplate.producer_id, not this column (see app/models.py's
+# BoletaFormatTemplate docstring). Leave blank for a producer with no template yet --
+# it degrades to Phase 2's generic parsing.
 # default_origin feeds Entrada classification (Phase 2's classify_entrada) --
 # it's matched against route_config.csv's `origin` column (see R004/R006/R007)
 # instead of parsing an origin from the boleta, since Entrada boletas never
 # carry one.
 name,format_id,default_origin,active
-Bradfort,,Bradfort,true
-CTU/MINSA,,CTU/MINSA,true
-Proveedor Externo Norte,,Proveedor Externo,true
+Bradfort,BRAD-STD,Bradfort,true
+CTU/MINSA,CTU-STD,CTU/MINSA,true
+Proveedor Externo Norte,EXTN-V1,Proveedor Externo,true

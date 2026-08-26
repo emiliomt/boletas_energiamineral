@@ -1,0 +1,17 @@
+# PLACEHOLDER SAMPLE DATA — replace with the client's real per-producer templates
+# before production use. format_id is the natural key. producer_name is resolved to
+# Producer.id at load time (must match producer_config.csv's `name` exactly).
+# label_patterns_json is a JSON object (field name -> list of regex pattern strings,
+# same shape/convention as _LABEL_PATTERNS in app/parsing/field_parser.py) -- CTU/MINSA
+# and Bradfort below intentionally mirror the system's own generic label wording (this is
+# a real format already in use, unchanged from Phase 2); Proveedor Externo Norte uses
+# genuinely different label wording ("No. de Remision"/"Responsable de Unidad"/"Peso Neto
+# Entregado") that the universal regex set would have missed entirely -- see
+# tests/test_field_parser.py for a direct before/after comparison.
+# expects_weight: whether this producer's paper carries a weight field at all (some
+# don't -- confirmed during Phase 4 discovery). detection_signal is only used by the
+# standalone app/engines/format_detection.py, not by template-based parsing itself.
+format_id,producer_name,label_patterns_json,expects_weight,detection_signal,active
+CTU-STD,CTU/MINSA,"{""folio"": [""folio[ \\t]*(?:no\\.?|#|num(?:ero)?\\.?)?[ \\t]*[:\\-][ \\t]*([A-Za-z0-9\\-]+)""], ""fletero"": [""datos\\s+del\\s+chofer(?:\\s+del\\s+cami[o\u00f3]n)?[ \\t]*[:\\-][ \\t]*([^\\n\\r]+)"", ""(?:fletero|operador|transportista|chofer)[ \\t]*[:\\-][ \\t]*([^\\n\\r]+)""], ""weight"": [""volumen\\s+entregado[ \\t]*[:\\-]?[ \\t]*([^\\n\\r]+)"", ""peso[ \\t]*[:\\-][ \\t]*([^\\n\\r]+)""]}",true,CTU/MINSA,true
+BRAD-STD,Bradfort,"{""folio"": [""folio[ \\t]*(?:no\\.?|#|num(?:ero)?\\.?)?[ \\t]*[:\\-][ \\t]*([A-Za-z0-9\\-]+)""], ""fletero"": [""datos\\s+del\\s+chofer(?:\\s+del\\s+cami[o\u00f3]n)?[ \\t]*[:\\-][ \\t]*([^\\n\\r]+)"", ""(?:fletero|operador|transportista|chofer)[ \\t]*[:\\-][ \\t]*([^\\n\\r]+)""]}",false,BRADFORT,true
+EXTN-V1,Proveedor Externo Norte,"{""folio"": [""(?:no\\.?\\s*de\\s*remisi[o\u00f3]n|remisi[o\u00f3]n\\s*no\\.?)[ \\t]*[:\\-][ \\t]*([A-Za-z0-9\\-]+)""], ""fletero"": [""responsable\\s+de\\s+unidad[ \\t]*[:\\-][ \\t]*([^\\n\\r]+)""], ""weight"": [""peso\\s+neto\\s+entregado[ \\t]*[:\\-]?[ \\t]*([^\\n\\r]+)""]}",true,PROVEEDOR EXTERNO NORTE,true

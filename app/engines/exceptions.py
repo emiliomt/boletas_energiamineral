@@ -141,6 +141,16 @@ def evaluate(
         if getattr(parsed, field_name) is not None and conf < field_confidence_min:
             exceptions.append(f"low_field_confidence:{field_name}")
 
+    # Phase 4: per-format weight expectation, set only by
+    # parse_fields_with_template() (see field_parser.py). weight_expected is
+    # None for the generic parse_fields() path (Salida, or an Entrada with
+    # no configured template) -- in that case neither check below applies,
+    # same as before Phase 4.
+    if parsed.weight_expected and parsed.weight is None:
+        exceptions.append("missing_expected_weight")
+    if parsed.weight_found_unexpectedly:
+        exceptions.append("unexpected_weight_field")
+
     exceptions.extend(classification.exceptions)
     exceptions.extend(tariff.exceptions)
     exceptions.extend(inventory.exceptions)
@@ -171,7 +181,28 @@ def evaluate(
     required_confidences = [parsed.field_confidences.get(f, 0.0) for f in required_fields]
     avg_field_confidence = sum(required_confidences) / len(required_confidences)
 
-    confidence_score = 0.5 * ocr_overall_confidence + 0.5 * avg_field_confidence
+    # Phase 4: when a per-producer template was used (parsed.weight_expected
+    # is not None -- see parse_fields_with_template), fold a template-match
+    # term into the composite score: 1.0 if the weight came out exactly as
+    # the template expected (present when expected, absent when not), a
+    # fixed lower value otherwise. This is deliberately a small, separate
+    # term rather than baked into avg_field_confidence -- a wrong-template
+    # scan should visibly lower the score (routing to review per PRD Phase 4
+    # §6.3) without being swamped by otherwise-high OCR/field confidences.
+    # Untemplated records (Salida, or an Entrada with no configured
+    # template) keep the exact pre-Phase-4 formula -- see
+    # tests/test_field_parser.py's Salida-regression coverage.
+    template_match_score: float | None = None
+    if parsed.weight_expected is not None:
+        template_mismatch = (parsed.weight_expected and parsed.weight is None) or parsed.weight_found_unexpectedly
+        template_match_score = 0.35 if template_mismatch else 1.0
+
+    if template_match_score is None:
+        confidence_score = 0.5 * ocr_overall_confidence + 0.5 * avg_field_confidence
+    else:
+        confidence_score = (
+            0.45 * ocr_overall_confidence + 0.35 * avg_field_confidence + 0.2 * template_match_score
+        )
     confidence_score = round(min(max(confidence_score, 0.0), 1.0), 2)
 
     # De-duplicate while preserving order (a field can trip more than one rule).

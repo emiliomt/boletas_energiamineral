@@ -32,6 +32,8 @@ _EXCEPTION_META: dict[str, tuple[str, str]] = {
     # Phase 3: Salida two-document reconciliation
     "salida_folio_mismatch": ("alta", "Folios distintos entre la boleta y el comprobante CFE"),
     "document_type_mismatch": ("alta", "El documento no corresponde con el tipo seleccionado (boleta / comprobante CFE)"),
+    # Phase 4: per-producer format templates
+    "unexpected_weight_field": ("alta", "Se encontró un peso en un formato que no lo espera (posible plantilla incorrecta)"),
 }
 
 # Spanish labels for field names used in `missing_required_field:<field>` and

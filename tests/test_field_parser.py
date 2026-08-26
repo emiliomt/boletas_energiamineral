@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import json
+
 from app.ocr.base import OCRResult, OCRWord
-from app.parsing.field_parser import parse_cfe_slip_fields, parse_fields
+from app.parsing.field_parser import parse_cfe_slip_fields, parse_fields, parse_fields_with_template
 
 SAMPLE_TEXT = """\
 Folio: B-4521
@@ -225,3 +227,122 @@ def test_cfe_slip_missing_folio_flags_zero_confidence():
 
     assert parsed.folio is None
     assert parsed.field_confidences["folio"] == 0.0
+
+
+# --- parse_fields_with_template (Phase 4) -----------------------------------
+
+
+class _Tpl:
+    """Minimal stand-in for a BoletaFormatTemplate row -- these tests only
+    read .label_patterns_json/.expects_weight, so a plain object avoids
+    pulling in a DB session just to construct one."""
+
+    def __init__(self, label_patterns_json: str, expects_weight: bool):
+        self.label_patterns_json = label_patterns_json
+        self.expects_weight = expects_weight
+
+
+# Genuinely different label wording from the universal _LABEL_PATTERNS --
+# "No. de Remision" / "Responsable de Unidad" / "Peso Neto Entregado" share
+# no matching keyword with "folio"/"datos del chofer"/"fletero"/"operador"/
+# "transportista"/"chofer"/"volumen entregado"/bare "peso:", so the generic
+# parser genuinely cannot read this format -- proving the per-template
+# approach adds real value, not just a redundant second regex set.
+EXTERNO_NORTE_TEXT = """\
+No. de Remision: EX-7001
+Fecha: 18/01/2026
+Responsable de Unidad: CAMAGO
+Peso Neto Entregado: 75 kg
+"""
+EXTERNO_NORTE_TEMPLATE = _Tpl(
+    label_patterns_json=json.dumps({
+        "folio": [r"(?:no\.?\s*de\s*remisi[oó]n|remisi[oó]n\s*no\.?)[ \t]*[:\-][ \t]*([A-Za-z0-9\-]+)"],
+        "fletero": [r"responsable\s+de\s+unidad[ \t]*[:\-][ \t]*([^\n\r]+)"],
+        "weight": [r"peso\s+neto\s+entregado[ \t]*[:\-]?[ \t]*([^\n\r]+)"],
+    }),
+    expects_weight=True,
+)
+
+
+def test_generic_parse_fields_misses_a_genuinely_different_format():
+    # The universal regex set finds nothing on Proveedor Externo Norte's
+    # distinctively-worded paper -- this is exactly the gap Phase 4 closes.
+    ocr = _fake_ocr_result(EXTERNO_NORTE_TEXT)
+
+    parsed = parse_fields(ocr)
+
+    assert parsed.folio is None
+    assert parsed.fletero is None
+    assert parsed.weight is None
+
+
+def test_template_parses_a_genuinely_different_format_correctly():
+    ocr = _fake_ocr_result(EXTERNO_NORTE_TEXT)
+
+    parsed = parse_fields_with_template(ocr, EXTERNO_NORTE_TEMPLATE)
+
+    assert parsed.folio == "EX-7001"
+    assert parsed.date == "2026-01-18"
+    assert parsed.fletero == "CAMAGO"
+    assert parsed.weight == 75.0
+    assert parsed.weight_expected is True
+    assert parsed.weight_found_unexpectedly is False
+
+
+def test_template_expects_weight_false_leaves_weight_none_when_absent():
+    template = _Tpl(
+        label_patterns_json=json.dumps({"folio": [r"folio[ \t]*[:\-][ \t]*([A-Za-z0-9\-]+)"]}),
+        expects_weight=False,
+    )
+    text = "Folio: B-9001\nFecha: 01/01/2026\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields_with_template(ocr, template)
+
+    assert parsed.weight is None
+    assert parsed.weight_expected is False
+    assert parsed.weight_found_unexpectedly is False
+
+
+def test_template_flags_weight_found_on_a_format_that_does_not_expect_one():
+    # A weight label was found on the scan even though this producer's
+    # template says the format has none -- a distinct mismatch signal (PRD
+    # Phase 4 §6.1), not just a silently-dropped value.
+    template = _Tpl(
+        label_patterns_json=json.dumps({"folio": [r"folio[ \t]*[:\-][ \t]*([A-Za-z0-9\-]+)"]}),
+        expects_weight=False,
+    )
+    text = "Folio: B-9001\nFecha: 01/01/2026\nVolumen Entregado: 500 kg\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields_with_template(ocr, template)
+
+    assert parsed.weight is None  # never fed into tariff/inventory math
+    assert parsed.weight_found_unexpectedly is True
+
+
+def test_template_field_not_covered_by_template_is_none():
+    # A template that only defines "folio" leaves every other text field
+    # unfound, same as a genuine miss -- no accidental fallback to the
+    # generic patterns for fields the template doesn't mention.
+    template = _Tpl(
+        label_patterns_json=json.dumps({"folio": [r"folio[ \t]*[:\-][ \t]*([A-Za-z0-9\-]+)"]}),
+        expects_weight=True,
+    )
+    text = "Folio: B-9001\nDestino: Planta Norte\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields_with_template(ocr, template)
+
+    assert parsed.folio == "B-9001"
+    assert parsed.destination is None
+    assert parsed.field_confidences["destination"] == 0.0
+
+
+def test_template_malformed_json_degrades_to_no_fields_found():
+    template = _Tpl(label_patterns_json="{not valid json", expects_weight=True)
+    ocr = _fake_ocr_result("Folio: B-9001\n")
+
+    parsed = parse_fields_with_template(ocr, template)
+
+    assert parsed.folio is None

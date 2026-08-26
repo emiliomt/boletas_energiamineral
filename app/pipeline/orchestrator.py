@@ -39,8 +39,14 @@ from app.engines.transportista_registry import resolve_transportista
 from app.models import Boleta, BoletaRecord, Producer
 from app.ocr.base import OCRAdapter, OCRResult
 from app.ocr.qr_decoder import decode_qr_folio
-from app.parsing.field_parser import CfeSlipFields, ParsedFields, parse_cfe_slip_fields, parse_fields
-from app.rules.config_loader import get_thresholds
+from app.parsing.field_parser import (
+    CfeSlipFields,
+    ParsedFields,
+    parse_cfe_slip_fields,
+    parse_fields,
+    parse_fields_with_template,
+)
+from app.rules.config_loader import get_active_template_for_producer, get_thresholds
 
 
 def process_boleta(db: Session, boleta: Boleta, ocr_adapter: OCRAdapter) -> BoletaRecord:
@@ -85,8 +91,13 @@ def _process_entrada(
     producer_id: int | None,
     existing_record: BoletaRecord | None,
 ) -> BoletaRecord:
-    """Unchanged from Phase 2."""
-    parsed = parse_fields(ocr_result)
+    """Phase 4: uses this producer's BoletaFormatTemplate (if one is
+    configured) instead of the generic parse_fields() -- see
+    app/parsing/field_parser.py's parse_fields_with_template(). A producer
+    with no active template degrades to exactly the Phase 2 behavior below,
+    unchanged."""
+    template = get_active_template_for_producer(db, producer_id)
+    parsed = parse_fields_with_template(ocr_result, template) if template is not None else parse_fields(ocr_result)
     if qr_folio:
         parsed.folio = qr_folio
         parsed.field_confidences["folio"] = 1.0

@@ -20,3 +20,4 @@ folio_already_used_for_producer,,hard_block,Same folio already ingested for this
 unmatched_transportista,,hard_block,Entrada's parsed transportista/fletero name didn't match any roster canonical name or alias above the fuzzy threshold
 salida_folio_mismatch,,hard_block,A Salida boleta and CFE slip uploaded together in the same lote carry different folios -- not silently paired
 document_type_mismatch,,hard_block,Upload tagged boleta/cfe_slip but the type-specific fields for that tag weren't found -- likely mis-tagged
+unexpected_weight_field,,hard_block,Entrada boleta's per-producer template doesn't expect a weight field but one was found -- possible wrong template/producer selected

@@ -4,7 +4,7 @@ origin/destination OCR'd, producer-driven classification, PricingRule-based
 tariff, per-producer folio dedup, and transportista roster resolution."""
 from __future__ import annotations
 
-from app.models import Batch, Boleta, Producer
+from app.models import Batch, Boleta, BoletaFormatTemplate, Producer
 from app.pipeline.orchestrator import process_boleta
 from tests.fakes import FakeOCRAdapter
 
@@ -134,6 +134,103 @@ def test_entrada_missing_destination_is_not_flagged(db_session):
     assert record.destination is None
     assert not any(e.startswith("missing_required_field:destination") for e in record.exceptions)
     assert not any(e.startswith("missing_required_field:origin") for e in record.exceptions)
+
+
+# --- Per-producer format templates (Phase 4) --------------------------------
+
+# Genuinely different label wording from the generic system template -- see
+# tests/test_field_parser.py for a direct before/after comparison against
+# the universal regex set.
+EXTERNO_NORTE_TEXT = """\
+No. de Remision: EX-7001
+Fecha: 18/01/2026
+Responsable de Unidad: CAMAGO
+Peso Neto Entregado: 75 kg
+"""
+
+
+def test_entrada_uses_producer_specific_template_for_distinct_format(db_session):
+    # Real placeholder data: Proveedor Externo Norte -> BoletaFormatTemplate
+    # EXTN-V1 (distinct wording) + PricingRule P005 (per_weight, 110.00/ton).
+    producer = db_session.query(Producer).filter_by(name="Proveedor Externo Norte").one()
+    boleta = _make_entrada_boleta(db_session, producer.id, "entrada_externo.png")
+    adapter = FakeOCRAdapter(text=EXTERNO_NORTE_TEXT, confidence=95.0)
+
+    record = process_boleta(db_session, boleta, adapter)
+
+    assert record.folio == "EX-7001"
+    assert record.fletero == "CAMAGO"
+    assert record.weight == 75.0
+    assert record.tariff_amount == 8250.0  # 110.00 * 75
+    assert record.status == "auto_processed"
+    assert record.exceptions == []
+
+
+def test_entrada_wrong_producer_selected_cannot_parse_the_actual_format(db_session):
+    # Operator mis-selected CTU/MINSA's producer/template while actually
+    # scanning Proveedor Externo Norte's distinctively-worded paper -- CTU's
+    # template can't read "No. de Remision"/"Responsable de Unidad", so the
+    # required fields come back missing rather than silently wrong.
+    producer = db_session.query(Producer).filter_by(name="CTU/MINSA").one()
+    boleta = _make_entrada_boleta(db_session, producer.id, "entrada_wrong_template.png")
+    adapter = FakeOCRAdapter(text=EXTERNO_NORTE_TEXT, confidence=95.0)
+
+    record = process_boleta(db_session, boleta, adapter)
+
+    assert record.folio is None
+    assert record.fletero is None
+    assert record.status == "needs_review"
+    assert any(e.startswith("missing_required_field:") for e in record.exceptions)
+
+
+def test_entrada_producer_without_template_falls_back_to_generic_parsing(db_session):
+    # A producer with no BoletaFormatTemplate row at all degrades gracefully
+    # to Phase 2's generic parse_fields() -- same real, generic label
+    # wording as WITH_WEIGHT_TEXT above.
+    producer = Producer(name="TEST No Template Producer", default_origin="Proveedor Externo", active=True)
+    db_session.add(producer)
+    db_session.flush()
+    boleta = _make_entrada_boleta(db_session, producer.id, "entrada_no_template.png")
+    adapter = FakeOCRAdapter(text=WITH_WEIGHT_TEXT, confidence=95.0)
+
+    record = process_boleta(db_session, boleta, adapter)
+
+    assert record.folio == "E-2001"
+    assert record.fletero == "CAMAGO"
+    assert record.weight == 50.0
+
+
+def test_entrada_expects_weight_false_but_weight_found_flags_unexpected(db_session):
+    # Real placeholder data: Bradfort's template (BRAD-STD) has
+    # expects_weight=false -- a weight showing up anyway is a mismatch
+    # signal, not silently accepted data.
+    producer = db_session.query(Producer).filter_by(name="Bradfort").one()
+    boleta = _make_entrada_boleta(db_session, producer.id, "entrada_bradfort_unexpected_weight.png")
+    adapter = FakeOCRAdapter(text=WITH_WEIGHT_TEXT, confidence=95.0)
+
+    record = process_boleta(db_session, boleta, adapter)
+
+    # The found "50 kg" is never fed into tariff/inventory math as a measured
+    # weight -- record.weight instead comes from WeightEstimationRule's
+    # fallback (same as any other weight-absent Entrada), not the scan.
+    assert record.weight_source == "estimated"
+    assert record.status == "needs_review"
+    assert "unexpected_weight_field" in record.exceptions
+
+
+def test_entrada_inactive_template_falls_back_to_generic_parsing(db_session):
+    producer = db_session.query(Producer).filter_by(name="CTU/MINSA").one()
+    template = db_session.query(BoletaFormatTemplate).filter_by(producer_id=producer.id).one()
+    template.active = False
+    db_session.flush()
+    boleta = _make_entrada_boleta(db_session, producer.id, "entrada_inactive_template.png")
+    adapter = FakeOCRAdapter(text=WITH_WEIGHT_TEXT, confidence=95.0)
+
+    record = process_boleta(db_session, boleta, adapter)
+
+    assert record.folio == "E-2001"
+    assert record.fletero == "CAMAGO"
+    assert record.weight == 50.0
 
 
 def test_entrada_reprocessing_updates_existing_record_instead_of_duplicating(db_session):

@@ -160,6 +160,127 @@ def test_entrada_unmatched_transportista_flags_and_forces_review(db_session):
     assert "unmatched_transportista" in result.exceptions
 
 
+# --- Template-match confidence term (Phase 4) -------------------------------
+
+
+def test_untemplated_entrada_keeps_the_pre_phase4_formula(db_session):
+    # parsed.weight_expected is None (the default) whenever no template was
+    # used -- confirms the composite score is byte-identical to the old
+    # 0.5/0.5 formula in that case, not just "close". Also the Salida
+    # regression check: Salida parsing never sets weight_expected at all,
+    # so it always takes this exact path.
+    parsed = _complete_parsed()
+    ocr = OCRResult(text="...", confidence=95.0)
+    classification = ClassificationResult(trip_type="recepcion_compra", confidence=1.0)
+    tariff = TariffResult(tariff_amount=900.0)
+    inventory = InventoryResult(inventory_direction="inbound", inventory_quantity=9000.0)
+
+    result = evaluate(
+        db_session, ocr, parsed, classification, tariff, inventory,
+        is_duplicate=False, folio_check=_OK_FOLIO_CHECK, kind="entrada",
+    )
+
+    ocr_component = 95.0 / 100.0
+    field_component = sum(parsed.field_confidences.get(f, 0.0) for f in ("folio", "date", "fletero")) / 3
+    expected = round(min(max(0.5 * ocr_component + 0.5 * field_component, 0.0), 1.0), 2)
+    assert result.confidence_score == expected
+
+
+def test_template_matched_as_expected_does_not_lower_confidence(db_session):
+    # weight_expected=True and a weight WAS found -- a perfect template
+    # match should score at least as well as the untemplated formula would
+    # for the same inputs (never penalized for a correct match).
+    parsed = _complete_parsed()
+    parsed.weight_expected = True
+    ocr = OCRResult(text="...", confidence=95.0)
+    classification = ClassificationResult(trip_type="recepcion_compra", confidence=1.0)
+    tariff = TariffResult(tariff_amount=900.0)
+    inventory = InventoryResult(inventory_direction="inbound", inventory_quantity=9000.0)
+
+    result = evaluate(
+        db_session, ocr, parsed, classification, tariff, inventory,
+        is_duplicate=False, folio_check=_OK_FOLIO_CHECK, kind="entrada",
+    )
+
+    assert result.exceptions == []
+    assert result.status == "auto_processed"
+    assert result.confidence_score >= 0.9
+
+
+def test_expects_weight_true_but_missing_flags_and_lowers_confidence(db_session):
+    parsed = _complete_parsed()
+    parsed.weight = None
+    parsed.weight_expected = True
+    ocr = OCRResult(text="...", confidence=95.0)
+    classification = ClassificationResult(trip_type="recepcion_compra", confidence=1.0)
+    tariff = TariffResult(tariff_amount=900.0)
+    inventory = InventoryResult(inventory_direction="inbound", inventory_quantity=9000.0)
+
+    matched_result = evaluate(
+        db_session, ocr, _complete_parsed_with(weight_expected=True), classification, tariff, inventory,
+        is_duplicate=False, folio_check=_OK_FOLIO_CHECK, kind="entrada",
+    )
+    result = evaluate(
+        db_session, ocr, parsed, classification, tariff, inventory,
+        is_duplicate=False, folio_check=_OK_FOLIO_CHECK, kind="entrada",
+    )
+
+    assert "missing_expected_weight" in result.exceptions
+    assert result.status == "needs_review"
+    assert result.confidence_score < matched_result.confidence_score
+
+
+def test_expects_weight_false_and_absent_does_not_flag_missing_expected_weight(db_session):
+    # PRD Phase 4 acceptance criterion: a producer whose template says
+    # "no weight field" must not raise missing_expected_weight for a
+    # legitimately weight-absent scan.
+    parsed = _complete_parsed()
+    parsed.weight = None
+    parsed.weight_expected = False
+    ocr = OCRResult(text="...", confidence=95.0)
+    classification = ClassificationResult(trip_type="recepcion_compra", confidence=1.0)
+    tariff = TariffResult(tariff_amount=900.0)  # flat -- doesn't need a weight either
+    inventory = InventoryResult(inventory_direction="inbound", inventory_quantity=9000.0)
+
+    result = evaluate(
+        db_session, ocr, parsed, classification, tariff, inventory,
+        is_duplicate=False, folio_check=_OK_FOLIO_CHECK, kind="entrada",
+    )
+
+    assert "missing_expected_weight" not in result.exceptions
+    assert result.status == "auto_processed"
+
+
+def test_weight_found_unexpectedly_flags_and_lowers_confidence(db_session):
+    parsed = _complete_parsed()
+    parsed.weight_expected = False
+    parsed.weight_found_unexpectedly = True
+    ocr = OCRResult(text="...", confidence=95.0)
+    classification = ClassificationResult(trip_type="recepcion_compra", confidence=1.0)
+    tariff = TariffResult(tariff_amount=900.0)
+    inventory = InventoryResult(inventory_direction="inbound", inventory_quantity=9000.0)
+
+    matched_result = evaluate(
+        db_session, ocr, _complete_parsed_with(weight_expected=False), classification, tariff, inventory,
+        is_duplicate=False, folio_check=_OK_FOLIO_CHECK, kind="entrada",
+    )
+    result = evaluate(
+        db_session, ocr, parsed, classification, tariff, inventory,
+        is_duplicate=False, folio_check=_OK_FOLIO_CHECK, kind="entrada",
+    )
+
+    assert "unexpected_weight_field" in result.exceptions
+    assert result.status == "needs_review"
+    assert result.confidence_score < matched_result.confidence_score
+
+
+def _complete_parsed_with(**overrides):
+    parsed = _complete_parsed()
+    for key, value in overrides.items():
+        setattr(parsed, key, value)
+    return parsed
+
+
 def test_confidence_score_below_threshold_needs_review_despite_no_exceptions(db_session):
     # Every input individually clears its own hard-block/soft-flag checks,
     # but the composite score still lands under the auto-process gate.

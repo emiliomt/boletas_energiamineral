@@ -16,6 +16,7 @@ from sqlalchemy.orm import Session
 
 from app.config import settings
 from app.models import (
+    BoletaFormatTemplate,
     ExceptionThreshold,
     PricingRule,
     Producer,
@@ -194,6 +195,43 @@ def load_pricing_rules(db: Session, csv_path: Path | None = None) -> int:
     return count
 
 
+def load_boleta_format_templates(db: Session, csv_path: Path | None = None) -> int:
+    """CSV shape: format_id,producer_name,label_patterns_json,expects_weight,
+    detection_signal,active. `label_patterns_json` is a JSON object (field
+    name -> list of regex pattern strings) stored as admin-editable text in
+    the CSV cell, same convention as every other config table here.
+    `producer_name` is resolved to Producer.id at load time; an unknown
+    producer_name is skipped with a warning rather than failing the whole
+    reload (mirrors load_transportistas' handling of a bad roster row) --
+    a template row belonging to no producer degrades to Phase 2's generic
+    parsing rather than blocking config reload entirely."""
+    path = csv_path or settings.rules_config_dir / "boleta_format_templates.csv"
+    count = 0
+    for row in _read_csv(path):
+        producer_name = row["producer_name"].strip()
+        producer = db.query(Producer).filter_by(name=producer_name).one_or_none()
+        if producer is None:
+            warnings.warn(
+                f"boleta_format_templates.csv: producer '{producer_name}' not found; "
+                f"skipping template '{row['format_id']}'.",
+                stacklevel=2,
+            )
+            continue
+
+        existing = db.query(BoletaFormatTemplate).filter_by(format_id=row["format_id"]).one_or_none()
+        obj = existing or BoletaFormatTemplate(format_id=row["format_id"])
+        obj.producer_id = producer.id
+        obj.label_patterns_json = (row.get("label_patterns_json") or "{}").strip() or "{}"
+        obj.expects_weight = _to_bool(row.get("expects_weight", "true"))
+        obj.detection_signal = (row.get("detection_signal") or "").strip() or None
+        obj.active = _to_bool(row.get("active", "true"))
+        if not existing:
+            db.add(obj)
+        count += 1
+    db.commit()
+    return count
+
+
 def reload_all(db: Session) -> dict[str, int]:
     """Re-import every config CSV. Returns a per-table row count for confirmation."""
     return {
@@ -204,6 +242,9 @@ def reload_all(db: Session) -> dict[str, int]:
         "producers": load_producers(db),
         "transportistas": load_transportistas(db),
         "pricing_rules": load_pricing_rules(db),
+        # Depends on producers already being loaded above (resolves
+        # producer_name -> Producer.id), so it must load after load_producers.
+        "boleta_format_templates": load_boleta_format_templates(db),
     }
 
 
@@ -244,3 +285,21 @@ def get_active_pricing_rules(db: Session, as_of: str | None = None) -> list[Pric
         r for r in rules
         if r.effective_from <= as_of and (r.effective_to is None or as_of <= r.effective_to)
     ]
+
+
+def get_active_boleta_format_templates(db: Session) -> list[BoletaFormatTemplate]:
+    return db.query(BoletaFormatTemplate).filter_by(active=True).all()
+
+
+def get_active_template_for_producer(db: Session, producer_id: int | None) -> BoletaFormatTemplate | None:
+    """The active BoletaFormatTemplate for a producer, if any -- None means
+    "no template configured for this producer", which callers (see
+    app.pipeline.orchestrator._process_entrada) treat as a signal to fall
+    back to the generic parse_fields() rather than an error."""
+    if producer_id is None:
+        return None
+    return (
+        db.query(BoletaFormatTemplate)
+        .filter_by(producer_id=producer_id, active=True)
+        .first()
+    )
