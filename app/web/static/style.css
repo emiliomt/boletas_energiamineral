@@ -936,7 +936,6 @@ tr.row-review .col-action { background: var(--warning-bg); }
 
 /* ---------- Alerts & empty states ---------- */
 
-<<<<<<< HEAD
 .alert {
   display: flex;
   gap: var(--space-3);

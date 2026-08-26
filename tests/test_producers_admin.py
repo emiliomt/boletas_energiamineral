@@ -56,6 +56,18 @@ def test_proveedores_page_is_in_nav_and_lists_csv_producers(client_and_session):
     assert "Precio de transporte" in html
     assert "Bradfort" in html
     assert "CTU/MINSA" in html
+    # Price fields must sit inside the per-row edit <form> so Guardar posts them.
+    import re
+
+    row_form = re.search(
+        r'<form method="post" action="/admin/proveedores/\d+" class="producer-row">(.*?)</form>',
+        html,
+        re.S,
+    )
+    assert row_form is not None
+    assert 'name="precio_caja_carbon"' in row_form.group(1)
+    assert 'name="precio_transporte"' in row_form.group(1)
+    assert 'form="edit-' not in html
 
 
 def test_create_proveedor_with_prices(client_and_session):
