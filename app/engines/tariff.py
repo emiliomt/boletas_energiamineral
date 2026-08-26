@@ -79,12 +79,15 @@ def _compute_pricing_rule_tariff(db: Session, scope: str | None, weight: float |
 
 
 def compute_entrada_tariff(db: Session, producer: Producer | None, weight: float | None) -> PricingRuleTariffResult:
-    """Entrada pricing (Phase 2): PricingRule scoped to the selected
-    producer (PricingRule.scope matches Producer.name -- see Phase 1's
-    pricing_config.csv convention), as of today. See
+    """Entrada pricing (Phase 2): if the producer has a rate-card
+    `precio_transporte` (set in the Proveedores admin page), that flat MXN
+    amount is the fletero tariff. Otherwise look up a PricingRule scoped to
+    Producer.name (pricing_config.csv), as of today. See
     _compute_pricing_rule_tariff for the flat/per_weight branching."""
     if producer is None:
         return PricingRuleTariffResult(exceptions=["unknown_tariff"])
+    if producer.precio_transporte is not None:
+        return PricingRuleTariffResult(tariff_amount=producer.precio_transporte)
     return _compute_pricing_rule_tariff(db, producer.name, weight)
 
 

@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Proveedores — Boletas Energía Mineral{% endblock %}
+{% block content %}
+  <p><a href="/">&larr; Volver</a></p>
+  <h1>Proveedores</h1>
+  <p class="muted">
+    Catálogo de proveedores de carbón. El <strong>precio por caja de carbón</strong>
+    es lo que se paga al proveedor por caja. El <strong>precio de transporte</strong>
+    es lo que se paga al fletero por el viaje; en boletas de Entrada se usa
+    como tarifa cuando está definido.
+  </p>
+
+  {% if error %}
+  <div class="panel" style="border-color: var(--warn-text);"><p style="color: var(--warn-text);">{{ error }}</p></div>
+  {% endif %}
+
+  <section class="panel">
+    <h2>Nuevo proveedor</h2>
+    <form method="post" action="/admin/proveedores" class="review-form">
+      <label>Nombre<input type="text" name="name" required placeholder="Ej. Mina El Roble"></label>
+      <label>Origen / mina (opcional)<input type="text" name="default_origin" placeholder="Si se omite, se usa el nombre"></label>
+      <div class="price-grid">
+        <label>Precio por caja de carbón (MXN)
+          <input type="number" name="precio_caja_carbon" step="0.01" min="0" placeholder="0.00">
+        </label>
+        <label>Precio de transporte (MXN)
+          <input type="number" name="precio_transporte" step="0.01" min="0" placeholder="0.00">
+        </label>
+      </div>
+      <button type="submit">Agregar proveedor</button>
+    </form>
+  </section>
+
+  <section class="panel">
+    <h2>Proveedores registrados</h2>
+    {% if producers %}
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>Nombre</th>
+          <th>Origen</th>
+          <th>Precio caja carbón</th>
+          <th>Precio transporte</th>
+          <th>Estado</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in producers %}
+        <tr class="{{ '' if p.active else 'row-inactive' }}">
+          <td>{{ p.name }}</td>
+          <td>
+            <input form="edit-{{ p.id }}" type="text" name="default_origin" value="{{ p.default_origin or '' }}" aria-label="Origen de {{ p.name }}">
+          </td>
+          <td>
+            <input form="edit-{{ p.id }}" type="number" name="precio_caja_carbon" step="0.01" min="0"
+                   value="{{ '%.2f'|format(p.precio_caja_carbon) if p.precio_caja_carbon is not none else '' }}"
+                   placeholder="—" aria-label="Precio caja de {{ p.name }}">
+          </td>
+          <td>
+            <input form="edit-{{ p.id }}" type="number" name="precio_transporte" step="0.01" min="0"
+                   value="{{ '%.2f'|format(p.precio_transporte) if p.precio_transporte is not none else '' }}"
+                   placeholder="—" aria-label="Precio transporte de {{ p.name }}">
+          </td>
+          <td>{% if p.active %}<span class="badge badge-ok">activo</span>{% else %}<span class="badge">inactivo</span>{% endif %}</td>
+          <td>
+            <form id="edit-{{ p.id }}" method="post" action="/admin/proveedores/{{ p.id }}" class="inline-form">
+              <button type="submit">Guardar</button>
+            </form>
+            <form method="post" action="/admin/proveedores/{{ p.id }}/toggle" class="inline-form">
+              <button type="submit" class="{{ 'btn-danger' if p.active else 'btn-approve' }}">
+                {{ "Desactivar" if p.active else "Activar" }}
+              </button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="muted">Aún no hay proveedores. Agrega uno arriba.</p>
+    {% endif %}
+  </section>
+{% endblock %}
