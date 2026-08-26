@@ -1,42 +1,51 @@
 {% extends "base.html" %}
+{% from "_macros.html" import mode_label, empty_state %}
 {% block title %}Lotes de Folios — Boletas Energía Mineral{% endblock %}
 {% block content %}
-  <p><a href="/">&larr; Volver</a></p>
-  <h1>Lotes de Folios (QR)</h1>
-  <p class="muted">
-    Genera un lote de folios (con su código QR) para enviar al proveedor de
-    impresión. Cada boleta impresa incluirá su folio único y un QR — al
-    escanearse en el punto de entrega, el sistema valida que el folio
-    pertenezca a un lote emitido aquí.
-  </p>
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/">Inicio</a> / Lotes de folios</p>
+      <h1>Lotes de Folios (QR)</h1>
+      <p class="page-lede">
+        Genera un lote de folios (con su código QR) para enviar al proveedor de
+        impresión. Cada boleta impresa incluirá su folio único y un QR — al
+        escanearse en el punto de entrega, el sistema valida que el folio
+        pertenezca a un lote emitido aquí.
+      </p>
+    </div>
+  </header>
 
   {% if error %}
-  <div class="panel" style="border-color: var(--warn-text);"><p style="color: var(--warn-text);">{{ error }}</p></div>
+  <div class="alert alert-error" role="alert">
+    <p>{{ error }}</p>
+  </div>
   {% endif %}
 
-  <section class="panel">
-    <h2>Nuevo lote de folios</h2>
+  <section class="panel" aria-labelledby="nuevo-folio-heading">
+    <h2 id="nuevo-folio-heading">Nuevo lote de folios</h2>
     <form method="post" action="/admin/folio-batches" class="review-form" id="folio-batch-form">
       <label>Nombre del lote<input type="text" name="label" required></label>
 
       <label>Modo
-        <select name="mode" id="mode-select" onchange="toggleMode()">
+        <select name="mode" id="mode-select">
           <option value="sequential">Secuencial (prefijo + número inicial + cantidad)</option>
           <option value="imported">Lista pegada (folios ya existentes del proveedor)</option>
         </select>
       </label>
 
       <div id="sequential-fields">
-        <label>Prefijo<input type="text" name="prefix" placeholder="B-"></label>
-        <label>Número inicial<input type="number" name="start_number" placeholder="3201"></label>
-        <label>Cantidad<input type="number" name="count" placeholder="200"></label>
+        <div class="form-grid">
+          <label>Prefijo<input type="text" name="prefix" placeholder="B-"></label>
+          <label>Número inicial<input type="number" name="start_number" placeholder="3201"></label>
+          <label>Cantidad<input type="number" name="count" placeholder="200"></label>
+        </div>
       </div>
 
-      <div id="imported-fields" style="display: none;">
-        <label>Folios (uno por línea)<textarea name="folios_text" rows="6" style="width: 100%; font-family: monospace;"></textarea></label>
+      <div id="imported-fields">
+        <label>Folios (uno por línea)<textarea name="folios_text" rows="6"></textarea></label>
       </div>
 
-      <fieldset style="margin-top: 1rem;">
+      <fieldset class="fieldset">
         <legend>Datos de la boleta (se imprimen en cada folio del lote)</legend>
         <p class="muted">
           Estos datos son iguales para todo el lote y se imprimen en cada
@@ -44,69 +53,83 @@
           se llenan a mano en el punto de entrega y se leen por OCR al escanear.
         </p>
 
-        <label>Proveedor<input type="text" name="proveedor" value="ENERGIA MINERAL, S.A. DE C.V."></label>
-        <label>Destino<input type="text" name="destino"></label>
-        <label>Contrato<input type="text" name="contrato"></label>
+        <div class="form-grid">
+          <label>Proveedor<input type="text" name="proveedor" value="ENERGIA MINERAL, S.A. DE C.V."></label>
+          <label>Destino<input type="text" name="destino"></label>
+          <label>Contrato<input type="text" name="contrato"></label>
+        </div>
 
         <h3>Datos de la calidad del carbón a suministrar</h3>
-        <label>Poder Calorífico Superior<input type="text" name="poder_calorifico_superior"></label>
-        <label>% Humedad<input type="text" name="humedad_pct"></label>
-        <label>% Ceniza<input type="text" name="ceniza_pct"></label>
-        <label>% Azufre<input type="text" name="azufre_pct"></label>
-        <label>FSI<input type="text" name="fsi"></label>
-        <label>Granulometría<input type="text" name="granulometria"></label>
+        <div class="form-grid">
+          <label>Poder Calorífico Superior<input type="text" name="poder_calorifico_superior"></label>
+          <label>% Humedad<input type="text" name="humedad_pct"></label>
+          <label>% Ceniza<input type="text" name="ceniza_pct"></label>
+          <label>% Azufre<input type="text" name="azufre_pct"></label>
+          <label>FSI<input type="text" name="fsi"></label>
+          <label>Granulometría<input type="text" name="granulometria"></label>
+        </div>
 
         <h3>Origen del carbón</h3>
-        <label>Centro de Explotación<input type="text" name="centro_explotacion"></label>
-        <label>Centro de Acopio<input type="text" name="centro_acopio"></label>
-        <label>Datos de Concesión Minera<input type="text" name="concesion_minera"></label>
-
-        <label>Representante Legal (Nombre)<input type="text" name="representante_legal"></label>
+        <div class="form-grid">
+          <label>Centro de Explotación<input type="text" name="centro_explotacion"></label>
+          <label>Centro de Acopio<input type="text" name="centro_acopio"></label>
+          <label>Datos de Concesión Minera<input type="text" name="concesion_minera"></label>
+          <label>Representante Legal (Nombre)<input type="text" name="representante_legal"></label>
+        </div>
       </fieldset>
 
-      <label>Proveedor de impresión (opcional)<input type="text" name="vendor"></label>
-      <label>Notas (opcional)<input type="text" name="notes"></label>
-      <label>Tu nombre<input type="text" name="created_by"></label>
+      <div class="form-grid">
+        <label>Proveedor de impresión (opcional)<input type="text" name="vendor"></label>
+        <label>Notas (opcional)<input type="text" name="notes"></label>
+        <label>Tu nombre<input type="text" name="created_by" autocomplete="name"></label>
+      </div>
 
       <button type="submit">Crear lote</button>
     </form>
-    <script>
-      function toggleMode() {
-        var mode = document.getElementById("mode-select").value;
-        document.getElementById("sequential-fields").style.display = mode === "sequential" ? "block" : "none";
-        document.getElementById("imported-fields").style.display = mode === "imported" ? "block" : "none";
-      }
-    </script>
   </section>
 
-  <section class="panel">
-    <h2>Lotes existentes</h2>
+  <section class="panel" aria-labelledby="existentes-heading">
+    <h2 id="existentes-heading">Lotes existentes</h2>
     {% if batches %}
     <form method="post" action="/admin/folio-batches/delete" onsubmit="return confirm('¿Borrar los lotes de folios seleccionados? Se eliminarán todos sus folios. Esta acción no se puede deshacer.');">
+      <div class="table-scroll">
       <table>
-        <thead><tr><th></th><th>ID</th><th>Nombre</th><th>Modo</th><th>Total</th><th>Emitidos</th><th>Escaneados</th><th></th></tr></thead>
+        <thead>
+          <tr>
+            <th class="row-check"><input type="checkbox" class="js-select-all" aria-label="Seleccionar todos los lotes de folios"></th>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Modo</th>
+            <th class="num">Total</th>
+            <th class="num">Emitidos</th>
+            <th class="num">Escaneados</th>
+            <th class="col-action"><span class="visually-hidden">Acciones</span></th>
+          </tr>
+        </thead>
         <tbody>
           {% for batch in batches %}
           {% set counts = counts_by_batch[batch.id] %}
           <tr>
-            <td><input type="checkbox" name="ids" value="{{ batch.id }}"></td>
-            <td>{{ batch.id }}</td>
+            <td class="row-check"><input type="checkbox" name="ids" value="{{ batch.id }}" aria-label="Seleccionar lote {{ batch.label }}"></td>
+            <td class="num">{{ batch.id }}</td>
             <td>{{ batch.label }}</td>
-            <td>{{ batch.mode }}</td>
-            <td>{{ batch.count }}</td>
-            <td>{{ counts.issued }}</td>
-            <td>{{ counts.scanned }}</td>
-            <td><a href="/admin/folio-batches/{{ batch.id }}">Ver / Descargar</a></td>
+            <td>{{ mode_label(batch.mode) }}</td>
+            <td class="num">{{ batch.count }}</td>
+            <td class="num">{{ counts.issued }}</td>
+            <td class="num">{{ counts.scanned }}</td>
+            <td class="col-action"><a class="table-action" href="/admin/folio-batches/{{ batch.id }}">Ver / Descargar</a></td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
-      <div class="review-actions">
+      </div>
+      <div class="danger-zone">
+        <p class="danger-note">Borrar un lote de folios elimina todos sus folios. Esta acción no se puede deshacer.</p>
         <button type="submit" class="btn-danger">Borrar seleccionados</button>
       </div>
     </form>
     {% else %}
-    <p class="muted">Aún no hay lotes de folios.</p>
+    {% call empty_state("Aún no hay lotes de folios", "Crea uno con el formulario de arriba para generar QR y PDF de imprenta.") %}{% endcall %}
     {% endif %}
   </section>
 {% endblock %}

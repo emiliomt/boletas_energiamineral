@@ -2,20 +2,31 @@
 <html lang="es">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Iniciar sesión — Boletas Energía Mineral</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
-<body>
-  <main class="container" style="max-width: 380px; margin-top: 4rem;">
-    <div class="panel">
-      <h1>Boletas Energía Mineral</h1>
+<body class="login-body">
+  <main class="login-shell">
+    <div class="login-card panel">
+      <p class="login-brand">Energía Mineral</p>
+      <h1>Iniciar sesión</h1>
+      <p class="lede">Acceso de administrador al registro de boletas, pagos e inventario.</p>
       {% if error %}
-      <p style="color: var(--warn-text);">{{ error }}</p>
+      <div class="alert alert-error" role="alert">
+        <p id="login-error">{{ error }}</p>
+      </div>
       {% endif %}
       <form method="post" action="/login" class="review-form">
         <input type="hidden" name="next" value="{{ next }}">
-        <label>Correo<input type="email" name="email" required></label>
-        <label>Contraseña<input type="password" name="password" required></label>
+        <label class="field" for="email">
+          <span class="field-label">Correo</span>
+          <input type="email" id="email" name="email" required autocomplete="username" {% if error %}aria-invalid="true" aria-describedby="login-error"{% endif %}>
+        </label>
+        <label class="field" for="password">
+          <span class="field-label">Contraseña</span>
+          <input type="password" id="password" name="password" required autocomplete="current-password" {% if error %}aria-invalid="true" aria-describedby="login-error"{% endif %}>
+        </label>
         <button type="submit">Entrar</button>
       </form>
     </div>

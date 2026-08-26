@@ -1,37 +1,57 @@
 {% extends "base.html" %}
+{% from "_macros.html" import status_badge, empty_state %}
 {% block title %}Lote de Folios {{ batch.label }} — Boletas Energía Mineral{% endblock %}
 {% block content %}
-  <p><a href="/admin/folio-batches">&larr; Volver</a></p>
-  <h1>Lote de Folios: {{ batch.label }}</h1>
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/admin/folio-batches">Lotes de folios</a> / {{ batch.label }}</p>
+      <h1>Lote de Folios: {{ batch.label }}</h1>
+    </div>
+    <div class="page-actions">
+      <a class="btn" href="/admin/folio-batches/{{ batch.id }}/print-pdf">Descargar PDF para imprenta</a>
+      <a class="btn btn-secondary" href="/admin/folio-batches/{{ batch.id }}/export-csv">Descargar CSV</a>
+    </div>
+  </header>
 
   <section class="panel">
     <div class="stat-row">
-      <div class="stat-card"><div class="stat-value">{{ batch.count }}</div><div class="stat-label">Total</div></div>
-      <div class="stat-card"><div class="stat-value">{{ counts.issued }}</div><div class="stat-label">Emitidos</div></div>
-      <div class="stat-card"><div class="stat-value">{{ counts.scanned }}</div><div class="stat-label">Escaneados</div></div>
+      <article class="stat-card">
+        <p class="stat-label">Total</p>
+        <p class="stat-value">{{ batch.count }}</p>
+      </article>
+      <article class="stat-card stat-ok">
+        <p class="stat-label">Emitidos</p>
+        <p class="stat-value">{{ counts.issued }}</p>
+      </article>
+      <article class="stat-card stat-info">
+        <p class="stat-label">Escaneados</p>
+        <p class="stat-value">{{ counts.scanned }}</p>
+      </article>
     </div>
-    <p>
-      <a href="/admin/folio-batches/{{ batch.id }}/print-pdf">Descargar PDF para imprenta</a> ·
-      <a href="/admin/folio-batches/{{ batch.id }}/export-csv">Descargar CSV</a>
-    </p>
     {% if batch.vendor %}<p class="muted">Proveedor: {{ batch.vendor }}</p>{% endif %}
     {% if batch.notes %}<p class="muted">Notas: {{ batch.notes }}</p>{% endif %}
   </section>
 
-  <section class="panel">
-    <h2>Folios</h2>
+  <section class="panel" aria-labelledby="folios-heading">
+    <h2 id="folios-heading">Folios</h2>
+    {% if folios %}
+    <div class="table-scroll">
     <table>
       <thead><tr><th>Folio</th><th>Estado</th><th>Emitido</th><th>Escaneado</th></tr></thead>
       <tbody>
         {% for f in folios %}
         <tr class="{{ 'row-review' if f.status == 'scanned' else '' }}">
           <td>{{ f.folio }}</td>
-          <td><span class="badge badge-{{ 'ok' if f.status == 'issued' else 'warn' }}">{{ f.status }}</span></td>
+          <td>{{ status_badge(f.status) }}</td>
           <td>{{ f.issued_at.strftime("%Y-%m-%d %H:%M") if f.issued_at else "—" }}</td>
           <td>{{ f.scanned_at.strftime("%Y-%m-%d %H:%M") if f.scanned_at else "—" }}</td>
         </tr>
         {% endfor %}
       </tbody>
     </table>
+    </div>
+    {% else %}
+    {% call empty_state("Este lote aún no tiene folios", "") %}{% endcall %}
+    {% endif %}
   </section>
 {% endblock %}

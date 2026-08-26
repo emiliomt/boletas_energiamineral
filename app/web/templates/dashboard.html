@@ -1,43 +1,66 @@
 {% extends "base.html" %}
+{% from "_macros.html" import status_badge, empty_state %}
 {% block title %}Inicio — Boletas Energía Mineral{% endblock %}
 {% block content %}
-  <h1>Panel de Control</h1>
+  <header class="page-header">
+    <div>
+      <h1>Panel de Control</h1>
+      <p class="page-lede">Resumen operativo de boletas procesadas y lotes de escaneo.</p>
+    </div>
+  </header>
   {% if flash_error %}
-  <div class="panel" style="border-color: var(--warn-text);"><p style="color: var(--warn-text);">{{ flash_error }}</p></div>
+  <div class="alert alert-error" role="alert">
+    <p>{{ flash_error }}</p>
+  </div>
   {% endif %}
 
   <div class="stat-row">
-    <div class="stat-card">
-      <div class="stat-value">{{ total_count }}</div>
-      <div class="stat-label">Boletas procesadas</div>
-    </div>
-    <div class="stat-card {{ 'stat-warn' if review_count else '' }}">
-      <div class="stat-value">{{ review_count }}</div>
-      <div class="stat-label">Pendientes de revisión</div>
-    </div>
+    <article class="stat-card">
+      <p class="stat-label">Boletas procesadas</p>
+      <p class="stat-value">{{ total_count }}</p>
+      <p class="stat-hint">Total en el sistema</p>
+    </article>
+    <article class="stat-card {{ 'stat-warn' if review_count else 'stat-ok' }}">
+      <p class="stat-label">Pendientes de revisión</p>
+      <p class="stat-value">{{ review_count }}</p>
+      <p class="stat-hint">{% if review_count %}Requieren corrección o aprobación{% else %}Cola al día{% endif %}</p>
+    </article>
   </div>
 
-  <section class="panel">
-    <h2>Nuevo lote</h2>
+  <section class="panel" aria-labelledby="nuevo-lote-heading">
+    <h2 id="nuevo-lote-heading">Nuevo lote</h2>
     {% if folio_batches %}
+    <p class="muted">Elige un lote de folios ya registrado para abrir un lote de escaneo en el punto de entrega.</p>
     <form method="post" action="/batches" class="inline-form">
-      <select name="label" required>
-        <option value="" disabled selected>Nombre del lote…</option>
-        {% for fb in folio_batches %}
-        <option value="{{ fb.label }}">{{ fb.label }}</option>
-        {% endfor %}
-      </select>
-      <select name="kind">
-        <option value="salida" selected>Salida</option>
-        <option value="entrada">Entrada</option>
-      </select>
-      <select name="producer_id">
-        <option value="">Productor (solo Entrada)…</option>
-        {% for p in producers %}
-        <option value="{{ p.id }}">{{ p.name }}</option>
-        {% endfor %}
-      </select>
-      <input type="text" name="created_by" placeholder="Tu nombre (opcional)">
+      <label class="field" for="batch-label">
+        <span class="field-label">Nombre del lote</span>
+        <select name="label" id="batch-label" required>
+          <option value="" disabled selected>Nombre del lote…</option>
+          {% for fb in folio_batches %}
+          <option value="{{ fb.label }}">{{ fb.label }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field" for="batch-kind">
+        <span class="field-label">Tipo</span>
+        <select name="kind" id="batch-kind">
+          <option value="salida" selected>Salida</option>
+          <option value="entrada">Entrada</option>
+        </select>
+      </label>
+      <label class="field" for="batch-producer">
+        <span class="field-label">Productor</span>
+        <select name="producer_id" id="batch-producer">
+          <option value="">Productor (solo Entrada)…</option>
+          {% for p in producers %}
+          <option value="{{ p.id }}">{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </label>
+      <label class="field" for="batch-created-by">
+        <span class="field-label">Tu nombre</span>
+        <input type="text" id="batch-created-by" name="created_by" placeholder="Tu nombre (opcional)" autocomplete="name">
+      </label>
       <button type="submit">Crear lote</button>
     </form>
     <p class="muted">
@@ -45,42 +68,51 @@
       obligatorio y no se detecta automáticamente.
     </p>
     {% else %}
-    <p class="muted">
-      No hay lotes registrados. Registra un
-      <a href="/admin/folio-batches">lote de folios</a> primero para poder crear
-      un lote de escaneo.
-    </p>
+    {% call empty_state("No hay lotes registrados", "Registra un lote de folios primero para poder crear un lote de escaneo.") %}
+      <a class="btn" href="/admin/folio-batches">Ir a lotes de folios</a>
+    {% endcall %}
     {% endif %}
   </section>
 
-  <section class="panel">
-    <h2>Lotes</h2>
+  <section class="panel" aria-labelledby="lotes-heading">
+    <div class="panel-header">
+      <h2 id="lotes-heading">Lotes</h2>
+    </div>
     {% if batches %}
     <form method="post" action="/batches/delete" onsubmit="return confirm('¿Borrar los lotes seleccionados? Se eliminarán sus boletas procesadas. Esta acción no se puede deshacer.');">
+      <div class="table-scroll">
       <table>
         <thead>
-          <tr><th></th><th>ID</th><th>Nombre</th><th>Estado</th><th>Creado por</th><th></th></tr>
+          <tr>
+            <th class="row-check"><input type="checkbox" class="js-select-all" aria-label="Seleccionar todos los lotes"></th>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Estado</th>
+            <th>Creado por</th>
+            <th class="col-action"><span class="visually-hidden">Acciones</span></th>
+          </tr>
         </thead>
         <tbody>
           {% for batch in batches %}
           <tr>
-            <td><input type="checkbox" name="ids" value="{{ batch.id }}"></td>
-            <td>{{ batch.id }}</td>
+            <td class="row-check"><input type="checkbox" name="ids" value="{{ batch.id }}" aria-label="Seleccionar lote {{ batch.label }}"></td>
+            <td class="num">{{ batch.id }}</td>
             <td>{{ batch.label }}</td>
-            <td>{{ batch.status }}</td>
+            <td>{{ status_badge(batch.status) }}</td>
             <td>{{ batch.created_by or "—" }}</td>
-            <td><a href="/batches/{{ batch.id }}">Ver / Subir boletas</a></td>
+            <td class="col-action"><a class="table-action" href="/batches/{{ batch.id }}">Ver / Subir boletas</a></td>
           </tr>
           {% endfor %}
         </tbody>
       </table>
-      <p class="muted">Borrar un lote elimina sus boletas procesadas. Esta acción no se puede deshacer.</p>
-      <div class="review-actions">
+      </div>
+      <div class="danger-zone">
+        <p class="danger-note">Borrar un lote elimina sus boletas procesadas. Esta acción no se puede deshacer.</p>
         <button type="submit" class="btn-danger">Borrar seleccionados</button>
       </div>
     </form>
     {% else %}
-    <p class="muted">Aún no hay lotes. Crea uno arriba para empezar a subir boletas.</p>
+    {% call empty_state("Aún no hay lotes", "Crea uno arriba para empezar a subir boletas.") %}{% endcall %}
     {% endif %}
   </section>
 {% endblock %}
