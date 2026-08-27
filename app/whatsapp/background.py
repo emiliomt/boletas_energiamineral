@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import logging
 
-from app.db import SessionLocal
+from app import db as app_db
 from app.models import Boleta
 from app.ocr.factory import get_ocr_adapter
 from app.pipeline.orchestrator import process_boleta
@@ -15,7 +15,7 @@ def process_boleta_ids(boleta_ids: list[int]) -> None:
     """Open a fresh DB session and run the normal pipeline per boleta."""
     if not boleta_ids:
         return
-    db = SessionLocal()
+    db = app_db.SessionLocal()
     try:
         adapter = get_ocr_adapter()
         for boleta_id in boleta_ids:
