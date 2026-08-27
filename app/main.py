@@ -22,6 +22,8 @@ from app.db import init_db
 from app.web import auth_routes
 from app.web import folio_batches_routes as folio_batches_web
 from app.web import routes as web_routes
+from app.web import whatsapp_routes as whatsapp_web
+from app.whatsapp.webhook import router as whatsapp_webhook_router
 
 
 @asynccontextmanager
@@ -44,11 +46,11 @@ def health() -> dict:
     return {"status": "ok"}
 
 
-# /login, /logout, and /api/health are the only unauthenticated routes --
-# every other route (including the pre-existing OCR-flow ones) requires the
-# single admin session, applied here via `dependencies=` rather than
-# touching each router file individually.
+# /login, /logout, /api/health, and Twilio's WhatsApp webhook are the only
+# unauthenticated routes -- the webhook authenticates via X-Twilio-Signature
+# instead of the admin session. Every other route requires login.
 app.include_router(auth_routes.router)
+app.include_router(whatsapp_webhook_router)
 
 _api_auth = [Depends(require_admin_api)]
 app.include_router(batches_api.router, dependencies=_api_auth)
@@ -60,6 +62,7 @@ app.include_router(folio_batches_api.router, dependencies=_api_auth)
 
 _web_auth = [Depends(require_admin_web)]
 app.include_router(folio_batches_web.router, dependencies=_web_auth)
+app.include_router(whatsapp_web.router, dependencies=_web_auth)
 app.include_router(web_routes.router, dependencies=_web_auth)
 
 static_dir = BASE_DIR / "app" / "web" / "static"

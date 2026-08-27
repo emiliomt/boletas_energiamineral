@@ -399,6 +399,42 @@ class Folio(Base):
     folio_batch: Mapped["FolioBatch"] = relationship(back_populates="folios")
 
 
+class WhatsAppSession(Base):
+    """Binds a WhatsApp sender to the scanning Batch currently receiving
+    their photos. One row per sender; `lote nuevo` / `fin` rotate `batch_id`.
+    Distinct from FolioBatch (printed QR tickets) -- this is a Point-B
+    upload session, same as creating a lote on the dashboard."""
+
+    __tablename__ = "whatsapp_sessions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sender: Mapped[str] = mapped_column(String(32), unique=True, index=True)  # E.164, no whatsapp: prefix
+    batch_id: Mapped[int | None] = mapped_column(
+        ForeignKey("batches.id", ondelete="SET NULL"), nullable=True, index=True
+    )
+    next_document_type: Mapped[str] = mapped_column(String(16), default="boleta")  # boleta | cfe_slip
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+
+    batch: Mapped["Batch | None"] = relationship()
+
+
+class WhatsAppMessage(Base):
+    """Inbound Twilio MessageSid we already handled, so webhook retries
+    (timeout / connection drop) do not create duplicate Boleta rows."""
+
+    __tablename__ = "whatsapp_messages"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    message_sid: Mapped[str] = mapped_column(String(64), unique=True, index=True)
+    sender: Mapped[str] = mapped_column(String(32), index=True)
+    batch_id: Mapped[int | None] = mapped_column(
+        ForeignKey("batches.id", ondelete="SET NULL"), nullable=True
+    )
+    media_count: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+
+
 class ExceptionThreshold(Base):
     """Config table: tunable thresholds/behaviors driving confidence & status."""
 

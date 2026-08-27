@@ -6,6 +6,9 @@
     <div>
       <p class="breadcrumb"><a href="/">Inicio</a> / Lote {{ batch.label }}</p>
       <h1>Lote: {{ batch.label }} {{ kind_badge(batch.kind) }}</h1>
+      {% if batch.notes == "whatsapp" %}
+      <p class="muted">Este lote se armó con fotos mandadas por WhatsApp{% if batch.created_by %} ({{ batch.created_by }}){% endif %}.</p>
+      {% endif %}
     </div>
     <div class="page-actions">
       <a class="btn btn-secondary" href="/api/exports/xlsx?batch_id={{ batch.id }}">Exportar Excel (pagos)</a>

@@ -27,6 +27,15 @@
     </article>
   </div>
 
+  <section class="panel" aria-labelledby="whatsapp-heading">
+    <h2 id="whatsapp-heading">WhatsApp</h2>
+    <p class="muted">
+      También podés armar un lote mandando las fotos de las boletas por
+      WhatsApp, una tras otra. El OCR corre solo y el lote aparece abajo.
+    </p>
+    <p><a class="btn btn-secondary" href="/admin/whatsapp">Configurar y ver comandos</a></p>
+  </section>
+
   <section class="panel" aria-labelledby="nuevo-lote-heading">
     <h2 id="nuevo-lote-heading">Nuevo lote</h2>
     {% if folio_batches %}
@@ -97,7 +106,7 @@
           <tr>
             <td class="row-check"><input type="checkbox" name="ids" value="{{ batch.id }}" aria-label="Seleccionar lote {{ batch.label }}"></td>
             <td class="num">{{ batch.id }}</td>
-            <td>{{ batch.label }}</td>
+            <td>{{ batch.label }}{% if batch.notes == "whatsapp" %} <span class="badge badge-info">WhatsApp</span>{% endif %}</td>
             <td>{{ status_badge(batch.status) }}</td>
             <td>{{ batch.created_by or "—" }}</td>
             <td class="col-action"><a class="table-action" href="/batches/{{ batch.id }}">Ver / Subir boletas</a></td>
