@@ -6,7 +6,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event
 from sqlalchemy.orm import sessionmaker
 
-from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch, ReviewAudit
+from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch, ReviewAudit, WhatsAppSession
 
 
 def _sqlite_engine(url: str):
@@ -221,6 +221,31 @@ def test_delete_multiple_lotes_at_once(client_and_session):
         assert db.query(Boleta).count() == 1
         assert db.query(BoletaRecord).filter_by(folio="K-1").count() == 1
         assert db.query(BoletaRecord).filter_by(folio="A-1").count() == 0
+    finally:
+        db.close()
+
+
+def test_delete_lote_nulls_whatsapp_session(client_and_session):
+    client, session_local = client_and_session
+    db = session_local()
+    try:
+        batch = Batch(label="wa-lote", notes="whatsapp")
+        db.add(batch)
+        db.flush()
+        db.add(WhatsAppSession(sender="+5491112345678", batch_id=batch.id))
+        db.commit()
+        batch_id = batch.id
+    finally:
+        db.close()
+
+    resp = client.post("/batches/delete", data={"ids": [batch_id]}, follow_redirects=False)
+    assert resp.status_code == 303
+
+    db = session_local()
+    try:
+        assert db.get(Batch, batch_id) is None
+        session = db.query(WhatsAppSession).filter_by(sender="+5491112345678").one()
+        assert session.batch_id is None
     finally:
         db.close()
 
