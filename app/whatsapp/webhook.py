@@ -8,7 +8,7 @@ from fastapi.responses import Response
 from twilio.twiml.messaging_response import MessagingResponse
 
 from app.config import settings
-from app.db import SessionLocal
+from app import db as app_db
 from app.whatsapp.background import process_boleta_ids
 from app.whatsapp.handler import handle_inbound
 from app.whatsapp.numbers import normalize_sender, sender_is_allowed
@@ -44,7 +44,7 @@ async def twilio_whatsapp(request: Request, background_tasks: BackgroundTasks) -
         logger.warning("Rejected WhatsApp sender %s (not on allowlist)", sender)
         return _twiml("Este número no está autorizado para subir boletas.")
 
-    db = SessionLocal()
+    db = app_db.SessionLocal()
     try:
         result = handle_inbound(db, params)
         db.commit()
