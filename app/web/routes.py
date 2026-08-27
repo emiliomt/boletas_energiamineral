@@ -14,7 +14,17 @@ from sqlalchemy.orm import Session
 from app.config import BASE_DIR, settings
 from app.db import get_db
 from app.ingestion.storage import store_upload
-from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch, Producer, ReviewAudit
+from app.models import (
+    Batch,
+    Boleta,
+    BoletaRecord,
+    Folio,
+    FolioBatch,
+    Producer,
+    ReviewAudit,
+    WhatsAppMessage,
+    WhatsAppSession,
+)
 from app.ocr.factory import get_ocr_adapter
 from app.pipeline.orchestrator import process_boleta
 from app.reporting.summary import build_batch_summary, build_overview
@@ -118,7 +128,8 @@ def _delete_batches(db: Session, ids: list[int]) -> None:
     Uses bulk SQL in FK order (not ORM cascade). The session has autoflush
     off, and SQLAlchemy's per-row DELETEs lose to Postgres/SQLite FKs:
     boletas.batch_id, review_audits.boleta_record_id, folios.boleta_record_id,
-    and boleta_records.reconciled_with_record_id (Salida boleta/CFE pairs).
+    boleta_records.reconciled_with_record_id (Salida boleta/CFE pairs), and
+    WhatsApp session/message rows that pointed at the lote (batch_id SET NULL).
     """
     if not ids:
         return
@@ -131,6 +142,14 @@ def _delete_batches(db: Session, ids: list[int]) -> None:
             .all()
         )
     ]
+    db.query(WhatsAppSession).filter(WhatsAppSession.batch_id.in_(ids)).update(
+        {WhatsAppSession.batch_id: None},
+        synchronize_session=False,
+    )
+    db.query(WhatsAppMessage).filter(WhatsAppMessage.batch_id.in_(ids)).update(
+        {WhatsAppMessage.batch_id: None},
+        synchronize_session=False,
+    )
     if record_ids:
         db.query(Folio).filter(Folio.boleta_record_id.in_(record_ids)).update(
             {Folio.boleta_record_id: None, Folio.status: "issued", Folio.scanned_at: None},

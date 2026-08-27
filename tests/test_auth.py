@@ -55,6 +55,15 @@ def test_folio_batches_api_also_requires_auth(client):
     assert resp.status_code == 401
 
 
+def test_twilio_whatsapp_webhook_is_not_a_login_redirect(client):
+    """Twilio cannot follow a 303 to /login; the webhook must stay public
+    (it still 503s here because this fixture does not set Twilio creds)."""
+    resp = client.post("/webhooks/twilio/whatsapp", data={"From": "whatsapp:+15551212"})
+    assert resp.status_code == 503
+    assert resp.status_code != 303
+    assert "/login" not in resp.headers.get("location", "")
+
+
 def test_verify_credentials_success(monkeypatch):
     import app.config as app_config
 

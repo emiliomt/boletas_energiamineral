@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% from "_macros.html" import status_badge, kind_badge, empty_state %}
+{% block title %}WhatsApp — Boletas Energía Mineral{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/">Inicio</a> / WhatsApp</p>
+      <h1>Subir boletas por WhatsApp</h1>
+      <p class="page-lede">
+        El personal en el punto de entrega manda fotos de las boletas a un
+        número de WhatsApp. Cada conversación arma un lote de escaneo; el
+        OCR corre en segundo plano y las boletas aparecen en Inicio como
+        cualquier otro lote.
+      </p>
+    </div>
+  </header>
+
+  {% if not configured %}
+  <div class="alert alert-warning" role="alert">
+    <p>
+      Twilio no está configurado. Definí <code>TWILIO_ACCOUNT_SID</code> y
+      <code>TWILIO_AUTH_TOKEN</code> (y de preferencia <code>PUBLIC_BASE_URL</code>)
+      en el entorno de Railway y volvé a desplegar.
+    </p>
+  </div>
+  {% else %}
+  <div class="alert alert-info" role="status">
+    <p>Twilio está configurado. El webhook acepta mensajes firmados.</p>
+  </div>
+  {% endif %}
+
+  <section class="panel" aria-labelledby="webhook-heading">
+    <h2 id="webhook-heading">Webhook</h2>
+    <p class="muted">
+      En la consola de Twilio (Sandbox de WhatsApp o el sender de producción)
+      poné esta URL en <strong>When a message comes in</strong>, método
+      <strong>HTTP POST</strong>.
+    </p>
+    <p><code class="code-block">{{ webhook_url or ("https://TU-DOMINIO" + webhook_path) }}</code></p>
+    <p class="muted">Ruta: <code>{{ webhook_path }}</code></p>
+    {% if whatsapp_from %}
+    <p>Número de WhatsApp de Twilio: <code>{{ whatsapp_from }}</code></p>
+    {% endif %}
+    {% if not webhook_url %}
+    <p class="muted">
+      Definí <code>PUBLIC_BASE_URL</code> (por ejemplo
+      <code>https://tu-app.up.railway.app</code>, sin barra final) para que
+      la firma de Twilio valide detrás del proxy y esta página muestre la
+      URL completa.
+    </p>
+    {% endif %}
+    {% if allowlist %}
+    <p>Números autorizados: {% for n in allowlist %}<code>{{ n }}</code>{% if not loop.last %}, {% endif %}{% endfor %}</p>
+    {% else %}
+    <div class="alert alert-warning" role="status">
+      <p>
+        No hay lista de números (<code>WHATSAPP_ALLOWED_SENDERS</code>).
+        Cualquier WhatsApp que escriba al sender podrá subir boletas.
+        En producción cargá los celulares del personal, separados por coma.
+      </p>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="panel" aria-labelledby="uso-heading">
+    <h2 id="uso-heading">Cómo se usa</h2>
+    <ol class="whatsapp-steps">
+      <li>El operador escribe al número de WhatsApp de la empresa (o se une al sandbox de Twilio).</li>
+      <li>Manda las fotos de las boletas, una tras otra. Van al mismo lote de escaneo.</li>
+      <li>Si también hay comprobante CFE, escribe <code>cfe</code> y manda esa foto.</li>
+      <li>Cuando termina el camión o el turno, escribe <code>fin</code>. Las fotos siguientes abren otro lote.</li>
+    </ol>
+    <h3>Comandos</h3>
+    <pre class="ocr-text whatsapp-help">{{ help_text }}</pre>
+  </section>
+
+  <section class="panel" aria-labelledby="sesiones-heading">
+    <div class="panel-header">
+      <h2 id="sesiones-heading">Conversaciones recientes</h2>
+    </div>
+    {% if sessions %}
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>WhatsApp</th>
+          <th>Lote actual</th>
+          <th>Próxima foto</th>
+          <th>Actualizado</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for s in sessions %}
+        {% set batch = batches_by_id.get(s.batch_id) if s.batch_id else None %}
+        <tr>
+          <td><code>{{ s.sender }}</code></td>
+          <td>
+            {% if batch %}
+            <a href="/batches/{{ batch.id }}">#{{ batch.id }} {{ batch.label }}</a>
+            {{ kind_badge(batch.kind) }}
+            {{ status_badge(batch.status) }}
+            {% elif s.batch_id %}
+            lote #{{ s.batch_id }} (eliminado)
+            {% else %}
+            —
+            {% endif %}
+          </td>
+          <td>{% if s.next_document_type == "cfe_slip" %}Comprobante CFE{% else %}Boleta{% endif %}</td>
+          <td>{{ s.updated_at }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    {% call empty_state("Nadie ha mandado boletas por WhatsApp todavía", "Cuando llegue el primer mensaje, la conversación aparece acá.") %}{% endcall %}
+    {% endif %}
+  </section>
+{% endblock %}

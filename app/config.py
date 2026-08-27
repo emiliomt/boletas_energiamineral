@@ -46,6 +46,22 @@ class Settings(BaseSettings):
     # (a long random value) in any real deployment.
     session_secret_key: str = "dev-only-insecure-secret-change-me"
 
+    # Public origin Twilio uses to hit this app (https://host, no trailing
+    # path). Needed so X-Twilio-Signature validates when the process sits
+    # behind a reverse proxy that rewrites the scheme/host (Railway, etc.).
+    # If unset, the webhook reconstructs the URL from X-Forwarded-* headers.
+    public_base_url: str | None = None
+
+    # Twilio WhatsApp inbound (POST /webhooks/twilio/whatsapp). The webhook
+    # is unauthenticated on purpose -- Twilio signs each request; we reject
+    # anything whose X-Twilio-Signature does not match twilio_auth_token.
+    twilio_account_sid: str | None = None
+    twilio_auth_token: str | None = None
+    twilio_whatsapp_from: str | None = None  # e.g. whatsapp:+14155238886 (sandbox)
+    # Comma-separated E.164 numbers allowed to upload. Empty = accept any
+    # sender (fine for the invite-only sandbox; set this in production).
+    whatsapp_allowed_senders: str = ""
+
     def ensure_dirs(self) -> None:
         self.originals_dir.mkdir(parents=True, exist_ok=True)
         (BASE_DIR / "data").mkdir(parents=True, exist_ok=True)
