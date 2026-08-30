@@ -146,6 +146,38 @@ def test_web_form_stores_online_fields(client):
         assert batch[field] == value, field
 
 
+def test_folio_batch_form_explains_placeholders(client):
+    html = client.get("/admin/folio-batches").text
+    assert 'name="prefix"' in html
+    assert "solo un ejemplo" in html
+
+
+def test_web_form_empty_sequential_fields_is_not_a_500(client):
+    """Placeholders (B-, 3201, 200) are not submitted; empty ints used to 500."""
+    resp = client.post(
+        "/admin/folio-batches",
+        data={"label": "Sin numeracion", "mode": "sequential", "prefix": "", "start_number": "", "count": ""},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 200
+    assert "Internal Server Error" not in resp.text
+    assert "número inicial" in resp.text.lower()
+    labels = [b["label"] for b in client.get("/api/folio-batches").json()]
+    assert "Sin numeracion" not in labels
+
+
+def test_web_form_missing_prefix_is_not_a_500(client):
+    resp = client.post(
+        "/admin/folio-batches",
+        data={"label": "Sin prefijo", "mode": "sequential", "prefix": "", "start_number": "3201", "count": "10"},
+        follow_redirects=False,
+    )
+    assert resp.status_code == 200
+    assert "prefijo" in resp.text.lower()
+    labels = [b["label"] for b in client.get("/api/folio-batches").json()]
+    assert "Sin prefijo" not in labels
+
+
 @pytest.mark.skipif(shutil.which("tesseract") is None, reason="tesseract binary not available")
 def test_generated_pdf_prints_online_fields(client, tmp_path):
     from app.ingestion.pdf_split import split_pdf_to_images

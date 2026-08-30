@@ -34,10 +34,14 @@
       </label>
 
       <div id="sequential-fields">
+        <p class="muted">
+          Escribe el prefijo y los números. El texto gris (B-, 3201, 200) es
+          solo un ejemplo y no se envía si dejas el recuadro vacío.
+        </p>
         <div class="form-grid">
-          <label>Prefijo<input type="text" name="prefix" placeholder="B-"></label>
-          <label>Número inicial<input type="number" name="start_number" placeholder="3201"></label>
-          <label>Cantidad<input type="number" name="count" placeholder="200"></label>
+          <label>Prefijo<input type="text" name="prefix" placeholder="B-" autocomplete="off"></label>
+          <label>Número inicial<input type="number" name="start_number" placeholder="3201" min="0" step="1"></label>
+          <label>Cantidad<input type="number" name="count" placeholder="200" min="1" step="1"></label>
         </div>
       </div>
 
