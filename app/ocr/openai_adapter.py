@@ -27,7 +27,8 @@ _MIME_BY_SUFFIX = {
     ".tiff": "image/tiff",
 }
 
-# Labels must match app/parsing/field_parser.py so parse_fields() can read the
+# Labels should align with app/parsing/field_parser.py (boleta) and
+# parse_cfe_slip_fields (CFE slip) so downstream parsers can read the
 # transcription back out. The model returns a label->value object under
 # `transcription`; _transcription_to_text() flattens it to "Label: value" lines.
 _FIELD_LABELS = [
@@ -49,17 +50,25 @@ _FIELD_LABELS = [
     "Datos de Concesion Minera",
     "Volumen por Entregar",
     "Volumen Entregado",
+    # CFE slip labels (Phase 3) — allow the same adapter to read slips.
+    "Peso de Entrada",
+    "Peso de Salida",
+    # Generic label some vendors print near signature box; parsed as representante_legal
     "Nombre",
 ]
 _SYSTEM_PROMPT = (
-    "You transcribe scanned/photographed Mexican coal-delivery boletas "
-    '("REPORTE DE CALIDAD Y ORIGEN DEL CARBON"). Read ALL text including '
-    "handwriting. Return ONLY JSON of the form "
-    '{"transcription": { "<Label>": "<value>", ... }, "confidence": <0-100 integer>}. '
-    "Include one entry for EVERY field that has a value (printed or "
-    "handwritten), copying the value verbatim; omit fields that are blank. "
-    "Use EXACTLY these label keys when present: " + ", ".join(_FIELD_LABELS) + ". "
-    "`confidence` is your overall transcription confidence (0-100)."
+    "Eres un experto en OCR de boletas mineras mexicanas (\"REPORTE DE CALIDAD Y ORIGEN DEL CARBÓN\"). "
+    "Lee TODO el texto incluyendo la escritura a mano (fletero/chofer, No. Caja, volúmenes/pesos, etc.). "
+    "Devuelve SOLO JSON con este formato exacto: "
+    '{"transcription": { "<Etiqueta>": "<valor>", ... }, "confidence": <0-100 entero>}. '
+    "Incluye una entrada por CADA campo que tenga valor (impreso o manuscrito); omite los que estén en blanco. "
+    "Usa EXACTAMENTE estas etiquetas cuando estén presentes en el documento: "
+    + ", ".join(_FIELD_LABELS)
+    + ". "
+    "Acepta también variantes impresas como \"Origen\"/\"Procedencia\" pero normaliza la etiqueta a las anteriores. "
+    "Copia los valores literalmente (no inventes datos, no corrijas ortografía). "
+    "Si ves un vale/papeleta CFE (slip de pesaje), también extrae \"Peso de Entrada\" y \"Peso de Salida\". "
+    "confidence es tu confianza global de transcripción (0-100)."
 )
 
 
@@ -107,6 +116,7 @@ class OpenAIOCRAdapter(OCRAdapter):
             response = client.chat.completions.create(
                 model=self.model,
                 response_format={"type": "json_object"},
+                temperature=0,
                 messages=[
                     {"role": "system", "content": _SYSTEM_PROMPT},
                     {

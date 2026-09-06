@@ -101,6 +101,41 @@ correct/approve anything that lands in the review queue at
 http://localhost:8000/review. Export results as CSV/JSON from the batch
 page or `GET /api/exports/csv?batch_id=...` / `/api/exports/json`.
 
+## OCR backends and OpenAI (handwriting)
+
+This app supports two OCR engines:
+
+- Tesseract (offline): best for printed text, no API key required
+- OpenAI vision (online): best on handwriting/phone photos
+
+Backend selection is controlled by `OCR_BACKEND`:
+
+- `tesseract`: use only local Tesseract
+- `openai`: use only OpenAI vision (primary)
+- `auto` (default): Tesseract first; if confidence is low OR key fields look missing,
+  escalate to OpenAI when an API key is set. Fallback is safe; no key means it behaves like plain Tesseract.
+
+Environment variables (see `.env.example`):
+
+```bash
+# Enable OpenAI OCR
+export OPENAI_API_KEY="sk-..."        # required for OCR_BACKEND=openai|auto
+export OPENAI_OCR_MODEL="gpt-4o-mini" # any vision-capable chat model
+export OCR_BACKEND="auto"             # or "openai" to force the OpenAI path
+```
+
+Local run examples:
+
+```bash
+# SQLite override strongly recommended locally (see AGENTS.md)
+DATABASE_URL="sqlite:///./data/boletas.db" \
+  OPENAI_API_KEY="sk-..." OCR_BACKEND="auto" \
+  .venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+Railway/hosted: set `OPENAI_API_KEY`, `OPENAI_OCR_MODEL` (optional), and `OCR_BACKEND`
+as environment variables in the deployment settings. Leave unset to run Tesseract-only.
+
 ## Try it with the bundled sample boletas
 
 No real scans yet? Generate 3 synthetic sample boletas and run the full
@@ -157,10 +192,8 @@ tests/         unit tests per module + end-to-end pipeline/API tests
 
 ## Known v1 limitations
 
-- OCR runs locally via Tesseract (offline, no API key needed). If accuracy
-  on handwritten notes proves insufficient, implement
-  `app/ocr/llm_fallback_adapter.py` against a cloud OCR/LLM API — it's a
-  drop-in swap behind the same `OCRAdapter` interface used everywhere else.
+- Tesseract accuracy on difficult handwriting remains limited; use `OCR_BACKEND=openai`
+  or the default `auto` mode (Tesseract + selective OpenAI escalation) for better results.
 - Single admin role — no separate permission levels. Auth just gates the
   whole app; there's no per-user audit trail beyond the free-text
   `edited_by` field already captured on corrections.
