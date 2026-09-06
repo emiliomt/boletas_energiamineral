@@ -8,7 +8,7 @@ from __future__ import annotations
 from pathlib import Path
 
 import pytesseract
-from PIL import Image, ImageOps
+from PIL import Image, ImageOps, ImageFilter
 
 from app.config import settings
 from app.ocr.base import OCRAdapter, OCRResult, OCRWord
@@ -35,6 +35,8 @@ def _preprocess(image: Image.Image) -> Image.Image:
         new_size = (round(image.width * scale), round(image.height * scale))
         image = image.resize(new_size, Image.LANCZOS)
 
+    # Light denoising helps handwriting/phone photos without harming clean scans.
+    image = image.filter(ImageFilter.MedianFilter(size=3))
     return ImageOps.autocontrast(image)
 
 
@@ -45,11 +47,11 @@ class TesseractOCRAdapter(OCRAdapter):
     def extract(self, image_path: Path) -> OCRResult:
         image = _preprocess(Image.open(image_path))
 
-        text = pytesseract.image_to_string(image, lang=self.language)
+        # LSTM engine + uniform block layout generally improve stability for forms.
+        config = "--oem 1 --psm 6 -c preserve_interword_spaces=1"
+        text = pytesseract.image_to_string(image, lang=self.language, config=config)
 
-        data = pytesseract.image_to_data(
-            image, lang=self.language, output_type=pytesseract.Output.DICT
-        )
+        data = pytesseract.image_to_data(image, lang=self.language, output_type=pytesseract.Output.DICT, config=config)
 
         words: list[OCRWord] = []
         confidences: list[float] = []
