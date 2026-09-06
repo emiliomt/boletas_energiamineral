@@ -56,7 +56,7 @@ _LABEL_PATTERNS: dict[str, list[re.Pattern]] = {
         re.compile(r"(?:fletero|operador|transportista|chofer)[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE),
     ],
     "truck_box_number": [
-        re.compile(r"no\.?[ \t]*caja[ \t]*[:\-][ \t]*([A-Za-z0-9\-]+)", re.IGNORECASE),
+        re.compile(r"no\.?[ \t]*caja[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE),
     ],
     "material": [
         re.compile(r"(?:material|producto)[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE),
@@ -265,6 +265,32 @@ def parse_fields(ocr: OCRResult) -> ParsedFields:
         match = pattern.search(text)
         if match:
             parsed.quality_data[key] = match.group(1).replace(",", ".")
+
+    # Heuristic fallback for folio when there is no explicit "Folio:" label.
+    # Real-world forms often include only a red-stamped serial (5–6 digits).
+    # Prefer a 6-digit candidate; otherwise, a 5-digit one. Skip obvious
+    # non-folio contexts such as contract numbers, concession numbers, and
+    # quality/weight lines.
+    if not parsed.folio:
+        unsafe_context = re.compile(
+            r"(contrato|concesi[oó]n|minera|poder|humedad|ceniza|azufre|fsi|granulometr[ií]a|volumen|peso|no\.?\s*caja)",
+            re.IGNORECASE,
+        )
+        six_candidates: list[str] = []
+        five_candidates: list[str] = []
+        for line in text.splitlines():
+            if unsafe_context.search(line or ""):
+                continue
+            for m in re.finditer(r"\b(\d{5,6})\b", line):
+                token = m.group(1)
+                if len(token) == 6:
+                    six_candidates.append(token)
+                elif len(token) == 5:
+                    five_candidates.append(token)
+        candidate = six_candidates[0] if six_candidates else (five_candidates[0] if five_candidates else None)
+        if candidate:
+            parsed.folio = candidate
+            parsed.field_confidences["folio"] = _word_confidence_for_value(candidate, ocr)
 
     return parsed
 
