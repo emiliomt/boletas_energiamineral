@@ -19,8 +19,17 @@
     var imported = document.getElementById("imported-fields");
     if (!select || !sequential || !imported) return;
     var mode = select.value;
-    sequential.hidden = mode !== "sequential";
-    imported.hidden = mode !== "imported";
+    var isSequential = mode === "sequential";
+    sequential.hidden = !isSequential;
+    imported.hidden = isSequential;
+    sequential.querySelectorAll("input").forEach(function (el) {
+      el.required = isSequential;
+      el.disabled = !isSequential;
+    });
+    imported.querySelectorAll("textarea").forEach(function (el) {
+      el.required = !isSequential;
+      el.disabled = isSequential;
+    });
   }
 
   function bindSelectAll(master) {

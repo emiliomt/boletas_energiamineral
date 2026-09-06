@@ -7,6 +7,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import PlainTextResponse, RedirectResponse, Response
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.config import BASE_DIR
@@ -74,7 +75,24 @@ def create_folio_batch_web(
         )
 
     if mode == "sequential":
-        folio_values = [f"{prefix}{n}" for n in range(int(start_number), int(start_number) + int(count))]
+        try:
+            start = int(str(start_number).strip())
+            qty = int(str(count).strip())
+        except (TypeError, ValueError):
+            return _error(
+                "En modo secuencial hay que escribir el número inicial y la cantidad. "
+                "El texto gris (3201, 200) es solo un ejemplo y no se envía."
+            )
+        if not str(prefix).strip():
+            return _error(
+                "Escribe el prefijo de los folios (por ejemplo B-). "
+                "El texto gris del recuadro no se envía."
+            )
+        if qty < 1:
+            return _error("La cantidad debe ser al menos 1.")
+        if qty > 5000:
+            return _error("La cantidad máxima por lote es 5000.")
+        folio_values = [f"{prefix}{n}" for n in range(start, start + qty)]
     else:
         seen: set[str] = set()
         folio_values = []
@@ -98,7 +116,7 @@ def create_folio_batch_web(
         label=label,
         mode=mode,
         prefix=prefix or None,
-        start_number=int(start_number) if mode == "sequential" and start_number else None,
+        start_number=start if mode == "sequential" else None,
         count=len(folio_values),
         vendor=vendor or None,
         notes=notes or None,
@@ -118,10 +136,14 @@ def create_folio_batch_web(
         representante_legal=representante_legal or None,
     )
     db.add(batch)
-    db.flush()
-    for folio_value in folio_values:
-        db.add(Folio(folio_batch_id=batch.id, folio=folio_value, qr_payload=qr_payload_for_folio(folio_value)))
-    db.commit()
+    try:
+        db.flush()
+        for folio_value in folio_values:
+            db.add(Folio(folio_batch_id=batch.id, folio=folio_value, qr_payload=qr_payload_for_folio(folio_value)))
+        db.commit()
+    except IntegrityError:
+        db.rollback()
+        return _error("Esos folios ya existen. Cambia el prefijo, el número inicial o la lista.")
     return RedirectResponse(url=f"/admin/folio-batches/{batch.id}", status_code=303)
 
 
