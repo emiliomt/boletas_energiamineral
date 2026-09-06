@@ -1,0 +1,18 @@
+Fecha: 13/07/26
+Proveedor: ENERGIA MINERAL, S.A. DE C.V.
+Destino: C.T. JOSE LOPEZ PORTILLO
+Contrato: 700544405
+Datos del chofer del camion: Isidro Sanchez
+No. Caja: Roc 1274
+Poder Calorifico Superior: 5,200
+% Humedad: 4.3
+% Ceniza: 32
+% Azufre: 1.3
+FSI: 6.5
+Granulometria: 100
+Centro de Explotacion: TAJO SAN JOSE
+Centro de Acopio: PATIO ROSITA
+Datos de Concesion Minera: MOTA DEL CURA Y EL CARRIZO No. 1T-198196
+Nombre: ANDRES MONTEMAYOR TATUM
+Red Stamp (top pencil): 63240
+Red Stamp (origin area): 003612
