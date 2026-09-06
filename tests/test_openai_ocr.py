@@ -118,10 +118,15 @@ def test_openai_adapter_sends_model_and_image(tmp_path, monkeypatch):
     OpenAIOCRAdapter(api_key="sk-test", model="gpt-4o-mini").extract(_img(tmp_path))
 
     assert calls["model"] == "gpt-4o-mini"
+    assert calls.get("temperature", 0) == 0
     # A base64 data URL image part is included in the request.
     user_msg = next(m for m in calls["messages"] if m["role"] == "user")
     image_part = next(part for part in user_msg["content"] if part["type"] == "image_url")
     assert image_part["image_url"]["url"].startswith("data:image/png;base64,")
+    # The system prompt mentions boletas and includes at least one canonical label.
+    system_msg = next(m for m in calls["messages"] if m["role"] == "system")
+    assert "boletas" in system_msg["content"].lower()
+    assert "Centro de Explotacion" in system_msg["content"]
 
 
 def test_openai_adapter_without_key_raises(tmp_path, monkeypatch):

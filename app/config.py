@@ -33,6 +33,14 @@ class Settings(BaseSettings):
     openai_ocr_model: str = "gpt-4o-mini"
     # Tesseract overall confidence (0-100) below which "auto" escalates to OpenAI.
     ocr_fallback_min_confidence: float = 70.0
+    # Additional heuristic: even when overall confidence is high, escalate to
+    # OpenAI when too many core fields are missing/low-confidence (handwriting).
+    # Enabled by default; safe with no key (has no effect).
+    ocr_field_fallback_enabled: bool = True
+    # Field-confidence (0-1) below which a required field counts as "bad".
+    ocr_field_fallback_field_conf_min: float = 0.5
+    # Number of bad core fields (folio, origin, destination, fletero) to trigger.
+    ocr_field_fallback_min_bad_fields: int = 2
 
     # Supabase Auth (admin login) + Postgres (set database_url above to a
     # Supabase Postgres connection string to actually use it as the DB;
