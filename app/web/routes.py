@@ -128,13 +128,18 @@ def dashboard_overview(
 
 @router.post("/batches")
 def create_batch_web(
+    request: Request,
     label: str = Form(...),
     created_by: str = Form(""),
     kind: str = Form("salida"),
     producer_id: str = Form(""),
     db: Session = Depends(get_db),
 ):
-    resolved_producer_id = int(producer_id) if kind == "entrada" and producer_id.strip().isdigit() else None
+    # Require proveedor selection when creating an Entrada lote.
+    if kind == "entrada" and not producer_id.strip().isdigit():
+        request.session["flash_error"] = "Para lotes de Entrada, selecciona un proveedor."
+        return RedirectResponse(url="/#nuevo-lote-heading", status_code=303)
+    resolved_producer_id = int(producer_id) if kind == "entrada" else None
     batch = Batch(
         label=label,
         created_by=created_by or None,

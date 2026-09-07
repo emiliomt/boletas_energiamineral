@@ -78,11 +78,36 @@
     });
   }
 
+  function toggleEntradaFields() {
+    var kindSelect = document.getElementById("batch-kind");
+    var proveedorSelect = document.getElementById("batch-producer");
+    if (!kindSelect || !proveedorSelect) return;
+    // The select is wrapped by a label.field container — hide/show that block.
+    var fieldContainer = proveedorSelect.closest("label");
+    if (!fieldContainer) fieldContainer = proveedorSelect.parentElement;
+    var isEntrada = kindSelect.value === "entrada";
+    fieldContainer.hidden = !isEntrada;
+    // UX nicety: make it required only when visible; disable when hidden.
+    proveedorSelect.required = isEntrada;
+    proveedorSelect.disabled = !isEntrada;
+    // If hiding the field, clear any accidental selection.
+    if (!isEntrada) {
+      proveedorSelect.value = "";
+    }
+  }
+
   onReady(function () {
     var modeSelect = document.getElementById("mode-select");
     if (modeSelect) {
       modeSelect.addEventListener("change", toggleFolioMode);
       toggleFolioMode();
+    }
+
+    var kindSelect = document.getElementById("batch-kind");
+    if (kindSelect) {
+      kindSelect.addEventListener("change", toggleEntradaFields);
+      // Initialize visibility based on the preselected option (Salida by default)
+      toggleEntradaFields();
     }
 
     bindBoletaTemplates();
