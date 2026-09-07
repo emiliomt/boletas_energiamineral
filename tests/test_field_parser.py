@@ -346,3 +346,37 @@ def test_template_malformed_json_degrades_to_no_fields_found():
     parsed = parse_fields_with_template(ocr, template)
 
     assert parsed.folio is None
+
+# --- Folio red-stamped serial fallback --------------------------------------
+
+def test_red_stamped_serial_fallback_non_template():
+    # No "Folio:" label; a bare red-stamped 6-digit serial must become the folio.
+    text = "Fecha: 12/03/2026\n003612\nVolumen Entregado: 8500 kg\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields(ocr)
+
+    assert parsed.folio == "003612"
+    assert parsed.field_confidences["folio"] > 0.0
+
+
+def test_template_path_applies_same_red_serial_fallback():
+    # Template defines no folio label; still pick the stamped serial.
+    template = _Tpl(label_patterns_json=json.dumps({"weight": [r"volumen\\s+entregado[ \\t]*[:\\-]?[ \\t]*([^\\n\\r]+)"]}), expects_weight=True)
+    text = "Volumen Entregado: 8500 kg\n\n003612\nResponsable de Unidad: CAMAGO\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields_with_template(ocr, template)
+
+    assert parsed.folio == "003612"
+    assert parsed.weight == 8500.0
+    assert parsed.field_confidences["folio"] > 0.0
+
+
+def test_prefer_6_digit_zero_padded_over_5_digit_top_number():
+    # Both appear; prefer the 6-digit serial even if the 5-digit appears earlier.
+    text = "63240\nFecha: 12/03/2026\nSome header\n003612\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields(ocr)
+    assert parsed.folio == "003612"
