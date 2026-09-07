@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Transportistas — Configuración{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/">Inicio</a> / <a href="/admin/config">Configuración</a> / Transportistas</p>
+      <h1>Transportistas (fleteros)</h1>
+      <p class="page-lede">Administra la lista de transportistas. Se sugieren en la revisión.</p>
+    </div>
+  </header>
+
+  <section class="panel" aria-labelledby="nuevo-transportista">
+    <h2 id="nuevo-transportista">Nuevo transportista</h2>
+    <form method="post" action="/admin/config/transportistas" class="review-form">
+      <div class="form-grid">
+        <label>Nombre<input type="text" name="canonical_name" required></label>
+        <label>Teléfono (opcional)<input type="text" name="phone"></label>
+        <label>Notas (opcional)<input type="text" name="notes"></label>
+        <label>Activo
+          <select name="active">
+            <option value="1" selected>Sí</option>
+            <option value="0">No</option>
+          </select>
+        </label>
+      </div>
+      <button type="submit">Guardar</button>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="existentes">
+    <h2 id="existentes">Transportistas existentes</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Teléfono</th>
+            <th>Notas</th>
+            <th>Estado</th>
+            <th class="col-action"><span class="visually-hidden">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for t in transportistas %}
+          <tr>
+            <td class="num">{{ t.id }}</td>
+            <td>{{ t.canonical_name }}</td>
+            <td>{{ t.phone or "—" }}</td>
+            <td>{{ t.notes or "—" }}</td>
+            <td>{% if t.active %}<span class="badge badge-ok">Activo</span>{% else %}<span class="badge">Inactivo</span>{% endif %}</td>
+            <td class="col-action">
+              <details>
+                <summary class="table-action">Editar</summary>
+                <form method="post" action="/admin/config/transportistas" class="review-form">
+                  <input type="hidden" name="transportista_id" value="{{ t.id }}">
+                  <div class="form-grid">
+                    <label>Nombre<input type="text" name="canonical_name" value="{{ t.canonical_name }}" required></label>
+                    <label>Teléfono<input type="text" name="phone" value="{{ t.phone or '' }}"></label>
+                    <label>Notas<input type="text" name="notes" value="{{ t.notes or '' }}"></label>
+                    <label>Activo
+                      <select name="active">
+                        <option value="1" {% if t.active %}selected{% endif %}>Sí</option>
+                        <option value="0" {% if not t.active %}selected{% endif %}>No</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit">Guardar cambios</button>
+                  </div>
+                </form>
+                <form method="post" action="/admin/config/transportistas/{{ t.id }}/toggle">
+                  <button type="submit" class="table-action">{% if t.active %}Desactivar{% else %}Activar{% endif %}</button>
+                </form>
+              </details>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}
+

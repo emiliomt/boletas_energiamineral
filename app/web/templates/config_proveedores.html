@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Proveedores — Configuración{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/">Inicio</a> / <a href="/admin/config">Configuración</a> / Proveedores</p>
+      <h1>Proveedores</h1>
+      <p class="page-lede">Administra la lista de proveedores. Se sugieren en la revisión y al crear lotes de folios.</p>
+    </div>
+  </header>
+
+  <section class="panel" aria-labelledby="nuevo-proveedor">
+    <h2 id="nuevo-proveedor">Nuevo proveedor</h2>
+    <form method="post" action="/admin/config/proveedores" class="review-form">
+      <div class="form-grid">
+        <label>Nombre<input type="text" name="name" required></label>
+        <label>Origen (opcional)<input type="text" name="origin"></label>
+        <label>Precio por caja (MXN, opcional)<input type="text" name="precio_caja" inputmode="decimal"></label>
+        <label>Precio de transporte (MXN, opcional)<input type="text" name="precio_transporte" inputmode="decimal"></label>
+        <label>Activo
+          <select name="active">
+            <option value="1" selected>Sí</option>
+            <option value="0">No</option>
+          </select>
+        </label>
+      </div>
+      <button type="submit">Guardar</button>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="existentes">
+    <h2 id="existentes">Proveedores existentes</h2>
+    <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Origen</th>
+            <th>Precio caja</th>
+            <th>Precio transporte</th>
+            <th>Estado</th>
+            <th class="col-action"><span class="visually-hidden">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in proveedores %}
+          <tr>
+            <td class="num">{{ p.id }}</td>
+            <td>{{ p.name }}</td>
+            <td>{{ p.origin or "—" }}</td>
+            <td class="num">{{ p.precio_caja if p.precio_caja is not none else "—" }}</td>
+            <td class="num">{{ p.precio_transporte if p.precio_transporte is not none else "—" }}</td>
+            <td>{% if p.active %}<span class="badge badge-ok">Activo</span>{% else %}<span class="badge">Inactivo</span>{% endif %}</td>
+            <td class="col-action">
+              <details>
+                <summary class="table-action">Editar</summary>
+                <form method="post" action="/admin/config/proveedores" class="review-form">
+                  <input type="hidden" name="proveedor_id" value="{{ p.id }}">
+                  <div class="form-grid">
+                    <label>Nombre<input type="text" name="name" value="{{ p.name }}" required></label>
+                    <label>Origen<input type="text" name="origin" value="{{ p.origin or '' }}"></label>
+                    <label>Precio por caja<input type="text" name="precio_caja" value="{{ p.precio_caja if p.precio_caja is not none else '' }}"></label>
+                    <label>Precio de transporte<input type="text" name="precio_transporte" value="{{ p.precio_transporte if p.precio_transporte is not none else '' }}"></label>
+                    <label>Activo
+                      <select name="active">
+                        <option value="1" {% if p.active %}selected{% endif %}>Sí</option>
+                        <option value="0" {% if not p.active %}selected{% endif %}>No</option>
+                      </select>
+                    </label>
+                  </div>
+                  <div class="form-actions">
+                    <button type="submit">Guardar cambios</button>
+                  </div>
+                </form>
+                <form method="post" action="/admin/config/proveedores/{{ p.id }}/toggle">
+                  <button type="submit" class="table-action">{% if p.active %}Desactivar{% else %}Activar{% endif %}</button>
+                </form>
+              </details>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+{% endblock %}
+
