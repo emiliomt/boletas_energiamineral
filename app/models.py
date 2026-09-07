@@ -378,6 +378,47 @@ class FolioBatch(Base):
     folios: Mapped[list["Folio"]] = relationship(back_populates="folio_batch", cascade="all, delete-orphan")
 
 
+BOLETA_DATA_FIELDS = (
+    "proveedor",
+    "destino",
+    "contrato",
+    "poder_calorifico_superior",
+    "humedad_pct",
+    "ceniza_pct",
+    "azufre_pct",
+    "fsi",
+    "granulometria",
+    "centro_explotacion",
+    "centro_acopio",
+    "concesion_minera",
+    "representante_legal",
+)
+
+
+class BoletaDataTemplate(Base):
+    """Reusable prefill for the 'Datos de la boleta' block on the folio-batch
+    creation form. Not referenced by FolioBatch — applying a template only
+    copies these strings into the form before the admin submits."""
+
+    __tablename__ = "boleta_data_templates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    proveedor: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    destino: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    contrato: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    poder_calorifico_superior: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    humedad_pct: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    ceniza_pct: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    azufre_pct: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    fsi: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    granulometria: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    centro_explotacion: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    centro_acopio: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    concesion_minera: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    representante_legal: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
 class Folio(Base):
     """One pre-issued folio (+ QR payload) within a FolioBatch. Scanning a
     boleta whose folio isn't `issued` here (or is already `scanned`) is
