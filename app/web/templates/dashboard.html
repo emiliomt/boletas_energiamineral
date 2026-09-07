@@ -48,14 +48,12 @@
 
   <div class="stat-row">
     <article class="stat-card">
-      <p class="stat-label">Boletas procesadas</p>
       <p class="stat-value">{{ total_count }}</p>
-      <p class="stat-hint">Total en el sistema</p>
+      <p class="stat-label">Boletas procesadas</p>
     </article>
     <article class="stat-card {{ 'stat-warn' if review_count else 'stat-ok' }}">
-      <p class="stat-label">Pendientes de revisión</p>
       <p class="stat-value">{{ review_count }}</p>
-      <p class="stat-hint">{% if review_count %}Requieren corrección o aprobación{% else %}Cola al día{% endif %}</p>
+      <p class="stat-label">Pendientes de revisión</p>
     </article>
   </div>
 
