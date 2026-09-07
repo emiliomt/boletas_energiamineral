@@ -13,6 +13,9 @@
         pertenezca a un lote emitido aquí.
       </p>
     </div>
+    <div class="page-actions">
+      <a class="btn btn-secondary btn-sm" href="#nuevo-folio-heading">Nuevo lote</a>
+    </div>
   </header>
 
   {% if error %}
@@ -21,7 +24,59 @@
   </div>
   {% endif %}
 
-  <section class="panel" aria-labelledby="nuevo-folio-heading">
+  {# Lotes existentes primero #}
+  <section class="panel panel-lotes" aria-labelledby="existentes-heading">
+    <h2 id="existentes-heading">Lotes existentes</h2>
+    {% if batches %}
+    <form method="post" action="/admin/folio-batches/delete" onsubmit="return confirm('¿Borrar los lotes de folios seleccionados? Se eliminarán todos sus folios. Esta acción no se puede deshacer.');">
+      <div class="table-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th class="row-check"><input type="checkbox" class="js-select-all" aria-label="Seleccionar todos los lotes de folios"></th>
+            <th>ID</th>
+            <th>Nombre</th>
+            <th>Modo</th>
+            <th class="num">Total</th>
+            <th>Progreso</th>
+            <th class="col-action"><span class="visually-hidden">Acciones</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for batch in batches %}
+          {% set counts = counts_by_batch[batch.id] %}
+          <tr>
+            <td class="row-check"><input type="checkbox" name="ids" value="{{ batch.id }}" aria-label="Seleccionar lote {{ batch.label }}"></td>
+            <td class="num">{{ batch.id }}</td>
+            <td>{{ batch.label }}</td>
+            <td>{{ mode_label(batch.mode) }}</td>
+            <td class="num">{{ batch.count }}</td>
+            <td>
+              <div class="folio-progress">
+                <span class="folio-progress-meta">{{ counts.scanned }}/{{ batch.count }}</span>
+                <div class="folio-progress-bar" aria-hidden="true">
+                  <span style="width: {{ (counts.scanned / batch.count * 100) if batch.count else 0 }}%;"></span>
+                </div>
+              </div>
+            </td>
+            <td class="col-action"><a class="table-action" href="/admin/folio-batches/{{ batch.id }}">Ver / Descargar</a></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      </div>
+      <div class="danger-zone">
+        <p class="danger-note">Borrar un lote de folios elimina todos sus folios. Esta acción no se puede deshacer.</p>
+        <button type="submit" class="btn-danger">Borrar seleccionados</button>
+      </div>
+    </form>
+    {% else %}
+    {% call empty_state("Aún no hay lotes de folios", "Crea uno con el formulario de abajo para generar QR y PDF de imprenta.") %}{% endcall %}
+    {% endif %}
+  </section>
+
+  {# Crear nuevo lote — segundo #}
+  <section class="panel panel-nuevo-folio" aria-labelledby="nuevo-folio-heading">
     <h2 id="nuevo-folio-heading">Nuevo lote de folios</h2>
     <form method="post" action="/admin/folio-batches" class="review-form" id="folio-batch-form">
       <label>Nombre del lote<input type="text" name="label" required></label>
@@ -119,52 +174,8 @@
     </datalist>
   </section>
 
-  <section class="panel" aria-labelledby="existentes-heading">
-    <h2 id="existentes-heading">Lotes existentes</h2>
-    {% if batches %}
-    <form method="post" action="/admin/folio-batches/delete" onsubmit="return confirm('¿Borrar los lotes de folios seleccionados? Se eliminarán todos sus folios. Esta acción no se puede deshacer.');">
-      <div class="table-scroll">
-      <table>
-        <thead>
-          <tr>
-            <th class="row-check"><input type="checkbox" class="js-select-all" aria-label="Seleccionar todos los lotes de folios"></th>
-            <th>ID</th>
-            <th>Nombre</th>
-            <th>Modo</th>
-            <th class="num">Total</th>
-            <th class="num">Emitidos</th>
-            <th class="num">Escaneados</th>
-            <th class="col-action"><span class="visually-hidden">Acciones</span></th>
-          </tr>
-        </thead>
-        <tbody>
-          {% for batch in batches %}
-          {% set counts = counts_by_batch[batch.id] %}
-          <tr>
-            <td class="row-check"><input type="checkbox" name="ids" value="{{ batch.id }}" aria-label="Seleccionar lote {{ batch.label }}"></td>
-            <td class="num">{{ batch.id }}</td>
-            <td>{{ batch.label }}</td>
-            <td>{{ mode_label(batch.mode) }}</td>
-            <td class="num">{{ batch.count }}</td>
-            <td class="num">{{ counts.issued }}</td>
-            <td class="num">{{ counts.scanned }}</td>
-            <td class="col-action"><a class="table-action" href="/admin/folio-batches/{{ batch.id }}">Ver / Descargar</a></td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-      </div>
-      <div class="danger-zone">
-        <p class="danger-note">Borrar un lote de folios elimina todos sus folios. Esta acción no se puede deshacer.</p>
-        <button type="submit" class="btn-danger">Borrar seleccionados</button>
-      </div>
-    </form>
-    {% else %}
-    {% call empty_state("Aún no hay lotes de folios", "Crea uno con el formulario de arriba para generar QR y PDF de imprenta.") %}{% endcall %}
-    {% endif %}
-  </section>
-
-  <section class="panel" aria-labelledby="plantillas-heading">
+  {# Plantillas — último #}
+  <section class="panel panel-plantillas" aria-labelledby="plantillas-heading">
     <h2 id="plantillas-heading">Plantillas de datos de boleta</h2>
     {% if boleta_templates %}
     <form method="post" action="/admin/folio-batches/templates/delete" onsubmit="return confirm('¿Borrar las plantillas seleccionadas? Esta acción no se puede deshacer.');">
