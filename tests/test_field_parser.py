@@ -362,7 +362,10 @@ def test_red_stamped_serial_fallback_non_template():
 
 def test_template_path_applies_same_red_serial_fallback():
     # Template defines no folio label; still pick the stamped serial.
-    template = _Tpl(label_patterns_json=json.dumps({"weight": [r"volumen\\s+entregado[ \\t]*[:\\-]?[ \\t]*([^\\n\\r]+)"]}), expects_weight=True)
+    template = _Tpl(
+        label_patterns_json=json.dumps({"weight": [r"volumen\s+entregado[ \t]*[:\-]?[ \t]*([^\n\r]+)"]}),
+        expects_weight=True,
+    )
     text = "Volumen Entregado: 8500 kg\n\n003612\nResponsable de Unidad: CAMAGO\n"
     ocr = _fake_ocr_result(text)
 
