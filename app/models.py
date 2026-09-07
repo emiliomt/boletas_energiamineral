@@ -236,6 +236,11 @@ class Producer(Base):
     format_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     default_origin: Mapped[str | None] = mapped_column(String(255), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Rate card from the Proveedores admin page. precio_transporte is a flat
+    # MXN fletero amount used for Entrada when set (see compute_entrada_tariff).
+    # precio_caja_carbon is the coal purchase price per box; catalog only.
+    precio_caja_carbon: Mapped[float | None] = mapped_column(Float, nullable=True)
+    precio_transporte: Mapped[float | None] = mapped_column(Float, nullable=True)
 
 
 class Transportista(Base):

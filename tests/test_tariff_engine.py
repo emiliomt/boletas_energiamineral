@@ -95,6 +95,18 @@ def test_compute_entrada_tariff_producer_with_no_pricing_rule_flags_exception(db
     assert "unknown_tariff" in result.exceptions
 
 
+def test_compute_entrada_tariff_uses_precio_transporte_when_set(db_session):
+    producer = Producer(name="TEST Rate Card Producer", active=True, precio_transporte=750.0)
+    db_session.add(producer)
+    db_session.flush()
+
+    result = compute_entrada_tariff(db_session, producer, weight=10.0)
+
+    assert result.tariff_amount == 750.0
+    assert result.exceptions == []
+    assert result.matched_rule is None
+
+
 # --- compute_salida_tariff (Phase 3) ---------------------------------------
 
 

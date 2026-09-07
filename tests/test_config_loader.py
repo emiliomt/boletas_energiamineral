@@ -56,6 +56,28 @@ def test_load_producers_upsert_by_name_is_idempotent(db_session, tmp_path):
     assert rows[0].format_id == "FMT-2"
 
 
+def test_load_producers_blank_price_columns_do_not_wipe_existing_prices(db_session, tmp_path):
+    path = _write_csv(
+        tmp_path,
+        "producers.csv",
+        "name,format_id,default_origin,active,precio_caja_carbon,precio_transporte\n"
+        "Test Priced Producer,,,true,100,200\n",
+    )
+    load_producers(db_session, csv_path=path)
+    row = db_session.query(Producer).filter_by(name="Test Priced Producer").one()
+    assert row.precio_caja_carbon == 100.0
+    assert row.precio_transporte == 200.0
+
+    path.write_text(
+        "name,format_id,default_origin,active\nTest Priced Producer,,,true\n",
+        encoding="utf-8",
+    )
+    load_producers(db_session, csv_path=path)
+    row = db_session.query(Producer).filter_by(name="Test Priced Producer").one()
+    assert row.precio_caja_carbon == 100.0
+    assert row.precio_transporte == 200.0
+
+
 def test_load_producers_malformed_row_missing_name_raises_keyerror(db_session, tmp_path):
     path = _write_csv(tmp_path, "producers.csv", "format_id,active\nFMT-1,true\n")
 

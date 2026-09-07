@@ -55,6 +55,12 @@ def test_folio_batches_api_also_requires_auth(client):
     assert resp.status_code == 401
 
 
+def test_proveedores_page_requires_auth(client):
+    resp = client.get("/admin/proveedores", follow_redirects=False)
+    assert resp.status_code == 303
+    assert resp.headers["location"].startswith("/login")
+
+
 def test_verify_credentials_success(monkeypatch):
     import app.config as app_config
 

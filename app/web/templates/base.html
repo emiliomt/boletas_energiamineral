@@ -19,6 +19,7 @@
         <a href="/" class="nav-link{% if path == '/' %} is-current{% endif %}"{% if path == '/' %} aria-current="page"{% endif %}>Inicio</a>
         <a href="/dashboard" class="nav-link{% if path.startswith('/dashboard') %} is-current{% endif %}"{% if path.startswith('/dashboard') %} aria-current="page"{% endif %}>Tablero</a>
         <a href="/admin/folio-batches" class="nav-link{% if path.startswith('/admin/folio-batches') %} is-current{% endif %}"{% if path.startswith('/admin/folio-batches') %} aria-current="page"{% endif %}>Lotes de Folios</a>
+        <a href="/admin/proveedores" class="nav-link{% if path.startswith('/admin/proveedores') %} is-current{% endif %}"{% if path.startswith('/admin/proveedores') %} aria-current="page"{% endif %}>Proveedores</a>
         <a href="/review" class="nav-link{% if path.startswith('/review') %} is-current{% endif %}"{% if path.startswith('/review') %} aria-current="page"{% endif %}>Cola de Revisión</a>
         <form method="post" action="/logout" class="logout-form">
           <button type="submit" class="btn-logout">Salir</button>
