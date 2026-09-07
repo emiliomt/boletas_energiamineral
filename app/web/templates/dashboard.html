@@ -74,9 +74,9 @@
         </select>
       </label>
       <label class="field" for="batch-producer">
-        <span class="field-label">Productor</span>
+        <span class="field-label">Proveedor</span>
         <select name="producer_id" id="batch-producer">
-          <option value="">Productor (solo Entrada)…</option>
+          <option value="">Proveedor (solo Entrada)…</option>
           {% for p in producers %}
           <option value="{{ p.id }}">{{ p.name }}</option>
           {% endfor %}
@@ -89,7 +89,7 @@
       <button type="submit">Crear lote</button>
     </form>
     <p class="muted">
-      Para lotes de Entrada, selecciona el productor correspondiente — es
+      Para lotes de Entrada, selecciona el proveedor correspondiente — es
       obligatorio y no se detecta automáticamente.
     </p>
     {% else %}
