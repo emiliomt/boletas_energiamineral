@@ -52,7 +52,31 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
     folio_batches = db.query(FolioBatch).order_by(FolioBatch.id.desc()).all()
     # For the "Nuevo lote" kind=entrada path (Phase 2): the operator picks
     # the producer manually at upload time -- there's no auto-detection.
-    producers = db.query(Producer).filter_by(active=True).order_by(Producer.name).all()
+    # UX: the dropdown should reflect Configuración → Proveedores, not the
+    # legacy CSV-loaded `Producer` table. Mirror Proveedor -> Producer and
+    # surface only those entries here (ordered by proveedor name).
+    proveedores = db.query(Proveedor).filter_by(active=True).order_by(Proveedor.name).all()
+    existing_producers_by_name = {p.name: p for p in db.query(Producer).all()}
+    producers: list[Producer] = []
+    for prov in proveedores:
+        p = existing_producers_by_name.get(prov.name)
+        if p is None:
+            p = Producer(name=prov.name, default_origin=(prov.origin or None), active=prov.active)
+            db.add(p)
+            db.flush()
+            existing_producers_by_name[prov.name] = p
+        else:
+            changed = False
+            new_origin = prov.origin or None
+            if p.default_origin != new_origin:
+                p.default_origin = new_origin
+                changed = True
+            if p.active != prov.active:
+                p.active = prov.active
+                changed = True
+            if changed:
+                db.flush()
+        producers.append(p)
     flash_error = request.session.pop("flash_error", None)
     return templates.TemplateResponse(
         request,
