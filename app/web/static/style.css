@@ -396,6 +396,30 @@ code, .exc-code {
   border-radius: var(--radius-lg);
   padding: var(--space-4);
 }
+.step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  border-radius: 50%;
+  background: var(--primary-subtle);
+  color: var(--primary);
+  font-weight: var(--weight-bold);
+  margin: 0 0 var(--space-2);
+}
+.step-label {
+  font-weight: var(--weight-semibold);
+  margin: 0 0 var(--space-2);
+}
+.step.is-done .step-index {
+  background: var(--success);
+  color: var(--text-inverse);
+}
+.step.is-current {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 2px var(--primary-subtle);
+}
 .step-title {
   margin: 0 0 var(--space-2);
   font-weight: var(--weight-semibold);
@@ -501,6 +525,11 @@ input[type="submit"] {
     transform var(--duration-fast) var(--ease),
     box-shadow var(--duration-fast) var(--ease),
     opacity var(--duration-fast) var(--ease);
+}
+.btn-primary {
+  background: var(--primary);
+  color: var(--text-inverse);
+  border-color: transparent;
 }
 button:hover,
 .btn:hover,
@@ -727,6 +756,8 @@ textarea:disabled {
   margin-top: var(--space-4);
   padding-top: var(--space-4);
   border-top: 1px solid var(--border);
+  border-left: 4px solid var(--danger);
+  padding-left: var(--space-4);
 }
 .danger-note {
   margin: 0;

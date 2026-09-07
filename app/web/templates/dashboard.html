@@ -7,27 +7,34 @@
       <h1>Panel de Control</h1>
       <p class="page-lede">Resumen operativo de boletas procesadas y lotes de escaneo.</p>
     </div>
+    <div class="page-actions">
+      <a href="#nuevo-lote-heading" class="btn btn-primary">Nuevo lote</a>
+    </div>
   </header>
   <section class="panel" aria-labelledby="flujo-heading">
     <h2 id="flujo-heading">Flujo de trabajo</h2>
     <ol class="steps">
-      <li class="step">
-        <p class="step-title">1) Emitir folios</p>
+      <li class="step {{ 'is-done' if folio_batches else '' }}">
+        <div class="step-index">1</div>
+        <p class="step-label">Emitir folios</p>
         <p class="step-body">Genera un lote con QR para impresión.</p>
         <a class="btn btn-secondary btn-sm" href="/admin/folio-batches">Lotes de Folios</a>
       </li>
-      <li class="step">
-        <p class="step-title">2) Crear lote de escaneo</p>
+      <li class="step is-current">
+        <div class="step-index">2</div>
+        <p class="step-label">Crear lote de escaneo</p>
         <p class="step-body">Asocia el lote de folios y el tipo (Salida/Entrada).</p>
         <a class="btn btn-secondary btn-sm" href="#nuevo-lote-heading">Nuevo lote</a>
       </li>
       <li class="step">
-        <p class="step-title">3) Subir boletas</p>
+        <div class="step-index">3</div>
+        <p class="step-label">Subir boletas</p>
         <p class="step-body">Fotos o PDF del punto de entrega. En Salida, agrega el comprobante CFE.</p>
         <a class="btn btn-secondary btn-sm" href="#lotes-heading">Ver lotes</a>
       </li>
       <li class="step">
-        <p class="step-title">4) Revisar pendientes</p>
+        <div class="step-index">4</div>
+        <p class="step-label">Revisar pendientes</p>
         <p class="step-body">Corrige campos y aprueba boletas pendientes.</p>
         <a class="btn btn-secondary btn-sm" href="/review">Cola de Revisión</a>
       </li>
@@ -52,7 +59,7 @@
     </article>
   </div>
 
-  <section class="panel" aria-labelledby="nuevo-lote-heading">
+  <section class="panel panel-nuevo-lote{% if not folio_batches %} is-empty-inline{% endif %}" aria-labelledby="nuevo-lote-heading">
     <h2 id="nuevo-lote-heading">Nuevo lote</h2>
     {% if folio_batches %}
     <p class="muted">Elige un lote de folios ya registrado para abrir un lote de escaneo en el punto de entrega.</p>
@@ -110,9 +117,9 @@
     {% endif %}
   </section>
 
-  <section class="panel" aria-labelledby="lotes-heading">
+  <section class="panel panel-lotes" aria-labelledby="lotes-heading">
     <div class="panel-header">
-      <h2 id="lotes-heading">Lotes</h2>
+      <h2 id="lotes-heading">Lotes recientes</h2>
     </div>
     {% if batches %}
     <form method="post" action="/batches/delete" onsubmit="return confirm('¿Borrar los lotes seleccionados? Se eliminarán sus boletas procesadas. Esta acción no se puede deshacer.');">
