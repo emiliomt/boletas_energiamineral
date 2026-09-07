@@ -17,18 +17,25 @@
   {% endif %}
 
   {% if records %}
-  <section class="panel">
+  <div class="stat-row review-queue-stats">
+    <article class="stat-card">
+      <p class="stat-value">{{ records|length }}</p>
+      <p class="stat-label">Pendientes</p>
+    </article>
+  </div>
+
+  <section class="panel panel-review-queue">
     <div class="table-scroll">
     <table>
       <thead>
         <tr>
           <th>Folio</th>
-          <th>Fecha</th>
-          <th>Lote</th>
-          <th>Ruta</th>
-          <th>Estado</th>
           <th>Confianza</th>
           <th>Excepciones</th>
+          <th>Lote</th>
+          <th>Fecha</th>
+          <th>Ruta</th>
+          <th>Estado</th>
           <th class="col-action"><span class="visually-hidden">Acciones</span></th>
         </tr>
       </thead>
@@ -36,12 +43,16 @@
         {% for r in records %}
         <tr class="row-review">
           <td>{{ r.folio or "—" }}</td>
-          <td>{{ r.date or "—" }}</td>
+          <td>{{ confidence(r.confidence_score) }}</td>
+          <td>
+            {% for e in describe_exceptions(r.exceptions) %}<span class="exc-chip exc-{{ e.severity }}" title="{{ e.code }}">{{ e.label }}</span>{% endfor %}
+          </td>
           <td>
             {% if r.boleta and r.boleta.batch %}
               <a href="/batches/{{ r.boleta.batch.id }}">{{ r.boleta.batch.label }}</a>
             {% else %}—{% endif %}
           </td>
+          <td>{{ r.date or "—" }}</td>
           <td>{{ r.origin or "?" }} &rarr; {{ r.destination or "?" }}</td>
           <td>
             {% if r.kind == 'salida' and r.salida_status == 'boleta_only' %}
@@ -51,10 +62,6 @@
             {% else %}
             <span class="badge badge-warn"><span class="badge-mark" aria-hidden="true"></span>Para revisión</span>
             {% endif %}
-          </td>
-          <td>{{ confidence(r.confidence_score) }}</td>
-          <td>
-            {% for e in describe_exceptions(r.exceptions) %}<span class="exc-chip exc-{{ e.severity }}" title="{{ e.code }}">{{ e.label }}</span>{% endfor %}
           </td>
           <td class="col-action"><a class="table-action" href="/review/{{ r.id }}">Revisar</a></td>
         </tr>
