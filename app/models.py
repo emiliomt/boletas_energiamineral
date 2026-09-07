@@ -247,6 +247,9 @@ class Transportista(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     canonical_name: Mapped[str] = mapped_column(String(255), unique=True, index=True)  # natural key
     active: Mapped[bool] = mapped_column(Boolean, default=True)
+    # Optional operator-captured details (not used by pipeline logic)
+    phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     aliases: Mapped[list["TransportistaAlias"]] = relationship(
         back_populates="transportista", cascade="all, delete-orphan"
@@ -269,6 +272,20 @@ class TransportistaAlias(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     transportista: Mapped["Transportista"] = relationship(back_populates="aliases")
+
+
+class Proveedor(Base):
+    """Config table: a proveedor catalog for Salida boletas and FolioBatch
+    'Datos de la boleta'. Separate from Producer (Entrada pipeline)."""
+
+    __tablename__ = "proveedores"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, index=True)  # natural key
+    origin: Mapped[str | None] = mapped_column(String(255), nullable=True)  # optional origin text
+    precio_caja: Mapped[float | None] = mapped_column(Float, nullable=True)  # MXN
+    precio_transporte: Mapped[float | None] = mapped_column(Float, nullable=True)  # MXN
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
 class PricingRule(Base):
