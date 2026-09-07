@@ -67,6 +67,8 @@ _SYSTEM_PROMPT = (
     + ". "
     "Acepta también variantes impresas como \"Origen\"/\"Procedencia\" pero normaliza la etiqueta a las anteriores. "
     "Copia los valores literalmente (no inventes datos, no corrijas ortografía). "
+    "Si NO existe la etiqueta \"Folio\", establece \"Folio\" igual al número de serie estampado en rojo (5–6 dígitos) impreso en la boleta. "
+    "No uses números de contrato, concesión o métricas de calidad para Folio. "
     "Si ves un vale/papeleta CFE (slip de pesaje), también extrae \"Peso de Entrada\" y \"Peso de Salida\". "
     "confidence es tu confianza global de transcripción (0-100)."
 )

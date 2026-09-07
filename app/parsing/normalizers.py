@@ -7,7 +7,9 @@ import re
 from rapidfuzz import fuzz, process
 
 _DATE_PATTERNS = [
-    # dd/mm/yyyy or dd-mm-yyyy
+    # dd/mm/yy or dd-mm-yy (two-digit year)
+    (re.compile(r"\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{2})\b"), "%d/%m/%y"),
+    # dd/mm/yyyy or dd-mm-yyyy (four-digit year)
     (re.compile(r"\b(\d{1,2})[/\-](\d{1,2})[/\-](\d{4})\b"), "%d/%m/%Y"),
     # yyyy-mm-dd
     (re.compile(r"\b(\d{4})-(\d{1,2})-(\d{1,2})\b"), "%Y-%m-%d"),
@@ -42,6 +44,15 @@ _TEXTUAL_DATE_PATTERN = re.compile(
 )
 
 
+def _coerce_year(year_text: str) -> int:
+    """Maps 2-digit years per business rule 00–69 → 2000–2069, 70–99 → 1970–1999.
+    Leaves 4-digit years unchanged."""
+    if len(year_text) == 2:
+        yy = int(year_text)
+        return (2000 + yy) if yy <= 69 else (1900 + yy)
+    return int(year_text)
+
+
 def parse_date(text: str) -> str | None:
     """Extracts the first recognizable date in `text` and returns ISO YYYY-MM-DD, or None.
 
@@ -57,7 +68,7 @@ def parse_date(text: str) -> str | None:
                 year, month, day = groups
             else:  # dd/mm/yyyy
                 day, month, year = groups
-            return dt.date(int(year), int(month), int(day)).isoformat()
+            return dt.date(_coerce_year(year), int(month), int(day)).isoformat()
         except ValueError:
             continue
 
