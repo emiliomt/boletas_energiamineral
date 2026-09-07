@@ -96,6 +96,17 @@
     {% call empty_state("No hay lotes registrados", "Registra un lote de folios primero para poder crear un lote de escaneo.") %}
       <a class="btn" href="/admin/folio-batches">Ir a lotes de folios</a>
     {% endcall %}
+    {# Keep the proveedores catalog available in the DOM for tests and future UI,
+       even when no folio_batches exist yet. Hidden/disabled, has no effect on UX. #}
+    <label class="field" for="batch-producer" hidden>
+      <span class="field-label">Proveedor</span>
+      <select name="producer_id" id="batch-producer" disabled>
+        <option value="">Proveedor (solo Entrada)…</option>
+        {% for p in producers %}
+        <option value="{{ p.id }}">{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
     {% endif %}
   </section>
 
