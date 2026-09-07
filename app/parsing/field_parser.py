@@ -224,6 +224,34 @@ def _extract_quantity(source_text: str) -> float | None:
         return float(match.group(1).replace(",", "."))
     return None
 
+def _infer_folio_from_red_serial(text: str) -> str | None:
+    """Heuristic fallback for vendor forms that omit a 'Folio:' label.
+    Scans line-by-line for bare 6-digit serials (often zero-padded, e.g. 003612)
+    and, failing that, 5-digit numbers sometimes handwritten at the top.
+    Skips lines that clearly correspond to other numeric fields (contract,
+    concession, quality metrics, weights, No. Caja).
+    Preference order: first 6-digit match in reading order, else first 5-digit.
+    Returns the chosen serial as it appears in text."""
+    unsafe_context = re.compile(
+        r"(contrato|concesi[oó]n|minera|poder|humedad|ceniza|azufre|fsi|granulometr[ií]a|volumen|peso|no\.?\s*caja)",
+        re.IGNORECASE,
+    )
+    six_candidates: list[str] = []
+    five_candidates: list[str] = []
+    for line in text.splitlines():
+        if unsafe_context.search(line or ""):
+            continue
+        for match in re.finditer(r"\b(\d{5,6})\b", line):
+            token = match.group(1)
+            if len(token) == 6:
+                six_candidates.append(token)
+            elif len(token) == 5:
+                five_candidates.append(token)
+    if six_candidates:
+        return six_candidates[0]
+    if five_candidates:
+        return five_candidates[0]
+    return None
 
 def parse_fields(ocr: OCRResult) -> ParsedFields:
     text = ocr.text
@@ -266,31 +294,16 @@ def parse_fields(ocr: OCRResult) -> ParsedFields:
         if match:
             parsed.quality_data[key] = match.group(1).replace(",", ".")
 
-    # Heuristic fallback for folio when there is no explicit "Folio:" label.
-    # Real-world forms often include only a red-stamped serial (5–6 digits).
-    # Prefer a 6-digit candidate; otherwise, a 5-digit one. Skip obvious
-    # non-folio contexts such as contract numbers, concession numbers, and
-    # quality/weight lines.
+    # FOLIO RED-STAMP FALLBACK:
+    # Some vendor forms omit a "Folio:" label; the authoritative folio is a red-stamped
+    # 5–6 digit serial near the top (often zero-padded to 6 digits like "003612").
+    # If no labeled folio was captured (or it was effectively empty), infer it from
+    # bare digit runs, preferring any 6-digit serial over 5-digit top numbers.
     if not parsed.folio:
-        unsafe_context = re.compile(
-            r"(contrato|concesi[oó]n|minera|poder|humedad|ceniza|azufre|fsi|granulometr[ií]a|volumen|peso|no\.?\s*caja)",
-            re.IGNORECASE,
-        )
-        six_candidates: list[str] = []
-        five_candidates: list[str] = []
-        for line in text.splitlines():
-            if unsafe_context.search(line or ""):
-                continue
-            for m in re.finditer(r"\b(\d{5,6})\b", line):
-                token = m.group(1)
-                if len(token) == 6:
-                    six_candidates.append(token)
-                elif len(token) == 5:
-                    five_candidates.append(token)
-        candidate = six_candidates[0] if six_candidates else (five_candidates[0] if five_candidates else None)
-        if candidate:
-            parsed.folio = candidate
-            parsed.field_confidences["folio"] = _word_confidence_for_value(candidate, ocr)
+        inferred = _infer_folio_from_red_serial(text)
+        if inferred:
+            parsed.folio = inferred
+            parsed.field_confidences["folio"] = _word_confidence_for_value(inferred, ocr)
 
     return parsed
 
@@ -384,6 +397,15 @@ def parse_fields_with_template(ocr: OCRResult, template: "BoletaFormatTemplate")
         match = pattern.search(text)
         if match:
             parsed.quality_data[key] = match.group(1).replace(",", ".")
+
+    # Apply the same folio red-serial fallback used by parse_fields(): a per-producer
+    # template may legitimately not define a folio label, but the scan still carries
+    # the red-stamped serial we can reliably read.
+    if not parsed.folio:
+        inferred = _infer_folio_from_red_serial(text)
+        if inferred:
+            parsed.folio = inferred
+            parsed.field_confidences["folio"] = _word_confidence_for_value(inferred, ocr)
 
     return parsed
 
