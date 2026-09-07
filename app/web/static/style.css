@@ -1391,6 +1391,28 @@ tr.row-review .col-action { background: var(--warning-bg); }
   .flujo-stepper .step.is-current .step-label { display: inline; }
 }
 
+/* Review queue — append to style.css */
+
+.panel-review-queue .table-action {
+  background: var(--primary);
+  color: var(--text-inverse);
+}
+.panel-review-queue .table-action:hover {
+  background: var(--primary-hover);
+  color: var(--text-inverse);
+}
+.panel-review-queue .exc-chip {
+  max-width: 12rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+.review-queue-stats {
+  margin-bottom: var(--space-5);
+  max-width: 14rem;
+}
+
 /* Batch detail — append to style.css */
 
 .page-actions .btn-primary { order: -1; }
