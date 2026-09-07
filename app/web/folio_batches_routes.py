@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import BASE_DIR
 from app.db import get_db
 from app.exports.folio_batch_export import build_folio_batch_csv
-from app.models import BOLETA_DATA_FIELDS, BoletaDataTemplate, Folio, FolioBatch
+from app.models import BOLETA_DATA_FIELDS, BoletaDataTemplate, Folio, FolioBatch, Proveedor
 from app.qr.batch_pdf import generate_batch_pdf
 from app.qr.generator import qr_payload_for_folio
 
@@ -51,6 +51,7 @@ def _page_context(db: Session, error: str | None = None) -> dict:
         "counts_by_batch": {b.id: _status_counts(db, b.id) for b in batches},
         "boleta_templates": templates,
         "boleta_templates_json": _templates_payload(templates),
+        "proveedores_sugeridos": db.query(Proveedor).filter_by(active=True).order_by(Proveedor.name).all(),
         "error": error,
     }
 

@@ -14,7 +14,17 @@ from sqlalchemy.orm import Session
 from app.config import BASE_DIR, settings
 from app.db import get_db
 from app.ingestion.storage import store_upload
-from app.models import Batch, Boleta, BoletaRecord, Folio, FolioBatch, Producer, ReviewAudit
+from app.models import (
+    Batch,
+    Boleta,
+    BoletaRecord,
+    Folio,
+    FolioBatch,
+    Producer,
+    ReviewAudit,
+    Proveedor,
+    Transportista,
+)
 from app.ocr.factory import get_ocr_adapter
 from app.pipeline.orchestrator import process_boleta
 from app.reporting.summary import build_batch_summary, build_overview
@@ -223,7 +233,17 @@ def review_queue_web(request: Request, db: Session = Depends(get_db)):
 @router.get("/review/{record_id}")
 def review_detail_web(request: Request, record_id: int, db: Session = Depends(get_db)):
     record = db.get(BoletaRecord, record_id)
-    return templates.TemplateResponse(request, "review_detail.html", {"record": record})
+    proveedores = db.query(Proveedor).filter_by(active=True).order_by(Proveedor.name).all()
+    transportistas = db.query(Transportista).filter_by(active=True).order_by(Transportista.canonical_name).all()
+    return templates.TemplateResponse(
+        request,
+        "review_detail.html",
+        {
+            "record": record,
+            "proveedores_sugeridos": proveedores,
+            "transportistas_sugeridos": transportistas,
+        },
+    )
 
 
 def _num(value: str) -> float | None:
