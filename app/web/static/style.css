@@ -1390,3 +1390,42 @@ tr.row-review .col-action { background: var(--warning-bg); }
   .flujo-stepper .step-label { display: none; }
   .flujo-stepper .step.is-current .step-label { display: inline; }
 }
+
+/* Batch detail — append to style.css */
+
+.page-actions .btn-primary { order: -1; }
+
+.panel-upload .inline-form {
+  align-items: stretch;
+}
+.panel-upload .file-field {
+  flex: 1 1 14rem;
+  transition: border-color var(--duration-fast) var(--ease),
+    background-color var(--duration-fast) var(--ease);
+}
+.panel-upload .file-field:hover,
+.panel-upload .file-field:focus-within {
+  border-color: var(--primary-border);
+  background: var(--primary-subtle);
+}
+.panel-upload .inline-form > button[type="submit"] {
+  align-self: flex-end;
+  min-width: 10rem;
+}
+
+.page-actions-exports {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+.page-actions-exports .btn {
+  background: transparent;
+  color: var(--text-muted);
+  border-color: var(--border);
+  min-height: 2.5rem;
+  font-weight: var(--weight-medium);
+}
+.page-actions-exports .btn:hover {
+  background: var(--secondary-subtle);
+  color: var(--text);
+}
