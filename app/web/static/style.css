@@ -1211,7 +1211,7 @@ tr.row-review .col-action { background: var(--warning-bg); }
   margin: 0;
   font-size: 1.5rem;
   font-weight: 600;
-  color: #1f1a16;
+  color: var(--text, #1f1a16);
 }
 .page-header .btn-primary {
   flex-shrink: 0;
@@ -1227,38 +1227,34 @@ tr.row-review .col-action { background: var(--warning-bg); }
 }
 .page-header .btn-primary:hover { filter: brightness(1.08); }
 
-.flujo-stepper,
-.steps {
+.flujo-stepper {
   display: flex;
   align-items: center;
   margin: 0 0 1.25rem;
   padding: 0.75rem 1rem;
   background: var(--surface, #fffcf7);
   border-radius: var(--radius-lg, 12px);
-  border: 1px solid color-mix(in srgb, #5b544b 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-muted, #5b544b) 12%, transparent);
   list-style: none;
 }
-.steps .step,
 .flujo-stepper .step {
   display: flex;
   align-items: center;
   gap: 0.5rem;
   flex: 1;
   min-width: 0;
-  color: #5b544b;
+  color: var(--text-muted, #5b544b);
   font-size: 0.8125rem;
   font-weight: 500;
 }
-.steps .step + .step::before,
 .flujo-stepper .step + .step::before {
   content: "";
   width: 1.25rem;
   height: 1px;
   margin-right: 0.5rem;
-  background: color-mix(in srgb, #5b544b 25%, transparent);
+  background: color-mix(in srgb, var(--text-muted, #5b544b) 25%, transparent);
   flex-shrink: 0;
 }
-.steps .step-index,
 .flujo-stepper .step-index {
   display: inline-flex;
   align-items: center;
@@ -1266,29 +1262,25 @@ tr.row-review .col-action { background: var(--warning-bg); }
   width: 1.5rem;
   height: 1.5rem;
   border-radius: 999px;
-  border: 1.5px solid color-mix(in srgb, #5b544b 35%, transparent);
+  border: 1.5px solid color-mix(in srgb, var(--text-muted, #5b544b) 35%, transparent);
   font-size: 0.75rem;
   font-weight: 600;
   flex-shrink: 0;
 }
-.steps .step.is-done .step-index,
 .flujo-stepper .step.is-done .step-index {
   background: color-mix(in srgb, var(--primary, #6e3e16) 18%, transparent);
   border-color: var(--primary, #6e3e16);
   color: var(--primary, #6e3e16);
 }
-.steps .step.is-current,
 .flujo-stepper .step.is-current {
-  color: #1f1a16;
+  color: var(--text, #1f1a16);
   font-weight: 600;
 }
-.steps .step.is-current .step-index,
 .flujo-stepper .step.is-current .step-index {
   background: var(--primary, #6e3e16);
   border-color: var(--primary, #6e3e16);
   color: #fffcf7;
 }
-.steps .step-label,
 .flujo-stepper .step-label {
   white-space: nowrap;
   overflow: hidden;
@@ -1304,7 +1296,7 @@ tr.row-review .col-action { background: var(--warning-bg); }
 .stat-card {
   background: var(--surface, #fffcf7);
   border-radius: var(--radius-lg, 12px);
-  border: 1px solid color-mix(in srgb, #5b544b 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-muted, #5b544b) 12%, transparent);
   padding: 1rem 1.25rem;
 }
 .stat-card .stat-value {
@@ -1312,7 +1304,7 @@ tr.row-review .col-action { background: var(--warning-bg); }
   font-size: 1.75rem;
   font-weight: 700;
   line-height: 1.1;
-  color: #1f1a16;
+  color: var(--text, #1f1a16);
   letter-spacing: -0.02em;
 }
 .stat-card .stat-label {
@@ -1320,7 +1312,7 @@ tr.row-review .col-action { background: var(--warning-bg); }
   margin-top: 0.25rem;
   font-size: 0.75rem;
   font-weight: 500;
-  color: #5b544b;
+  color: var(--text-muted, #5b544b);
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
@@ -1328,7 +1320,7 @@ tr.row-review .col-action { background: var(--warning-bg); }
 .panel-lotes {
   background: var(--surface, #fffcf7);
   border-radius: var(--radius-lg, 12px);
-  border: 1px solid color-mix(in srgb, #5b544b 12%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text-muted, #5b544b) 12%, transparent);
   padding: 1.25rem;
   margin-bottom: 1.5rem;
 }
@@ -1336,10 +1328,9 @@ tr.row-review .col-action { background: var(--warning-bg); }
   margin: 0 0 1rem;
   font-size: 1rem;
   font-weight: 600;
-  color: #1f1a16;
+  color: var(--text, #1f1a16);
 }
-.panel-nuevo-lote:not(.is-empty-inline) { display: none; }
-.empty_state .inline-form { margin-top: 1rem; }
+.empty-state .inline-form { margin-top: 1rem; }
 
 .danger-zone {
   margin-top: 2rem;
@@ -1359,14 +1350,12 @@ tr.row-review .col-action { background: var(--warning-bg); }
 .danger-zone p {
   margin: 0 0 0.75rem;
   font-size: 0.875rem;
-  color: #5b544b;
+  color: var(--text-muted, #5b544b);
 }
 
 @media (max-width: 640px) {
   .page-header { flex-wrap: wrap; }
   .stat-row { grid-template-columns: 1fr; }
-  .steps .step-label,
   .flujo-stepper .step-label { display: none; }
-  .steps .step.is-current .step-label,
   .flujo-stepper .step.is-current .step-label { display: inline; }
 }
