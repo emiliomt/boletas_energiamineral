@@ -11,7 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.config import BASE_DIR
 from app.db import get_db
-from app.models import Proveedor, Transportista
+from app.models import Proveedor, Transportista, Producer
 
 router = APIRouter(prefix="/admin/config", tags=["web-config"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
@@ -43,6 +43,34 @@ def create_or_update_proveedor_web(
     active: str = Form("1"),
     db: Session = Depends(get_db),
 ):
+    def _sync_proveedor_to_producer(prov: Proveedor) -> None:
+        """Ensure the Entrada `Producer` catalog mirrors Configuración → Proveedores.
+
+        - Create a Producer row if missing (name is the natural key)
+        - Keep `active` and `default_origin` in sync (do not touch format_id)
+        """
+        existing = db.query(Producer).filter_by(name=prov.name).one_or_none()
+        if existing is None:
+            db.add(
+                Producer(
+                    name=prov.name,
+                    default_origin=(prov.origin or None),
+                    active=bool(prov.active),
+                )
+            )
+            db.flush()
+        else:
+            changed = False
+            new_origin = prov.origin or None
+            if existing.default_origin != new_origin:
+                existing.default_origin = new_origin
+                changed = True
+            if existing.active != bool(prov.active):
+                existing.active = bool(prov.active)
+                changed = True
+            if changed:
+                db.flush()
+
     def _num(value: str) -> float | None:
         v = (value or "").strip()
         if not v:
@@ -63,6 +91,7 @@ def create_or_update_proveedor_web(
             p.precio_transporte = _num(precio_transporte)
             p.active = is_active
             try:
+                _sync_proveedor_to_producer(p)
                 db.commit()
             except IntegrityError:
                 db.rollback()
@@ -77,6 +106,8 @@ def create_or_update_proveedor_web(
         )
         db.add(p)
         try:
+            db.flush()  # have an id for sync
+            _sync_proveedor_to_producer(p)
             db.commit()
         except IntegrityError:
             db.rollback()
@@ -88,6 +119,10 @@ def toggle_proveedor_active_web(proveedor_id: int, db: Session = Depends(get_db)
     p = db.get(Proveedor, proveedor_id)
     if p:
         p.active = not p.active
+        # Keep Producer.active mirrored too if it exists
+        existing = db.query(Producer).filter_by(name=p.name).one_or_none()
+        if existing is not None:
+            existing.active = p.active
         db.commit()
     return RedirectResponse(url="/admin/config/proveedores?ok=1", status_code=303)
 

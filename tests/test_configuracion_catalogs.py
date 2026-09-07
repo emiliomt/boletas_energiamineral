@@ -151,3 +151,27 @@ def test_datalists_exist_and_are_populated(client):
     assert 'datalist id="proveedores-list"' in html2
     assert 'option value="Prov Sugerido"' in html2
 
+
+def test_dashboard_productor_dropdown_uses_proveedores_catalog(client):
+    c, _ = client
+    # Create two proveedores (one active, one inactive)
+    resp = c.post(
+        "/admin/config/proveedores",
+        data={"name": "Prov En Dropdown", "origin": "", "precio_caja": "", "precio_transporte": "", "active": "1"},
+        follow_redirects=False,
+    )
+    assert resp.status_code in (303, 302)
+    resp = c.post(
+        "/admin/config/proveedores",
+        data={"name": "Prov Inactivo", "origin": "", "precio_caja": "", "precio_transporte": "", "active": "0"},
+        follow_redirects=False,
+    )
+    assert resp.status_code in (303, 302)
+    # Dashboard should list only active proveedores in the Productor select
+    html = c.get("/").text
+    # Productor select exists and includes our active proveedor
+    assert 'id="batch-producer"' in html
+    assert ">Prov En Dropdown<" in html
+    # Inactive proveedor should not appear
+    assert "Prov Inactivo" not in html
+
