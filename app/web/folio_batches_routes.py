@@ -144,7 +144,7 @@ def create_folio_batch_web(
     except IntegrityError:
         db.rollback()
         return _error("Esos folios ya existen. Cambia el prefijo, el número inicial o la lista.")
-    return RedirectResponse(url=f"/admin/folio-batches/{batch.id}", status_code=303)
+    return RedirectResponse(url=f"/admin/folio-batches/{batch.id}?ok=1", status_code=303)
 
 
 @router.post("/delete")

@@ -109,7 +109,7 @@ def create_batch_web(
     )
     db.add(batch)
     db.commit()
-    return RedirectResponse(url=f"/batches/{batch.id}", status_code=303)
+    return RedirectResponse(url=f"/batches/{batch.id}?new=1", status_code=303)
 
 
 def _delete_batches(db: Session, ids: list[int]) -> None:
@@ -205,7 +205,7 @@ def upload_web(
         for boleta in boletas:
             process_boleta(db, boleta, _ocr_adapter)
     db.commit()
-    return RedirectResponse(url=f"/batches/{batch_id}", status_code=303)
+    return RedirectResponse(url=f"/batches/{batch_id}?uploaded=1", status_code=303)
 
 
 @router.get("/review")
@@ -295,4 +295,4 @@ def review_submit_web(
     )
     apply_review(db, record, correction)
     db.commit()
-    return RedirectResponse(url="/review", status_code=303)
+    return RedirectResponse(url="/review?ok=1", status_code=303)

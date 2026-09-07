@@ -10,6 +10,10 @@
     </div>
   </header>
 
+  {% if record.boleta and record.boleta.batch %}
+  <p class="muted">Lote: <a href="/batches/{{ record.boleta.batch.id }}">{{ record.boleta.batch.label }}</a></p>
+  {% endif %}
+
   <div class="review-grid">
     <section class="panel review-preview" aria-labelledby="scan-heading">
       <h2 id="scan-heading">Escaneo original</h2>
