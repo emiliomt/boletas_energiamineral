@@ -14,6 +14,17 @@
     </div>
   </header>
 
+  {% if request.query_params.get("new") %}
+  <div class="alert alert-info" role="status">
+    <p>Lote creado. Sube aquí tus boletas {% if batch.kind == 'salida' %}y comprobantes CFE{% endif %}.</p>
+  </div>
+  {% endif %}
+  {% if request.query_params.get("uploaded") %}
+  <div class="alert alert-info" role="status">
+    <p>Archivos recibidos. Procesando OCR/QR… Esta tabla se actualizará al finalizar.</p>
+  </div>
+  {% endif %}
+
   <section class="panel" aria-labelledby="upload-heading">
     <h2 id="upload-heading">Subir boletas</h2>
     <form method="post" action="/batches/{{ batch.id }}/upload" enctype="multipart/form-data" class="inline-form" data-busy-on-submit>
@@ -27,14 +38,15 @@
         <input type="file" name="cfe_slip_files" multiple accept="image/*,application/pdf">
       </label>
       <p class="muted">
-        Sube la boleta y su comprobante CFE juntos (o por separado, según
-        vayan llegando) -- se enlazan automáticamente por folio.
+        Arrastra fotos o PDFs aquí. Puedes subir la boleta y su comprobante CFE juntos
+        (o por separado) — se enlazan automáticamente por folio.
       </p>
       {% else %}
       <label class="file-field">
         <span class="field-label">Archivos</span>
         <input type="file" name="files" multiple accept="image/*,application/pdf" required>
       </label>
+      <p class="muted">Arrastra fotos o PDFs aquí.</p>
       {% endif %}
       <button type="submit" data-busy-label="Procesando…">Procesar boletas</button>
     </form>

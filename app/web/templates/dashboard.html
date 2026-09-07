@@ -8,6 +8,31 @@
       <p class="page-lede">Resumen operativo de boletas procesadas y lotes de escaneo.</p>
     </div>
   </header>
+  <section class="panel" aria-labelledby="flujo-heading">
+    <h2 id="flujo-heading">Flujo de trabajo</h2>
+    <ol class="steps">
+      <li class="step">
+        <p class="step-title">1) Emitir folios</p>
+        <p class="step-body">Genera un lote con QR para impresión.</p>
+        <a class="btn btn-secondary btn-sm" href="/admin/folio-batches">Lotes de Folios</a>
+      </li>
+      <li class="step">
+        <p class="step-title">2) Crear lote de escaneo</p>
+        <p class="step-body">Asocia el lote de folios y el tipo (Salida/Entrada).</p>
+        <a class="btn btn-secondary btn-sm" href="#nuevo-lote-heading">Nuevo lote</a>
+      </li>
+      <li class="step">
+        <p class="step-title">3) Subir boletas</p>
+        <p class="step-body">Fotos o PDF del punto de entrega. En Salida, agrega el comprobante CFE.</p>
+        <a class="btn btn-secondary btn-sm" href="#lotes-heading">Ver lotes</a>
+      </li>
+      <li class="step">
+        <p class="step-title">4) Revisar pendientes</p>
+        <p class="step-body">Corrige campos y aprueba boletas pendientes.</p>
+        <a class="btn btn-secondary btn-sm" href="/review">Cola de Revisión</a>
+      </li>
+    </ol>
+  </section>
   {% if flash_error %}
   <div class="alert alert-error" role="alert">
     <p>{{ flash_error }}</p>

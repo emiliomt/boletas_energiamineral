@@ -10,6 +10,12 @@
     </div>
   </header>
 
+  {% if request.query_params.get("ok") %}
+  <div class="alert alert-info" role="status">
+    <p>Cambios guardados. Continúa con la siguiente boleta.</p>
+  </div>
+  {% endif %}
+
   {% if records %}
   <section class="panel">
     <div class="table-scroll">
@@ -18,6 +24,7 @@
         <tr>
           <th>Folio</th>
           <th>Fecha</th>
+          <th>Lote</th>
           <th>Ruta</th>
           <th>Estado</th>
           <th>Confianza</th>
@@ -30,6 +37,11 @@
         <tr class="row-review">
           <td>{{ r.folio or "—" }}</td>
           <td>{{ r.date or "—" }}</td>
+          <td>
+            {% if r.boleta and r.boleta.batch %}
+              <a href="/batches/{{ r.boleta.batch.id }}">{{ r.boleta.batch.label }}</a>
+            {% else %}—{% endif %}
+          </td>
           <td>{{ r.origin or "?" }} &rarr; {{ r.destination or "?" }}</td>
           <td>
             {% if r.kind == 'salida' and r.salida_status == 'boleta_only' %}
