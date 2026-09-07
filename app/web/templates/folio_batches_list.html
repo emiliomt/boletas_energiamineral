@@ -58,7 +58,9 @@
         </p>
 
         <div class="form-grid">
-          <label>Proveedor<input type="text" name="proveedor" value="ENERGIA MINERAL, S.A. DE C.V."></label>
+          <label>Proveedor
+            <input type="text" name="proveedor" value="ENERGIA MINERAL, S.A. DE C.V." list="proveedor-list" autocomplete="off">
+          </label>
           <label>Destino<input type="text" name="destino"></label>
           <label>Contrato<input type="text" name="contrato"></label>
         </div>
@@ -91,6 +93,11 @@
       <button type="submit">Crear lote</button>
     </form>
   </section>
+  <datalist id="proveedor-list">
+    {% for p in proveedores or [] %}
+    <option value="{{ p.name }}"></option>
+    {% endfor %}
+  </datalist>
 
   <section class="panel" aria-labelledby="existentes-heading">
     <h2 id="existentes-heading">Lotes existentes</h2>

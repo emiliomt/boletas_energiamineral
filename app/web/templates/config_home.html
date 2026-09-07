@@ -1,0 +1,19 @@
+{% extends "base.html" %}
+{% block title %}Configuración — Boletas Energía Mineral{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/">Inicio</a> / Configuración</p>
+      <h1>Configuración</h1>
+      <p class="page-lede">Administra catálogos y parámetros del sistema.</p>
+    </div>
+  </header>
+
+  <section class="panel">
+    <ul>
+      <li><a href="/admin/config/proveedores">Proveedores</a> — Lista de proveedores (origen y precios opcionales).</li>
+      <li><a href="/admin/config/transportistas">Transportistas</a> — Lista de fleteros/choferes (teléfono/notas opcionales).</li>
+    </ul>
+  </section>
+{% endblock %}
+

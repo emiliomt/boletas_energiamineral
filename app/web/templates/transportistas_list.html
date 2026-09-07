@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block title %}Transportistas — Configuración{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/">Inicio</a> / <a href="/admin/config">Configuración</a> / Transportistas</p>
+      <h1>Transportistas</h1>
+      <p class="page-lede">Catálogo de fleteros/choferes. Puedes editar teléfono, notas y activar/inactivar.</p>
+    </div>
+  </header>
+
+  <section class="panel" aria-labelledby="nuevo-tr-heading">
+    <h2 id="nuevo-tr-heading">Nuevo transportista</h2>
+    <form method="post" action="/admin/config/transportistas" class="review-form">
+      <div class="form-grid">
+        <label>Nombre<input type="text" name="canonical_name" required></label>
+        <label>Teléfono (opcional)<input type="text" name="phone" inputmode="tel"></label>
+        <label>Notas (opcional)<input type="text" name="notes"></label>
+      </div>
+      <button type="submit">Guardar transportista</button>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="lista-tr-heading">
+    <h2 id="lista-tr-heading">Lista</h2>
+    {% if transportistas %}
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Teléfono</th>
+          <th>Notas</th>
+          <th>Activo</th>
+          <th class="col-action"><span class="visually-hidden">Acciones</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for t in transportistas %}
+        <tr class="{{ '' if t.active else 'row-muted' }}">
+          <td class="num">{{ t.id }}</td>
+          <td>
+            <form method="post" action="/admin/config/transportistas/{{ t.id }}/update" class="inline-form">
+              <input type="text" name="canonical_name" value="{{ t.canonical_name }}">
+          </td>
+          <td><input type="text" name="phone" value="{{ t.phone or '' }}" inputmode="tel"></td>
+          <td><input type="text" name="notes" value="{{ t.notes or '' }}"></td>
+          <td class="num">
+            <label class="visually-hidden" for="active-{{ t.id }}">Activo</label>
+            <input id="active-{{ t.id }}" type="checkbox" name="active" {% if t.active %}checked{% endif %}>
+          </td>
+          <td class="col-action">
+              <button type="submit" class="table-action">Guardar</button>
+            </form>
+            <form method="post" action="/admin/config/transportistas/{{ t.id }}/toggle" class="inline-form">
+              <button type="submit" class="table-action">{% if t.active %}Desactivar{% else %}Activar{% endif %}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="muted">Aún no hay transportistas.</p>
+    {% endif %}
+  </section>
+{% endblock %}
+

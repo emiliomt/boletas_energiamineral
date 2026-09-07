@@ -13,7 +13,7 @@ from sqlalchemy.orm import Session
 from app.config import BASE_DIR
 from app.db import get_db
 from app.exports.folio_batch_export import build_folio_batch_csv
-from app.models import Folio, FolioBatch
+from app.models import Folio, FolioBatch, Proveedor
 from app.qr.batch_pdf import generate_batch_pdf
 from app.qr.generator import qr_payload_for_folio
 
@@ -33,8 +33,11 @@ def _status_counts(db: Session, folio_batch_id: int) -> dict[str, int]:
 def list_folio_batches_web(request: Request, db: Session = Depends(get_db)):
     batches = db.query(FolioBatch).order_by(FolioBatch.id.desc()).all()
     counts_by_batch = {b.id: _status_counts(db, b.id) for b in batches}
+    proveedores = db.query(Proveedor).order_by(Proveedor.name).all()
     return templates.TemplateResponse(
-        request, "folio_batches_list.html", {"batches": batches, "counts_by_batch": counts_by_batch}
+        request,
+        "folio_batches_list.html",
+        {"batches": batches, "counts_by_batch": counts_by_batch, "proveedores": proveedores},
     )
 
 

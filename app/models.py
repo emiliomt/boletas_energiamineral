@@ -238,6 +238,20 @@ class Producer(Base):
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
+class Proveedor(Base):
+    """Catálogo: proveedor/suministrador (para boletas de Entrada/foliadas).
+    Opcionalmente guarda precios de referencia por caja y transporte."""
+
+    __tablename__ = "proveedores"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    name: Mapped[str] = mapped_column(String(255), unique=True, index=True)  # clave natural
+    origin: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    precio_caja: Mapped[float | None] = mapped_column(Float, nullable=True)
+    precio_transporte: Mapped[float | None] = mapped_column(Float, nullable=True)
+    active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+
 class Transportista(Base):
     """Config table: a canonical transportista identity. Aliases
     (handwriting/spelling variants) live in TransportistaAlias."""
@@ -246,6 +260,8 @@ class Transportista(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     canonical_name: Mapped[str] = mapped_column(String(255), unique=True, index=True)  # natural key
+    phone: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    notes: Mapped[str | None] = mapped_column(String(255), nullable=True)
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
     aliases: Mapped[list["TransportistaAlias"]] = relationship(

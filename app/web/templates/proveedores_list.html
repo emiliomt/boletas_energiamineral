@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Proveedores — Configuración{% endblock %}
+{% block content %}
+  <header class="page-header">
+    <div>
+      <p class="breadcrumb"><a href="/">Inicio</a> / <a href="/admin/config">Configuración</a> / Proveedores</p>
+      <h1>Proveedores</h1>
+      <p class="page-lede">Catálogo de proveedores. Puedes activar/inactivar y editar origen y precios.</p>
+    </div>
+  </header>
+
+  <section class="panel" aria-labelledby="nuevo-prov-heading">
+    <h2 id="nuevo-prov-heading">Nuevo proveedor</h2>
+    <form method="post" action="/admin/config/proveedores" class="review-form">
+      <div class="form-grid">
+        <label>Nombre<input type="text" name="name" required></label>
+        <label>Origen (opcional)<input type="text" name="origin"></label>
+        <label>Precio por caja (opcional)<input type="text" name="precio_caja" inputmode="decimal"></label>
+        <label>Precio transporte (opcional)<input type="text" name="precio_transporte" inputmode="decimal"></label>
+      </div>
+      <button type="submit">Guardar proveedor</button>
+    </form>
+  </section>
+
+  <section class="panel" aria-labelledby="lista-prov-heading">
+    <h2 id="lista-prov-heading">Lista</h2>
+    {% if proveedores %}
+    <div class="table-scroll">
+    <table>
+      <thead>
+        <tr>
+          <th>ID</th>
+          <th>Nombre</th>
+          <th>Origen</th>
+          <th>Precio caja</th>
+          <th>Precio transporte</th>
+          <th>Activo</th>
+          <th class="col-action"><span class="visually-hidden">Acciones</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for p in proveedores %}
+        <tr class="{{ '' if p.active else 'row-muted' }}">
+          <td class="num">{{ p.id }}</td>
+          <td>
+            <form method="post" action="/admin/config/proveedores/{{ p.id }}/update" class="inline-form">
+              <input type="text" name="name" value="{{ p.name }}">
+          </td>
+          <td><input type="text" name="origin" value="{{ p.origin or '' }}"></td>
+          <td><input type="text" name="precio_caja" value="{{ p.precio_caja if p.precio_caja is not none else '' }}" inputmode="decimal"></td>
+          <td><input type="text" name="precio_transporte" value="{{ p.precio_transporte if p.precio_transporte is not none else '' }}" inputmode="decimal"></td>
+          <td class="num">
+            <label class="visually-hidden" for="active-{{ p.id }}">Activo</label>
+            <input id="active-{{ p.id }}" type="checkbox" name="active" {% if p.active %}checked{% endif %}>
+          </td>
+          <td class="col-action">
+              <button type="submit" class="table-action">Guardar</button>
+            </form>
+            <form method="post" action="/admin/config/proveedores/{{ p.id }}/toggle" class="inline-form">
+              <button type="submit" class="table-action">{% if p.active %}Desactivar{% else %}Activar{% endif %}</button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    </div>
+    {% else %}
+    <p class="muted">Aún no hay proveedores.</p>
+    {% endif %}
+  </section>
+{% endblock %}
+

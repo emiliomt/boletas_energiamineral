@@ -85,6 +85,7 @@ def init_db() -> None:
     _ensure_columns("folio_batches")  # batch-level pre-printed fields (proveedor, destino, contrato, quality spec, ...)
     _ensure_columns("batches")  # kind, producer_id (Phase 2: Entrada pipeline)
     _ensure_columns("boletas")  # document_type (Phase 3: Salida two-document reconciliation)
+    _ensure_columns("transportistas")  # phone, notes (configurable desde UI)
 
     from app.rules.config_loader import reload_all  # deferred: avoids a circular import
 
