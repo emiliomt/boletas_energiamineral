@@ -18,6 +18,7 @@
       </div>
       {% endif %}
       <form method="post" action="/login" class="review-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         <input type="hidden" name="next" value="{{ next }}">
         <label class="field" for="email">
           <span class="field-label">Correo</span>

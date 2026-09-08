@@ -62,6 +62,7 @@
     {% if folio_batches %}
     <p class="muted">Elige un lote de folios ya registrado para abrir un lote de escaneo en el punto de entrega.</p>
     <form method="post" action="/batches" class="inline-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       <label class="field" for="batch-label">
         <span class="field-label">Nombre del lote</span>
         <select name="label" id="batch-label" required>
@@ -121,6 +122,7 @@
     </div>
     {% if batches %}
     <form method="post" action="/batches/delete" onsubmit="return confirm('¿Borrar los lotes seleccionados? Se eliminarán sus boletas procesadas. Esta acción no se puede deshacer.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       <div class="table-scroll">
       <table>
         <thead>

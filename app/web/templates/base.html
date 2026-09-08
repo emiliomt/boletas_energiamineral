@@ -22,6 +22,7 @@
         <a href="/review" class="nav-link{% if path.startswith('/review') %} is-current{% endif %}"{% if path.startswith('/review') %} aria-current="page"{% endif %}>Cola de Revisión</a>
         <a href="/admin/config" class="nav-link{% if path.startswith('/admin/config') %} is-current{% endif %}"{% if path.startswith('/admin/config') %} aria-current="page"{% endif %}>Configuración</a>
         <form method="post" action="/logout" class="logout-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
           <button type="submit" class="btn-logout">Salir</button>
         </form>
       </nav>

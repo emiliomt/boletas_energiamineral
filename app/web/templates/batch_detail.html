@@ -31,6 +31,7 @@
   <section class="panel panel-upload" aria-labelledby="upload-heading">
     <h2 id="upload-heading">Subir boletas</h2>
     <form method="post" action="/batches/{{ batch.id }}/upload" enctype="multipart/form-data" class="inline-form" data-busy-on-submit>
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       {% if batch.kind == 'salida' %}
       <label class="file-field">
         <span class="field-label">Boleta</span>

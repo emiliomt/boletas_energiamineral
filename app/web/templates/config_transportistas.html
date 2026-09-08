@@ -12,6 +12,7 @@
   <section class="panel" aria-labelledby="nuevo-transportista">
     <h2 id="nuevo-transportista">Nuevo transportista</h2>
     <form method="post" action="/admin/config/transportistas" class="review-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       <div class="form-grid">
         <label>Nombre<input type="text" name="canonical_name" required></label>
         <label>Teléfono (opcional)<input type="text" name="phone"></label>
@@ -53,6 +54,7 @@
               <details>
                 <summary class="table-action">Editar</summary>
                 <form method="post" action="/admin/config/transportistas" class="review-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
                   <input type="hidden" name="transportista_id" value="{{ t.id }}">
                   <div class="form-grid">
                     <label>Nombre<input type="text" name="canonical_name" value="{{ t.canonical_name }}" required></label>
@@ -70,6 +72,7 @@
                   </div>
                 </form>
                 <form method="post" action="/admin/config/transportistas/{{ t.id }}/toggle">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
                   <button type="submit" class="table-action">{% if t.active %}Desactivar{% else %}Activar{% endif %}</button>
                 </form>
               </details>

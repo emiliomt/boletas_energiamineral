@@ -72,6 +72,7 @@
       <h2>Corregir campos</h2>
       <p class="muted">Un campo por cada campo de la boleta; corrige lo que el OCR no haya leído bien.</p>
       <form method="post" action="/review/{{ record.id }}" class="review-form">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
         {% set q = record.quality_data or {} %}
 
         <fieldset class="fieldset">

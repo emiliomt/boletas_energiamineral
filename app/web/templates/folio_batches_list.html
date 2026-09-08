@@ -29,6 +29,7 @@
     <h2 id="existentes-heading">Lotes existentes</h2>
     {% if batches %}
     <form method="post" action="/admin/folio-batches/delete" onsubmit="return confirm('¿Borrar los lotes de folios seleccionados? Se eliminarán todos sus folios. Esta acción no se puede deshacer.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       <div class="table-scroll">
       <table>
         <thead>
@@ -79,6 +80,7 @@
   <section class="panel panel-nuevo-folio" aria-labelledby="nuevo-folio-heading">
     <h2 id="nuevo-folio-heading">Nuevo lote de folios</h2>
     <form method="post" action="/admin/folio-batches" class="review-form" id="folio-batch-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       <label>Nombre del lote<input type="text" name="label" required></label>
 
       <label>Modo
@@ -179,6 +181,7 @@
     <h2 id="plantillas-heading">Plantillas de datos de boleta</h2>
     {% if boleta_templates %}
     <form method="post" action="/admin/folio-batches/templates/delete" onsubmit="return confirm('¿Borrar las plantillas seleccionadas? Esta acción no se puede deshacer.');">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       <div class="table-scroll">
       <table>
         <thead>

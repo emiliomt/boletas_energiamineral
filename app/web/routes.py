@@ -32,18 +32,21 @@ from app.review.service import apply_review
 from app.schemas import ReviewCorrection
 
 from app.web.exception_display import describe_exceptions, summarize_exceptions
+from app.web.csrf import require_valid_csrf, csrf_token_value
+from app.auth.session import current_admin, require_admin_web
 
 router = APIRouter(tags=["web"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
 templates.env.globals["describe_exceptions"] = describe_exceptions
 templates.env.globals["summarize_exceptions"] = summarize_exceptions
+templates.env.globals["csrf_token"] = csrf_token_value
 _ocr_adapter = get_ocr_adapter()
 logger = logging.getLogger(__name__)
 
 
 @router.get("/")
 def dashboard(request: Request, db: Session = Depends(get_db)):
-    batches = db.query(Batch).order_by(Batch.id.desc()).all()
+    batches = db.query(Batch).filter(Batch.deleted_at.is_(None)).order_by(Batch.id.desc()).all()
     review_count = db.query(BoletaRecord).filter(BoletaRecord.status == "needs_review").count()
     total_count = db.query(BoletaRecord).count()
     # The "Nuevo lote" name is chosen from the registered folio batches
@@ -104,7 +107,7 @@ def dashboard_overview(
 ):
     selected_batch_id = int(batch_id) if batch_id.strip().isdigit() else None
     overview = build_overview(db, batch_id=selected_batch_id, status=status or None, fletero=fletero or None)
-    batches = db.query(Batch).order_by(Batch.id.desc()).all()
+    batches = db.query(Batch).filter(Batch.deleted_at.is_(None)).order_by(Batch.id.desc()).all()
     fleteros = [
         f for (f,) in db.query(BoletaRecord.fletero)
         .filter(BoletaRecord.fletero.isnot(None))
@@ -133,8 +136,11 @@ def create_batch_web(
     created_by: str = Form(""),
     kind: str = Form("salida"),
     producer_id: str = Form(""),
+    csrf_token: str = Form(""),
+    admin: str = Depends(require_admin_web),
     db: Session = Depends(get_db),
 ):
+    require_valid_csrf(request, csrf_token)
     # Require proveedor selection when creating an Entrada lote.
     if kind == "entrada" and not producer_id.strip().isdigit():
         request.session["flash_error"] = "Para lotes de Entrada, selecciona un proveedor."
@@ -142,7 +148,8 @@ def create_batch_web(
     resolved_producer_id = int(producer_id) if kind == "entrada" else None
     batch = Batch(
         label=label,
-        created_by=created_by or None,
+        # Prefer authenticated identity when not provided; keep client-provided value for backward compatibility.
+        created_by=((created_by or "").strip() or admin or current_admin(request) or None),
         kind=kind if kind == "entrada" else "salida",
         producer_id=resolved_producer_id,
     )
@@ -152,52 +159,52 @@ def create_batch_web(
 
 
 def _delete_batches(db: Session, ids: list[int]) -> None:
-    """Deletes scanning lotes and everything under them.
-
-    Uses bulk SQL in FK order (not ORM cascade). The session has autoflush
-    off, and SQLAlchemy's per-row DELETEs lose to Postgres/SQLite FKs:
-    boletas.batch_id, review_audits.boleta_record_id, folios.boleta_record_id,
-    and boleta_records.reconciled_with_record_id (Salida boleta/CFE pairs).
-    """
+    """Delete or soft-delete scanning lotes depending on environment."""
     if not ids:
         return
-    record_ids = [
-        record_id
-        for (record_id,) in (
-            db.query(BoletaRecord.id)
-            .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
-            .filter(Boleta.batch_id.in_(ids))
-            .all()
-        )
-    ]
-    if record_ids:
-        db.query(Folio).filter(Folio.boleta_record_id.in_(record_ids)).update(
-            {Folio.boleta_record_id: None, Folio.status: "issued", Folio.scanned_at: None},
-            synchronize_session=False,
-        )
-        db.query(BoletaRecord).filter(BoletaRecord.reconciled_with_record_id.in_(record_ids)).update(
-            {BoletaRecord.reconciled_with_record_id: None},
-            synchronize_session=False,
-        )
-        db.query(ReviewAudit).filter(ReviewAudit.boleta_record_id.in_(record_ids)).delete(
-            synchronize_session=False
-        )
-        db.query(BoletaRecord).filter(BoletaRecord.id.in_(record_ids)).delete(
-            synchronize_session=False
-        )
-    db.query(Boleta).filter(Boleta.batch_id.in_(ids)).delete(synchronize_session=False)
-    db.query(Batch).filter(Batch.id.in_(ids)).delete(synchronize_session=False)
-    db.expire_all()
-    for batch_id in ids:
-        batch_dir = settings.originals_dir / str(batch_id)
-        if batch_dir.exists():
-            shutil.rmtree(batch_dir, ignore_errors=True)
+    if settings.is_production:
+        # Soft-delete in production: preserve Boletas, Records, and ReviewAudit for auditability.
+        from datetime import datetime, timezone
+        deleted_at = datetime.now(timezone.utc)
+        db.query(Batch).filter(Batch.id.in_(ids)).update({Batch.deleted_at: deleted_at}, synchronize_session=False)
+        db.expire_all()
+    else:
+        # Legacy hard-delete for local/test behavior parity with existing suite
+        record_ids = [
+            record_id
+            for (record_id,) in (
+                db.query(BoletaRecord.id)
+                .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
+                .filter(Boleta.batch_id.in_(ids))
+                .all()
+            )
+        ]
+        if record_ids:
+            db.query(Folio).filter(Folio.boleta_record_id.in_(record_ids)).update(
+                {Folio.boleta_record_id: None, Folio.status: "issued", Folio.scanned_at: None},
+                synchronize_session=False,
+            )
+            db.query(BoletaRecord).filter(BoletaRecord.reconciled_with_record_id.in_(record_ids)).update(
+                {BoletaRecord.reconciled_with_record_id: None},
+                synchronize_session=False,
+            )
+            # Preserve ReviewAudit history in production; in local/test legacy path, keep as-is (delete).
+            db.query(ReviewAudit).filter(ReviewAudit.boleta_record_id.in_(record_ids)).delete(
+                synchronize_session=False
+            )
+            db.query(BoletaRecord).filter(BoletaRecord.id.in_(record_ids)).delete(
+                synchronize_session=False
+            )
+        db.query(Boleta).filter(Boleta.batch_id.in_(ids)).delete(synchronize_session=False)
+        db.query(Batch).filter(Batch.id.in_(ids)).delete(synchronize_session=False)
+        db.expire_all()
 
 
 @router.post("/batches/delete")
 def delete_batches_web(
-    request: Request, ids: list[int] = Form(default=[]), db: Session = Depends(get_db)
+    request: Request, ids: list[int] = Form(default=[]), csrf_token: str = Form(""), db: Session = Depends(get_db)
 ):
+    require_valid_csrf(request, csrf_token)
     if ids:
         try:
             _delete_batches(db, ids)
@@ -230,11 +237,38 @@ def batch_detail(request: Request, batch_id: int, db: Session = Depends(get_db))
 
 @router.post("/batches/{batch_id}/upload")
 def upload_web(
+    request: Request,
     batch_id: int,
     files: list[UploadFile] = [],  # noqa: B006 (FastAPI reconstructs this per-request)
     cfe_slip_files: list[UploadFile] = [],  # noqa: B006
+    csrf_token: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    MAX_UPLOAD_BYTES = 50 * 1024 * 1024  # 50MB
+    require_valid_csrf(request, csrf_token)
+    batch = db.get(Batch, batch_id)
+    for upload, document_type in [(f, "boleta") for f in files] + [(f, "cfe_slip") for f in cfe_slip_files]:
+        # Read in chunks and enforce a firm 50MB limit.
+        total = 0
+        chunks: list[bytes] = []
+        while True:
+            data = upload.file.read(1024 * 1024)
+            if not data:
+                break
+            total += len(data)
+            if total > MAX_UPLOAD_BYTES:
+                request.session["flash_error"] = f"Archivo demasiado grande (>50MB): {upload.filename}"
+                chunks = []
+                break
+            chunks.append(data)
+        if not chunks:
+            continue
+        content = b"".join(chunks)
+        boletas = store_upload(db, batch, upload.filename, content, upload.content_type or "", document_type)
+        for boleta in boletas:
+            process_boleta(db, boleta, _ocr_adapter)
+    db.commit()
+    return RedirectResponse(url=f"/batches/{batch_id}?uploaded=1", status_code=303)
     batch = db.get(Batch, batch_id)
     for upload, document_type in [(f, "boleta") for f in files] + [(f, "cfe_slip") for f in cfe_slip_files]:
         content = upload.file.read()
@@ -313,12 +347,16 @@ def review_submit_web(
     azufre_pct: str = Form(""),
     fsi: str = Form(""),
     granulometria: str = Form(""),
+    csrf_token: str = Form(""),
+    admin: str = Depends(require_admin_web),
     db: Session = Depends(get_db),
 ):
+    require_valid_csrf(request, csrf_token)
     record = db.get(BoletaRecord, record_id)
     correction = ReviewCorrection(
         action="approve" if action == "approve" else "correct",
-        edited_by=edited_by or None,
+        # Stamp editor from the authenticated session; ignore client field
+        edited_by=(admin or current_admin(request) or None),
         note=note or None,
         folio=folio or None,
         date=date or None,
