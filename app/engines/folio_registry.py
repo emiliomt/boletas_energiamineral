@@ -40,10 +40,13 @@ def check_folio(db: Session, folio: str | None, exclude_record_id: int | None = 
     if not folio:
         return FolioCheckResult(status="no_qr")
 
-    row = db.query(Folio).filter_by(folio=folio).one_or_none()
+    # Lock the row to avoid races in multi-worker deployments (no-op on SQLite).
+    row = db.query(Folio).filter_by(folio=folio).with_for_update(read=False).one_or_none()
     if row is None:
         return FolioCheckResult(status="unknown", exceptions=["unknown_folio"])
 
+    if row.status == "void":
+        return FolioCheckResult(status="void", folio_row=row, exceptions=["folio_void"])
     if row.status == "scanned" and row.boleta_record_id != exclude_record_id:
         return FolioCheckResult(status="already_used", folio_row=row, exceptions=["folio_already_used"])
 

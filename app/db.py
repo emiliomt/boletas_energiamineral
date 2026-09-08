@@ -82,11 +82,24 @@ def init_db() -> None:
         "boleta_records"
     )  # kind, producer_id, ocr_engine, proveedor, concesion_minera, representante_legal,
     # salida_status, cfe_entry_weight, cfe_exit_weight, delivered_weight, reconciled_with_record_id
-    _ensure_columns("folio_batches")  # batch-level pre-printed fields (proveedor, destino, contrato, quality spec, ...)
-    _ensure_columns("batches")  # kind, producer_id (Phase 2: Entrada pipeline)
+    _ensure_columns("folio_batches")  # + deleted_at
+    _ensure_columns("batches")  # + deleted_at, kind, producer_id (Phase 2: Entrada pipeline)
     _ensure_columns("boletas")  # document_type (Phase 3: Salida two-document reconciliation)
     # Newly added optional columns to existing table(s)
     _ensure_columns("transportistas")  # phone, notes
+    # Unique index for Entrada folio integrity: (producer_id, folio) when kind='entrada'
+    # Note: SQLite supports partial indexes; ignore failure on older SQLite.
+    with engine.begin() as conn:
+        try:
+            conn.execute(
+                text(
+                    "CREATE UNIQUE INDEX IF NOT EXISTS uq_boleta_records_entrada_folio "
+                    "ON boleta_records (producer_id, folio) "
+                    "WHERE kind = 'entrada'"
+                )
+            )
+        except Exception:
+            pass
 
     from app.rules.config_loader import reload_all  # deferred: avoids a circular import
 

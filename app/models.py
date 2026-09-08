@@ -37,6 +37,7 @@ class Batch(Base):
     created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
     status: Mapped[str] = mapped_column(String(32), default="open")  # open | closed
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    deleted_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
     # kind/producer are selected once per lote at creation time (Phase 2:
     # Entrada pipeline) -- every Boleta uploaded into this batch inherits
@@ -371,6 +372,7 @@ class FolioBatch(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    deleted_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
 
     # Batch-level boleta data entered ONLINE before printing. These are
     # constant for every boleta in the lote (same contract/route/quality
