@@ -6,10 +6,19 @@
     <div>
       <p class="breadcrumb"><a href="/admin/folio-batches">Lotes de folios</a> / {{ batch.label }}</p>
       <h1>Lote de Folios: {{ batch.label }}</h1>
+      {% if batch.vendor or batch.notes %}
+      <p class="page-meta">
+        {% if batch.vendor %}<span>Proveedor: {{ batch.vendor }}</span>{% endif %}
+        {% if batch.vendor and batch.notes %} · {% endif %}
+        {% if batch.notes %}<span>Notas: {{ batch.notes }}</span>{% endif %}
+      </p>
+      {% endif %}
     </div>
     <div class="page-actions">
-      <a class="btn" href="/admin/folio-batches/{{ batch.id }}/print-pdf">Descargar PDF para imprenta</a>
-      <a class="btn btn-secondary" href="/admin/folio-batches/{{ batch.id }}/export-csv">Descargar CSV</a>
+      <a class="btn btn-primary" href="/admin/folio-batches/{{ batch.id }}/print-pdf">Descargar PDF</a>
+      <div class="page-actions-exports">
+        <a class="btn" href="/admin/folio-batches/{{ batch.id }}/export-csv">Exportar CSV</a>
+      </div>
     </div>
   </header>
 
@@ -19,23 +28,30 @@
   </div>
   {% endif %}
 
-  <section class="panel">
+  <section class="panel panel-folio-batch-stats panel-lotes">
     <div class="stat-row">
       <article class="stat-card">
-        <p class="stat-label">Total</p>
         <p class="stat-value">{{ batch.count }}</p>
+        <p class="stat-label">Total</p>
       </article>
       <article class="stat-card stat-ok">
-        <p class="stat-label">Emitidos</p>
         <p class="stat-value">{{ counts.issued }}</p>
+        <p class="stat-label">Emitidos</p>
       </article>
       <article class="stat-card stat-info">
-        <p class="stat-label">Escaneados</p>
         <p class="stat-value">{{ counts.scanned }}</p>
+        <p class="stat-label">Escaneados</p>
+      </article>
+      <article class="stat-card">
+        <p class="stat-label">Progreso</p>
+        <div class="folio-progress">
+          <span class="folio-progress-meta">{{ counts.scanned }}/{{ batch.count }}</span>
+          <div class="folio-progress-bar" aria-hidden="true">
+            <span style="width: {{ (counts.scanned / batch.count * 100) if batch.count else 0 }}%;"></span>
+          </div>
+        </div>
       </article>
     </div>
-    {% if batch.vendor %}<p class="muted">Proveedor: {{ batch.vendor }}</p>{% endif %}
-    {% if batch.notes %}<p class="muted">Notas: {{ batch.notes }}</p>{% endif %}
   </section>
 
   <section class="panel" aria-labelledby="folios-heading">
@@ -46,7 +62,7 @@
       <thead><tr><th>Folio</th><th>Estado</th><th>Emitido</th><th>Escaneado</th></tr></thead>
       <tbody>
         {% for f in folios %}
-        <tr class="{{ 'row-review' if f.status == 'scanned' else '' }}">
+        <tr class="{{ 'row-complete' if f.status == 'scanned' else '' }}">
           <td>{{ f.folio }}</td>
           <td>{{ status_badge(f.status) }}</td>
           <td>{{ f.issued_at.strftime("%Y-%m-%d %H:%M") if f.issued_at else "—" }}</td>
