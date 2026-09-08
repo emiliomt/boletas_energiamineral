@@ -7,12 +7,14 @@
       <p class="breadcrumb"><a href="/review">Cola de revisión</a> / Boleta #{{ record.id }}</p>
       <h1>Revisar boleta #{{ record.id }}</h1>
       <p class="page-lede">Corrige lo que el OCR no haya leído bien y guarda antes de aprobar.</p>
+      {% if record.boleta and record.boleta.batch %}
+      <p class="page-meta">Lote: <a href="/batches/{{ record.boleta.batch.id }}">{{ record.boleta.batch.label }}</a></p>
+      {% endif %}
+    </div>
+    <div class="page-actions">
+      <a class="btn btn-secondary" href="/review">Volver a la cola</a>
     </div>
   </header>
-
-  {% if record.boleta and record.boleta.batch %}
-  <p class="muted">Lote: <a href="/batches/{{ record.boleta.batch.id }}">{{ record.boleta.batch.label }}</a></p>
-  {% endif %}
 
   <div class="review-grid">
     <section class="panel review-preview" aria-labelledby="scan-heading">
@@ -22,8 +24,22 @@
       <pre class="ocr-text">{{ record.ocr_text or "(sin texto)" }}</pre>
     </section>
 
-    <section class="panel" aria-labelledby="detalle-heading">
+    <section class="panel panel-review-detail" aria-labelledby="detalle-heading">
       <h2 id="detalle-heading">Detalles y excepciones</h2>
+      {% if record.exceptions %}
+      <ul class="exc-list">
+        {% for e in describe_exceptions(record.exceptions) %}
+        <li class="exc exc-{{ e.severity }}">
+          <span class="exc-sev">{{ e.severity_label }}</span>
+          <span class="exc-label">{{ e.label }}</span>
+          <code class="exc-code">{{ e.code }}</code>
+        </li>
+        {% endfor %}
+      </ul>
+      {% else %}
+      <p class="badge badge-ok"><span class="badge-mark" aria-hidden="true"></span>Sin excepciones</p>
+      {% endif %}
+
       <dl class="ocr-meta">
         <div class="ocr-meta-item">
           <dt>Confianza</dt>
@@ -51,19 +67,6 @@
         Peso salida CFE: <strong>{{ record.cfe_exit_weight if record.cfe_exit_weight is not none else "—" }}</strong> ·
         Peso entregado: <strong>{{ record.delivered_weight if record.delivered_weight is not none else "—" }}</strong>
       </p>
-      {% endif %}
-      {% if record.exceptions %}
-      <ul class="exc-list">
-        {% for e in describe_exceptions(record.exceptions) %}
-        <li class="exc exc-{{ e.severity }}">
-          <span class="exc-sev">{{ e.severity_label }}</span>
-          <span class="exc-label">{{ e.label }}</span>
-          <code class="exc-code">{{ e.code }}</code>
-        </li>
-        {% endfor %}
-      </ul>
-      {% else %}
-      <p class="badge badge-ok"><span class="badge-mark" aria-hidden="true"></span>Sin excepciones</p>
       {% endif %}
 
       <h2>Corregir campos</h2>
@@ -141,7 +144,7 @@
         </fieldset>
 
         <div class="review-actions review-actions-sticky">
-          <button type="submit" name="action" value="correct">Guardar correcciones</button>
+          <button type="submit" name="action" value="correct" class="btn-secondary">Guardar correcciones</button>
           <button type="submit" name="action" value="approve" class="btn-approve">Aprobar</button>
         </div>
       </form>
