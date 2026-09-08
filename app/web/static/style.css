@@ -1413,6 +1413,37 @@ tr.row-review .col-action { background: var(--warning-bg); }
   max-width: 14rem;
 }
 
+/* Review detail — append to style.css */
+
+.panel-review-detail .exc-list {
+  margin-top: 0;
+  margin-bottom: var(--space-5);
+}
+.panel-review-detail .review-actions-sticky {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  justify-content: flex-end;
+  align-items: center;
+}
+.panel-review-detail .review-actions-sticky button[value="correct"] {
+  background: var(--surface-raised);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+.panel-review-detail .review-actions-sticky button[value="correct"]:hover {
+  background: var(--secondary-subtle);
+  color: var(--text);
+}
+.panel-review-detail .review-actions-sticky .btn-approve {
+  min-width: 8rem;
+}
+.page-header .page-meta {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-sm);
+  color: var(--text-muted);
+}
+
 /* Batch detail — append to style.css */
 
 .page-actions .btn-primary { order: -1; }
