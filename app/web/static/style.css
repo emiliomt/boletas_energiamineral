@@ -1491,3 +1491,18 @@ tr.row-review .col-action { background: var(--warning-bg); }
 .panel-folio-batch-stats .folio-progress {
   margin-top: var(--space-2);
 }
+
+/* Login polish — append to style.css */
+
+.login-card {
+  box-shadow: var(--shadow-md);
+}
+.login-card.is-error {
+  border-color: var(--danger-border);
+  box-shadow: 0 0 0 1px var(--danger-border), var(--shadow-md);
+}
+.login-card .btn-primary,
+.login-card button[type="submit"] {
+  width: 100%;
+  margin-top: var(--space-2);
+}
