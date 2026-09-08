@@ -34,11 +34,27 @@ def client(tmp_path, monkeypatch):
 
 
 def test_creating_entrada_requires_proveedor_selection(client):
-    c, _ = client
+    c, session_local = client
+    # Seed a transportista to satisfy new required field
+    from app.models import Transportista
+    db = session_local()
+    try:
+        t = Transportista(canonical_name="Fletero Req", active=True)
+        db.add(t)
+        db.commit()
+        transportista_id = t.id
+    finally:
+        db.close()
     # Missing producer_id for kind=entrada should set a flash error and redirect back
     resp = c.post(
         "/batches",
-        data={"label": "Semana Test", "kind": "entrada", "producer_id": "", "created_by": "tester"},
+        data={
+            "label": "Semana Test",
+            "kind": "entrada",
+            "producer_id": "",
+            "transportista_id": str(transportista_id),
+            "created_by": "tester",
+        },
         follow_redirects=True,
     )
     assert resp.status_code == 200
@@ -48,9 +64,25 @@ def test_creating_entrada_requires_proveedor_selection(client):
 
 def test_creating_salida_does_not_require_proveedor(client):
     c, session_local = client
+    # Seed a transportista to satisfy new required field
+    from app.models import Transportista
+    db = session_local()
+    try:
+        t = Transportista(canonical_name="Fletero Req", active=True)
+        db.add(t)
+        db.commit()
+        transportista_id = t.id
+    finally:
+        db.close()
     resp = c.post(
         "/batches",
-        data={"label": "Semana Salida", "kind": "salida", "producer_id": "", "created_by": "tester"},
+        data={
+            "label": "Semana Salida",
+            "kind": "salida",
+            "producer_id": "",
+            "transportista_id": str(transportista_id),
+            "created_by": "tester",
+        },
         follow_redirects=False,
     )
     assert resp.status_code in (303, 302)

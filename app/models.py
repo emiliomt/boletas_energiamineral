@@ -47,6 +47,12 @@ class Batch(Base):
     producer_id: Mapped[int | None] = mapped_column(
         ForeignKey("producers.id"), nullable=True
     )  # required for kind=entrada, set at batch creation
+    # Selected transportista (driver/carrier) for this lote. Config-backed via
+    # Configuración → Transportistas; optional at the DB layer for additive
+    # migrations, but required by the web form on creation for both kinds.
+    transportista_id: Mapped[int | None] = mapped_column(
+        ForeignKey("transportistas.id"), nullable=True
+    )
 
     boletas: Mapped[list["Boleta"]] = relationship(back_populates="batch")
 
