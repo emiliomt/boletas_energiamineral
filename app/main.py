@@ -32,7 +32,19 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title="Boletas Energía Mineral", version="0.1.0", lifespan=lifespan)
-app.add_middleware(SessionMiddleware, secret_key=settings.session_secret_key)
+# Fail closed on insecure session secret in production-like environments.
+if settings.is_production and settings.session_secret_key == "dev-only-insecure-secret-change-me":
+    raise ValueError(
+        "SESSION_SECRET_KEY must be set to a strong random value in production."
+        " Refusing to start with the insecure placeholder."
+    )
+# Harden session cookie defaults in production, keep dev-friendly locally.
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=settings.session_secret_key,
+    https_only=True if settings.is_production else False,
+    same_site="lax",
+)
 
 
 @app.exception_handler(AuthRedirect)

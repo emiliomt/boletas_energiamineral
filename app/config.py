@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     ocr_language: str = "spa+eng"
     rules_config_dir: Path = BASE_DIR / "app" / "rules"
     auto_process_confidence_min: float = 0.75
+    # Environment: "production" | "development" | "test" (defaults to development)
+    environment: str = "development"
 
     # OCR backend selection.
     #   "tesseract" -> local Tesseract only (offline, no API key).
@@ -53,10 +55,43 @@ class Settings(BaseSettings):
     # the app still runs with zero setup -- MUST be overridden via env var
     # (a long random value) in any real deployment.
     session_secret_key: str = "dev-only-insecure-secret-change-me"
+    # Comma-separated list of admin emails allowed to log in (optional).
+    # If empty, any Supabase-authenticated user can log in; in production,
+    # deployments SHOULD set this to the single admin email.
+    admin_emails: str | None = None
 
     def ensure_dirs(self) -> None:
         self.originals_dir.mkdir(parents=True, exist_ok=True)
         (BASE_DIR / "data").mkdir(parents=True, exist_ok=True)
+
+    # ---- Derived helpers
+    @property
+    def is_sqlite(self) -> bool:
+        return self.database_url.startswith("sqlite")
+
+    @property
+    def is_production(self) -> bool:
+        """Detect production for security-sensitive defaults."""
+        # Explicit flag wins.
+        env = (self.environment or "").strip().lower()
+        if env in {"prod", "production"}:
+            return True
+        if env in {"dev", "development", "local", "test"}:
+            return False
+        # Railway deployments export RAILWAY* envs; treat presence as prod.
+        import os
+        if os.environ.get("RAILWAY_STATIC_URL") or os.environ.get("RAILWAY_ENVIRONMENT"):
+            return True
+        # Non-SQLite connection string is most likely a real DB -> prod-ish.
+        return not self.is_sqlite
+
+    @property
+    def admin_allowlist(self) -> set[str]:
+        if not self.admin_emails:
+            return set()
+        # Accept comma or whitespace separated; normalize to lowercase.
+        parts = [p.strip().lower() for p in self.admin_emails.replace(" ", ",").split(",")]
+        return {p for p in parts if p}
 
 
 settings = Settings()
