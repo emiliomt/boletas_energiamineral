@@ -55,6 +55,11 @@ This needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` set (see
 `.env.example`). Local dev without Supabase configured yet will show a
 clear "not configured" message on the login page instead of crashing.
 
+In production you MUST set a strong `SESSION_SECRET_KEY` environment variable
+(e.g. `openssl rand -hex 32`). The app will refuse to start with the insecure
+placeholder when running in a production-like environment. Optionally set
+`ADMIN_EMAILS` (comma‑separated) to restrict admin access to a known allowlist.
+
 ## Configure your real routes, tariffs, and weights
 
 The CSVs under `app/rules/` ship with **placeholder sample data** so the
@@ -198,5 +203,6 @@ tests/         unit tests per module + end-to-end pipeline/API tests
   whole app; there's no per-user audit trail beyond the free-text
   `edited_by` field already captured on corrections.
 - SQLite works for local dev with zero setup; production should point
-  `DATABASE_URL` at Supabase Postgres (see `.env.example`) — the schema is
+  `DATABASE_URL` at Supabase Postgres (see `.env.example`) — add `?sslmode=require`
+  for managed Postgres — the schema is
   already Postgres-compatible, no code changes needed.

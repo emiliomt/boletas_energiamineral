@@ -7,6 +7,7 @@ every downstream stage (OCR, parsing, review) always deals with one image.
 from __future__ import annotations
 
 from pathlib import Path
+import re
 
 from sqlalchemy.orm import Session
 
@@ -39,14 +40,32 @@ def store_upload(
     out_dir = _batch_dir(batch.id)
     created: list[Boleta] = []
 
+    # Strictly sanitize filename: reject absolute paths and any traversal.
+    base = Path(filename).name
+    if not base or base in {".", ".."}:
+        raise ValueError("Invalid filename.")
+    # Reject if path contained traversal or was absolute
+    if base != filename or filename.startswith("/") or ".." in filename.replace("\\", "/").split("/"):
+        raise ValueError("Invalid filename.")
+
+    # Always prefer a content-hash-based stored filename to avoid collisions.
+    digest = sha256_of_bytes(content)
+    # Preserve extension if present (lowercased, 1-6 safe chars), default to .bin
+    m = re.search(r"(\\.[A-Za-z0-9]{1,6})$", base)
+    ext = m.group(1).lower() if m else ""
+    if not ext and mime_type == PDF_MIME_TYPE or base.lower().endswith(".pdf"):
+        ext = ".pdf"
+    safe_stem = digest[:12]
+
     if mime_type == PDF_MIME_TYPE or filename.lower().endswith(".pdf"):
-        pdf_path = out_dir / filename
+        stored_name = f"{safe_stem}{ext or '.pdf'}"
+        pdf_path = out_dir / stored_name
         pdf_path.write_bytes(content)
         page_paths = split_pdf_to_images(pdf_path, out_dir)
         for page_num, page_path in enumerate(page_paths, start=1):
             boleta = Boleta(
                 batch_id=batch.id,
-                original_filename=filename,
+                original_filename=base,
                 stored_path=str(page_path),
                 mime_type="image/png",
                 page_number=page_num,
@@ -57,13 +76,12 @@ def store_upload(
             created.append(boleta)
     else:
         # Disambiguate same-name uploads across a batch with a content hash prefix.
-        digest = sha256_of_bytes(content)
-        stored_name = f"{digest[:12]}_{filename}"
+        stored_name = f"{safe_stem}_{base}"
         image_path = out_dir / stored_name
         image_path.write_bytes(content)
         boleta = Boleta(
             batch_id=batch.id,
-            original_filename=filename,
+            original_filename=base,
             stored_path=str(image_path),
             mime_type=mime_type or "image/png",
             page_number=1,

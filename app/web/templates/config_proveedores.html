@@ -12,6 +12,7 @@
   <section class="panel" aria-labelledby="nuevo-proveedor">
     <h2 id="nuevo-proveedor">Nuevo proveedor</h2>
     <form method="post" action="/admin/config/proveedores" class="review-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
       <div class="form-grid">
         <label>Nombre<input type="text" name="name" required></label>
         <label>Origen (opcional)<input type="text" name="origin"></label>
@@ -56,6 +57,7 @@
               <details>
                 <summary class="table-action">Editar</summary>
                 <form method="post" action="/admin/config/proveedores" class="review-form">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
                   <input type="hidden" name="proveedor_id" value="{{ p.id }}">
                   <div class="form-grid">
                     <label>Nombre<input type="text" name="name" value="{{ p.name }}" required></label>
@@ -74,6 +76,7 @@
                   </div>
                 </form>
                 <form method="post" action="/admin/config/proveedores/{{ p.id }}/toggle">
+                  <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
                   <button type="submit" class="table-action">{% if p.active %}Desactivar{% else %}Activar{% endif %}</button>
                 </form>
               </details>

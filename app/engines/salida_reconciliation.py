@@ -56,11 +56,17 @@ def find_salida_counterpart(
     opposite_status = _opposite_pending_status(document_type)
 
     if folio:
-        query = db.query(BoletaRecord).filter(
-            BoletaRecord.kind == "salida",
-            BoletaRecord.folio == folio,
-            BoletaRecord.salida_status == opposite_status,
-            BoletaRecord.reconciled_with_record_id.is_(None),
+        # Counterpart must be in the same scanning batch.
+        query = (
+            db.query(BoletaRecord)
+            .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
+            .filter(
+                BoletaRecord.kind == "salida",
+                Boleta.batch_id == batch_id,
+                BoletaRecord.folio == folio,
+                BoletaRecord.salida_status == opposite_status,
+                BoletaRecord.reconciled_with_record_id.is_(None),
+            )
         )
         if exclude_record_id is not None:
             query = query.filter(BoletaRecord.id != exclude_record_id)

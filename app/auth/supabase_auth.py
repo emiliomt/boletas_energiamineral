@@ -13,6 +13,7 @@ from app.config import settings
 
 class SupabaseNotConfigured(RuntimeError):
     """Raised when a login is attempted before SUPABASE_URL/ANON_KEY are set."""
+    pass
 
 
 def verify_credentials(email: str, password: str) -> dict | None:

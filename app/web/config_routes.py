@@ -12,9 +12,11 @@ from sqlalchemy.orm import Session
 from app.config import BASE_DIR
 from app.db import get_db
 from app.models import Proveedor, Transportista, Producer
+from app.web.csrf import csrf_token_value, require_valid_csrf
 
 router = APIRouter(prefix="/admin/config", tags=["web-config"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
+templates.env.globals["csrf_token"] = csrf_token_value
 
 
 @router.get("")
@@ -35,14 +37,17 @@ def list_proveedores_web(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/proveedores")
 def create_or_update_proveedor_web(
+    request: Request,
     name: str = Form(...),
     origin: str = Form(""),
     precio_caja: str = Form(""),
     precio_transporte: str = Form(""),
     proveedor_id: str = Form(""),
     active: str = Form("1"),
+    csrf_token: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    require_valid_csrf(request, csrf_token)  # token check (session-backed token)
     def _sync_proveedor_to_producer(prov: Proveedor) -> None:
         """Ensure the Entrada `Producer` catalog mirrors Configuración → Proveedores.
 
@@ -115,7 +120,11 @@ def create_or_update_proveedor_web(
 
 
 @router.post("/proveedores/{proveedor_id}/toggle")
-def toggle_proveedor_active_web(proveedor_id: int, db: Session = Depends(get_db)):
+def toggle_proveedor_active_web(
+    request: Request, proveedor_id: int, csrf_token: str = Form(""), db: Session = Depends(get_db)
+):
+    # CSRF check (validate when enforced)
+    require_valid_csrf(request, csrf_token)
     p = db.get(Proveedor, proveedor_id)
     if p:
         p.active = not p.active
@@ -140,13 +149,16 @@ def list_transportistas_web(request: Request, db: Session = Depends(get_db)):
 
 @router.post("/transportistas")
 def create_or_update_transportista_web(
+    request: Request,
     canonical_name: str = Form(...),
     phone: str = Form(""),
     notes: str = Form(""),
     transportista_id: str = Form(""),
     active: str = Form("1"),
+    csrf_token: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    require_valid_csrf(request, csrf_token)
     tid = int(transportista_id) if transportista_id and transportista_id.isdigit() else None
     is_active = active == "1"
     if tid:
@@ -177,7 +189,10 @@ def create_or_update_transportista_web(
 
 
 @router.post("/transportistas/{transportista_id}/toggle")
-def toggle_transportista_active_web(transportista_id: int, db: Session = Depends(get_db)):
+def toggle_transportista_active_web(
+    request: Request, transportista_id: int, csrf_token: str = Form(""), db: Session = Depends(get_db)
+):
+    require_valid_csrf(request, csrf_token)
     t = db.get(Transportista, transportista_id)
     if t:
         t.active = not t.active

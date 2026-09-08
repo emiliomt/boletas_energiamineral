@@ -10,15 +10,18 @@ from fastapi.templating import Jinja2Templates
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.config import BASE_DIR
+from app.config import BASE_DIR, settings
 from app.db import get_db
 from app.exports.folio_batch_export import build_folio_batch_csv
 from app.models import BOLETA_DATA_FIELDS, BoletaDataTemplate, Folio, FolioBatch, Proveedor
 from app.qr.batch_pdf import generate_batch_pdf
 from app.qr.generator import qr_payload_for_folio
+from app.auth.session import require_admin_web
+from app.web.csrf import require_valid_csrf, csrf_token_value
 
 router = APIRouter(prefix="/admin/folio-batches", tags=["web-folio-batches"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
+templates.env.globals["csrf_token"] = csrf_token_value
 
 
 def _status_counts(db: Session, folio_batch_id: int) -> dict[str, int]:
@@ -86,8 +89,11 @@ def create_folio_batch_web(
     centro_acopio: str = Form(""),
     concesion_minera: str = Form(""),
     representante_legal: str = Form(""),
+    csrf_token: str = Form(""),
+    admin: str = Depends(require_admin_web),
     db: Session = Depends(get_db),
 ):
+    require_valid_csrf(request, csrf_token)
     def _error(message: str):
         return templates.TemplateResponse(request, "folio_batches_list.html", _page_context(db, message))
 
@@ -137,7 +143,8 @@ def create_folio_batch_web(
         count=len(folio_values),
         vendor=vendor or None,
         notes=notes or None,
-        created_by=created_by or None,
+        # Stamp created_by from the session (ignore client-provided value)
+        created_by=(admin or request.session.get("admin_email") or None),
         proveedor=proveedor or None,
         destino=destino or None,
         contrato=contrato or None,
@@ -165,14 +172,29 @@ def create_folio_batch_web(
 
 
 @router.post("/delete")
-def delete_folio_batches_web(ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+def delete_folio_batches_web(
+    request: Request, ids: list[int] = Form(default=[]), csrf_token: str = Form(""), db: Session = Depends(get_db)
+):
+    require_valid_csrf(request, csrf_token)
     """Deletes selected Lotes de Folios and their folio rows via bulk SQL
     (avoids loading every Folio into the session, and does not depend on
     ORM cascade order)."""
     if ids:
-        db.query(Folio).filter(Folio.folio_batch_id.in_(ids)).delete(synchronize_session=False)
-        db.query(FolioBatch).filter(FolioBatch.id.in_(ids)).delete(synchronize_session=False)
-        db.commit()
+        if settings.is_production:
+            # Prefer soft-delete: preserve auditability and avoid losing issued folio history.
+            from sqlalchemy import update
+            from datetime import datetime, timezone
+            deleted_at = datetime.now(timezone.utc)
+            try:
+                db.execute(update(FolioBatch).where(FolioBatch.id.in_(ids)).values(deleted_at=deleted_at))
+            except Exception:
+                pass
+            db.commit()
+        else:
+            # Legacy hard-delete behavior retained for local/test parity
+            db.query(Folio).filter(Folio.folio_batch_id.in_(ids)).delete(synchronize_session=False)
+            db.query(FolioBatch).filter(FolioBatch.id.in_(ids)).delete(synchronize_session=False)
+            db.commit()
     return RedirectResponse(url="/admin/folio-batches", status_code=303)
 
 
@@ -193,8 +215,10 @@ def upsert_boleta_template_web(
     centro_acopio: str = Form(""),
     concesion_minera: str = Form(""),
     representante_legal: str = Form(""),
+    csrf_token: str = Form(""),
     db: Session = Depends(get_db),
 ):
+    require_valid_csrf(request, csrf_token)
     name = (template_name or "").strip()
     if not name:
         return templates.TemplateResponse(
@@ -228,7 +252,10 @@ def upsert_boleta_template_web(
 
 
 @router.post("/templates/delete")
-def delete_boleta_templates_web(ids: list[int] = Form(default=[]), db: Session = Depends(get_db)):
+def delete_boleta_templates_web(
+    request: Request, ids: list[int] = Form(default=[]), csrf_token: str = Form(""), db: Session = Depends(get_db)
+):
+    require_valid_csrf(request, csrf_token)
     if ids:
         db.query(BoletaDataTemplate).filter(BoletaDataTemplate.id.in_(ids)).delete(synchronize_session=False)
         db.commit()
