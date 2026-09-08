@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Boletas Energía Mineral{% endblock %}</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="{{ url_for('static', path='style.css') }}?v=20260908-1">
 </head>
 <body>
   <a class="skip-link" href="#contenido">Saltar al contenido</a>
@@ -31,6 +31,6 @@
   <main id="contenido" class="container {% block container_class %}{% endblock %}">
     {% block content %}{% endblock %}
   </main>
-  <script src="/static/app.js" defer></script>
+  <script src="{{ url_for('static', path='app.js') }}?v=20260908-1" defer></script>
 </body>
 </html>
