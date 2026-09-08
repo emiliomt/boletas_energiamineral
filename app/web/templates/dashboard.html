@@ -88,6 +88,15 @@
           {% endfor %}
         </select>
       </label>
+      <label class="field" for="batch-transportista">
+        <span class="field-label">Transportista</span>
+        <select name="transportista_id" id="batch-transportista" required>
+          <option value="" disabled selected>Transportista…</option>
+          {% for t in transportistas %}
+          <option value="{{ t.id }}">{{ t.canonical_name }}</option>
+          {% endfor %}
+        </select>
+      </label>
       <label class="field" for="batch-created-by">
         <span class="field-label">Tu nombre</span>
         <input type="text" id="batch-created-by" name="created_by" placeholder="Tu nombre (opcional)" autocomplete="name">
@@ -110,6 +119,16 @@
         <option value="">Proveedor (solo Entrada)…</option>
         {% for p in producers %}
         <option value="{{ p.id }}">{{ p.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    {# Keep the transportistas catalog available too, hidden when empty state #}
+    <label class="field" for="batch-transportista" hidden>
+      <span class="field-label">Transportista</span>
+      <select name="transportista_id" id="batch-transportista" disabled>
+        <option value="">Transportista…</option>
+        {% for t in transportistas %}
+        <option value="{{ t.id }}">{{ t.canonical_name }}</option>
         {% endfor %}
       </select>
     </label>

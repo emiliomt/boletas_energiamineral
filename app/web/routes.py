@@ -80,6 +80,10 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             if changed:
                 db.flush()
         producers.append(p)
+    # Transportistas catalog for the always-visible dropdown on the Nuevo lote form.
+    transportistas = (
+        db.query(Transportista).filter_by(active=True).order_by(Transportista.canonical_name).all()
+    )
     flash_error = request.session.pop("flash_error", None)
     return templates.TemplateResponse(
         request,
@@ -90,6 +94,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)):
             "total_count": total_count,
             "folio_batches": folio_batches,
             "producers": producers,
+            "transportistas": transportistas,
             "flash_error": flash_error,
         },
     )
@@ -136,11 +141,16 @@ def create_batch_web(
     created_by: str = Form(""),
     kind: str = Form("salida"),
     producer_id: str = Form(""),
+    transportista_id: str = Form(""),
     csrf_token: str = Form(""),
     admin: str = Depends(require_admin_web),
     db: Session = Depends(get_db),
 ):
     require_valid_csrf(request, csrf_token)
+    # Require transportista selection for both Entrada and Salida.
+    if not transportista_id.strip().isdigit():
+        request.session["flash_error"] = "Selecciona un transportista."
+        return RedirectResponse(url="/#nuevo-lote-heading", status_code=303)
     # Require proveedor selection when creating an Entrada lote.
     if kind == "entrada" and not producer_id.strip().isdigit():
         request.session["flash_error"] = "Para lotes de Entrada, selecciona un proveedor."
@@ -152,6 +162,7 @@ def create_batch_web(
         created_by=((created_by or "").strip() or admin or current_admin(request) or None),
         kind=kind if kind == "entrada" else "salida",
         producer_id=resolved_producer_id,
+        transportista_id=int(transportista_id),
     )
     db.add(batch)
     db.commit()

@@ -73,8 +73,22 @@ def test_dashboard_empty_state_when_no_registered_lotes(client_and_session):
 def test_selected_lote_name_creates_batch_with_that_label(client_and_session):
     client, session_local = client_and_session
     _seed_folio_batch(session_local, "Semana 33")
+    # Seed a transportista required by the Nuevo lote form
+    from app.models import Transportista
+    db = session_local()
+    try:
+        t = Transportista(canonical_name="Fletero Test", active=True)
+        db.add(t)
+        db.commit()
+        transportista_id = t.id
+    finally:
+        db.close()
 
-    resp = client.post("/batches", data={"label": "Semana 33", "created_by": "tester"}, follow_redirects=False)
+    resp = client.post(
+        "/batches",
+        data={"label": "Semana 33", "created_by": "tester", "transportista_id": str(transportista_id)},
+        follow_redirects=False,
+    )
     assert resp.status_code == 303
 
     from app.models import Batch
