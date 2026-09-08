@@ -1482,3 +1482,12 @@ tr.row-review .col-action { background: var(--warning-bg); }
   background: var(--secondary-subtle);
   color: var(--text);
 }
+
+/* Folio batch detail — append to style.css */
+
+.panel-folio-batch-stats .stat-row {
+  margin-bottom: var(--space-4);
+}
+.panel-folio-batch-stats .folio-progress {
+  margin-top: var(--space-2);
+}
