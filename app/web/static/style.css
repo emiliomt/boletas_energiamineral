@@ -1277,7 +1277,13 @@ tr.row-review .col-action { background: var(--warning-bg); }
   color: var(--text-muted, #5b544b);
   font-size: 0.8125rem;
   font-weight: 500;
+  /* Override legacy .step card styles when used inside compact stepper */
+  background: transparent;
+  border: 0;
+  padding: 0;
 }
+.flujo-stepper .step-body,
+.flujo-stepper .btn { display: none; }
 .flujo-stepper .step + .step::before {
   content: "";
   width: 1.25rem;
