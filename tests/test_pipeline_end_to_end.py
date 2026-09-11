@@ -201,7 +201,7 @@ def test_volumen_mismatch_flags_needs_review(db_session):
     assert record.weight_declared == 9000.0
 
 
-def test_mismatched_caja_in_same_batch_flags_both(db_session):
+def test_mismatched_folios_in_same_batch_flags_both(db_session):
     _seed_folio(db_session, "B-2001")
     _seed_folio(db_session, "B-2002")
     batch = _make_batch(db_session, "batch-1")
@@ -224,9 +224,9 @@ def test_mismatched_caja_in_same_batch_flags_both(db_session):
     assert slip_record.folio == "B-2002"
     assert boleta_record.salida_status != "complete"
     assert slip_record.salida_status != "complete"
-    assert "salida_caja_mismatch" in slip_record.exceptions
+    assert "salida_folio_mismatch" in slip_record.exceptions
     db_session.refresh(boleta_record)
-    assert "salida_caja_mismatch" in boleta_record.exceptions
+    assert "salida_folio_mismatch" in boleta_record.exceptions
     assert boleta_record.status == "needs_review"
     assert slip_record.status == "needs_review"
 

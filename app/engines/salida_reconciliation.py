@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.orm import Session
 
 from app.models import Boleta, BoletaRecord
-from app.parsing.normalizers import normalize_truck_box_number
+from app.parsing.normalizers import normalize_folio
 
 
 def _pending_status_for(document_type: str) -> str:
@@ -70,22 +70,22 @@ def find_salida_counterpart(
         base_query = base_query.filter(BoletaRecord.id != exclude_record_id)
     candidates = base_query.order_by(BoletaRecord.id).all()
 
-    # Pair on normalized No. Caja (truck_box_number)
-    norm_self = normalize_truck_box_number(folio)  # incoming param now carries caja
+    # Pair on normalized folio (CFE Remisión mapped to folio upstream)
+    norm_self = normalize_folio(folio)
     if norm_self:
         for c in candidates:
-            if normalize_truck_box_number(c.truck_box_number) == norm_self:
+            if normalize_folio(c.folio) == norm_self:
                 return ReconciliationMatch(salida_status="complete", counterpart_record=c)
 
-    # No normalized match found; flag a mismatch only when both sides have a (normalized) caja and they differ.
+    # No normalized match found; flag a mismatch only when both sides have a (normalized) folio and they differ.
     sibling = candidates[0] if candidates else None
     if sibling is not None:
-        norm_sibling = normalize_truck_box_number(sibling.truck_box_number)
+        norm_sibling = normalize_folio(sibling.folio)
         if norm_self and norm_sibling and norm_sibling != norm_self:
             return ReconciliationMatch(
                 salida_status=own_status,
                 mismatched_sibling=sibling,
-                exceptions=["salida_caja_mismatch"],
+                exceptions=["salida_folio_mismatch"],
             )
 
     return ReconciliationMatch(salida_status=own_status)
