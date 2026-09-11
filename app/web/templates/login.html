@@ -6,7 +6,7 @@
   <title>Iniciar sesión — Boletas Energía Mineral</title>
   <link rel="stylesheet" href="/static/style.css?v=20260908-2">
   {% if clerk_configured %}
-  <script async crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest"></script>
+  <script async crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
   <script>
     window.__CLERK_PUBLISHABLE_KEY__ = {{ clerk_publishable_key|tojson|safe }};
   </script>
@@ -33,17 +33,57 @@
   {% if clerk_configured %}
   <script>
     (function () {
-      function ready(fn){if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fn);}else{fn();}}
-      ready(function () {
-        if (!window.Clerk) return;
-        window.Clerk.load({ publishableKey: window.__CLERK_PUBLISHABLE_KEY__ }).then(function () {
-          var next = document.getElementById('clerk-signin')?.getAttribute('data-next') || '/';
-          window.Clerk.mountSignIn(document.getElementById('clerk-signin'), {
-            signInUrl: window.location.origin + '/login',
-            afterSignInUrl: next,
-            redirectUrl: next
-          });
+      "use strict";
+      function onReady(fn){ if(document.readyState==='loading'){ document.addEventListener('DOMContentLoaded',fn); } else { fn(); } }
+      function showLoginError(message) {
+        try {
+          var card = document.querySelector('.login-card');
+          if (!card) return;
+          var alert = document.createElement('div');
+          alert.className = 'alert alert-error';
+          alert.setAttribute('role', 'alert');
+          var p = document.createElement('p');
+          p.id = 'login-error';
+          p.textContent = message || 'No se pudo cargar el componente de inicio de sesión.';
+          alert.appendChild(p);
+          card.classList.add('is-error');
+          // Insert the alert just below the lede paragraph if present
+          var lede = card.querySelector('.lede');
+          if (lede && lede.parentNode) {
+            lede.parentNode.insertBefore(alert, lede.nextSibling);
+          } else {
+            card.appendChild(alert);
+          }
+        } catch (_) { /* ignore UI error */ }
+      }
+      function waitForClerk(timeoutMs) {
+        return new Promise(function (resolve, reject) {
+          var start = Date.now();
+          (function poll() {
+            if (window.Clerk) return resolve(window.Clerk);
+            if (Date.now() - start > (timeoutMs || 6000)) return reject(new Error('timeout'));
+            setTimeout(poll, 50);
+          })();
         });
+      }
+      onReady(function () {
+        waitForClerk(6000)
+          .then(function () {
+            return window.Clerk.load({ publishableKey: window.__CLERK_PUBLISHABLE_KEY__ });
+          })
+          .then(function () {
+            var mountEl = document.getElementById('clerk-signin');
+            if (!mountEl) return;
+            var next = mountEl.getAttribute('data-next') || '/';
+            window.Clerk.mountSignIn(mountEl, {
+              signInUrl: window.location.origin + '/login',
+              afterSignInUrl: next,
+              redirectUrl: next
+            });
+          })
+          .catch(function () {
+            showLoginError('No se pudo cargar el inicio de sesión de Clerk. Recarga la página e inténtalo de nuevo. Si el problema persiste, contacta al administrador.');
+          });
       });
     })();
   </script>
