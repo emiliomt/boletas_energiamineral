@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session
 
 from pathlib import Path
 from app.ingestion.storage import store_upload
+from app.config import BASE_DIR
 from app.models import (
     Batch,
     FolioBatch,
@@ -71,7 +72,7 @@ def _ensure_open_batch_for_label(db: Session, sender: str, label: str, kind: str
 
 def _save_downloaded_media(result_filename: str, content: bytes) -> Path:
     """Persist inbound WhatsApp media to a local data folder and return path."""
-    base = Path(__file__).resolve().parents[1] / "data" / "whatsapp_media"
+    base = BASE_DIR / "data" / "whatsapp_media"
     base.mkdir(parents=True, exist_ok=True)
     out_path = base / result_filename
     if out_path.exists():
