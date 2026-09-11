@@ -183,6 +183,15 @@ def test_parses_cfe_slip_folio_date_and_weights():
     assert parsed.cfe_entry_weight == 15000.0
     assert parsed.cfe_exit_weight == 24500.0
 
+def test_cfe_slip_remision_maps_to_folio():
+    text = "Remisión: REC-1274\nFecha: 12/03/2026\nPeso de Entrada: 1000 kg\nPeso de Salida: 2000 kg\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_cfe_slip_fields(ocr)
+
+    assert parsed.folio == "REC-1274"
+    assert parsed.field_confidences["folio"] > 0.0
+
 
 def test_cfe_slip_never_parses_boleta_only_fields():
     # CfeSlipFields simply has no origin/destination/fletero attributes --

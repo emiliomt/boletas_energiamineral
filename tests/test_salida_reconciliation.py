@@ -82,6 +82,34 @@ def test_slip_then_boleta_completes(db_session):
     assert match.counterpart_record is not None
     assert match.counterpart_record.id == slip_record.id
 
+def test_normalized_folio_match_ignores_spaces_and_hyphens(db_session):
+    batch = Batch(label="b1", kind="salida")
+    db_session.add(batch)
+    db_session.flush()
+    # Boleta side stored with a hyphen
+    boleta_record = _seed_partial_record(db_session, batch, "boleta", "B-9001", "b.png")
+
+    # Slip arrives with a space variant -> should still complete after normalize
+    match = find_salida_counterpart(db_session, batch.id, "B 9001", "cfe_slip")
+
+    assert match.salida_status == "complete"
+    assert match.counterpart_record is not None
+    assert match.counterpart_record.id == boleta_record.id
+
+def test_normalized_folio_mismatch_flags_when_core_differs(db_session):
+    batch = Batch(label="b1", kind="salida")
+    db_session.add(batch)
+    db_session.flush()
+    _seed_partial_record(db_session, batch, "boleta", "B-9002", "b.png")
+
+    # Different numeric core even after normalization -> mismatch
+    match = find_salida_counterpart(db_session, batch.id, "B 9003", "cfe_slip")
+
+    assert match.salida_status == "cfe_slip_only"
+    assert match.counterpart_record is None
+    assert "salida_folio_mismatch" in match.exceptions
+    assert match.mismatched_sibling is not None
+
 
 def test_both_together_matching_folios_completes(db_session):
     batch = Batch(label="b1", kind="salida")

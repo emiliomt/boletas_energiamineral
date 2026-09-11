@@ -14,6 +14,7 @@ from dataclasses import dataclass, field
 from sqlalchemy.orm import Session
 
 from app.models import Boleta, BoletaRecord
+from app.parsing.normalizers import normalize_folio
 
 
 def _pending_status_for(document_type: str) -> str:
@@ -55,26 +56,7 @@ def find_salida_counterpart(
     own_status = _pending_status_for(document_type)
     opposite_status = _opposite_pending_status(document_type)
 
-    if folio:
-        # Counterpart must be in the same scanning batch.
-        query = (
-            db.query(BoletaRecord)
-            .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
-            .filter(
-                BoletaRecord.kind == "salida",
-                Boleta.batch_id == batch_id,
-                BoletaRecord.folio == folio,
-                BoletaRecord.salida_status == opposite_status,
-                BoletaRecord.reconciled_with_record_id.is_(None),
-            )
-        )
-        if exclude_record_id is not None:
-            query = query.filter(BoletaRecord.id != exclude_record_id)
-        counterpart = query.order_by(BoletaRecord.id).first()
-        if counterpart is not None:
-            return ReconciliationMatch(salida_status="complete", counterpart_record=counterpart)
-
-    sibling_query = (
+    base_query = (
         db.query(BoletaRecord)
         .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
         .filter(
@@ -85,14 +67,26 @@ def find_salida_counterpart(
         )
     )
     if exclude_record_id is not None:
-        sibling_query = sibling_query.filter(BoletaRecord.id != exclude_record_id)
-    sibling = sibling_query.order_by(BoletaRecord.id).first()
-    if sibling is not None and sibling.folio != folio:
-        return ReconciliationMatch(
-            salida_status=own_status,
-            mismatched_sibling=sibling,
-            exceptions=["salida_folio_mismatch"],
-        )
+        base_query = base_query.filter(BoletaRecord.id != exclude_record_id)
+    candidates = base_query.order_by(BoletaRecord.id).all()
+
+    # Prefer normalized-folio match
+    norm_self = normalize_folio(folio)
+    if norm_self:
+        for c in candidates:
+            if normalize_folio(c.folio) == norm_self:
+                return ReconciliationMatch(salida_status="complete", counterpart_record=c)
+
+    # No normalized match found; flag a mismatch only when both sides have a (normalized) folio and they differ.
+    sibling = candidates[0] if candidates else None
+    if sibling is not None:
+        norm_sibling = normalize_folio(sibling.folio)
+        if norm_self and norm_sibling and norm_sibling != norm_self:
+            return ReconciliationMatch(
+                salida_status=own_status,
+                mismatched_sibling=sibling,
+                exceptions=["salida_folio_mismatch"],
+            )
 
     return ReconciliationMatch(salida_status=own_status)
 
