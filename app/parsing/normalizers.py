@@ -124,3 +124,39 @@ def normalize_alias_text(value: str) -> str:
     value = _PAREN_RE.sub(" ", value)
     value = _PHONE_DIGITS_RE.sub(" ", value)
     return clean_text(value)
+
+
+_NON_ALNUM_RE = re.compile(r"[^A-Za-z0-9]+")
+_DIGIT_RUN_RE = re.compile(r"\d{3,}")
+
+def normalize_truck_box_number(value: str | None) -> str | None:
+    """Normalizes a 'No. Caja' value for matching:
+    - Returns None for falsy input
+    - Trims and lowercases
+    - Removes spaces, hyphens and punctuation
+    - If a 3+ digit run exists anywhere, returns the LAST such run (the significant
+      core token), so variants like 'ROC 1274' and 'REC-1274' both normalize to '1274'
+    - Otherwise returns the collapsed alphanumeric string (e.g. 'roc1274')
+    """
+    if not value:
+        return None
+    collapsed = _NON_ALNUM_RE.sub("", value).lower()
+    digit_runs = list(_DIGIT_RUN_RE.finditer(collapsed))
+    if digit_runs:
+        return digit_runs[-1].group(0)
+    return collapsed or None
+
+_FOLIO_STRIP_RE = re.compile(r"[\s\-]+")
+
+def normalize_folio(value: str | None) -> str | None:
+    """Normalizes a folio for pairing/compare:
+    - None → None
+    - trim, lowercase
+    - drop spaces and hyphens
+    Example: 'B-1001' / 'B 1001' → 'b1001'
+    """
+    if not value:
+        return None
+    v = value.strip().lower()
+    v = _FOLIO_STRIP_RE.sub("", v)
+    return v or None

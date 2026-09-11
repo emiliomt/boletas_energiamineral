@@ -96,10 +96,11 @@ def test_upload_both_documents_completes_reviews_and_exports(client):
             "Centro de Explotacion: Mina San Jose",
             "Destino: Planta Norte",
             "Datos del chofer del camion: Juan Perez",
+            "No. Caja: A-12",
         ]
     )
     slip_png = _render_text_image(
-        ["Folio: B-8001", "Fecha: 20/01/2026", "Peso de Entrada: 500 kg", "Peso de Salida: 9500 kg"]
+        ["Folio: B-8001", "Fecha: 20/01/2026", "Peso de Entrada: 500 kg", "Peso de Salida: 9500 kg", "No. Caja: A-12"]
     )
 
     upload_resp = client.post(

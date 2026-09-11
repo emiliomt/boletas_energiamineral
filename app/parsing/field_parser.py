@@ -166,6 +166,8 @@ _CFE_FOLIO_PATTERN = re.compile(
 )
 _CFE_ENTRY_WEIGHT_PATTERN = re.compile(r"peso\s+(?:de\s+)?entrada[ \t]*[:\-]?[ \t]*([^\n\r]+)", re.IGNORECASE)
 _CFE_EXIT_WEIGHT_PATTERN = re.compile(r"peso\s+(?:de\s+)?salida[ \t]*[:\-]?[ \t]*([^\n\r]+)", re.IGNORECASE)
+_CFE_CAJA_PATTERN = re.compile(r"(?:no\.?\s*)?caja[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE)
+_CFE_REMISION_PATTERN = re.compile(r"remisi[oó]n[ \t]*(?:no\.?|#)?[ \t]*[:\-][ \t]*([A-Za-z0-9\-]+)", re.IGNORECASE)
 
 
 @dataclass
@@ -464,12 +466,13 @@ def parse_fields_with_template(ocr: OCRResult, template: "BoletaFormatTemplate")
 @dataclass
 class CfeSlipFields:
     """Fields parsed from a CFE weight slip (Phase 3) -- a document CFE
-    issues, not us, so it only carries the shared folio, a date, and the
-    entry/exit weights. See app/engines/salida_reconciliation.py for how
-    this reconciles with the matching boleta scan by folio."""
+    issues, not us, so it primarily carries the shared identifiers (folio / No. Caja),
+    a date, and the entry/exit weights. See app/engines/salida_reconciliation.py for
+    how this reconciles with the matching boleta scan by No. Caja."""
 
     folio: str | None = None
     date: str | None = None
+    truck_box_number: str | None = None  # No. Caja (when present on the slip)
     cfe_entry_weight: float | None = None
     cfe_exit_weight: float | None = None
     field_confidences: dict[str, float] = field(default_factory=dict)
@@ -486,12 +489,29 @@ def parse_cfe_slip_fields(ocr: OCRResult) -> CfeSlipFields:
             parsed.folio = value
             parsed.field_confidences["folio"] = _word_confidence_for_value(value, ocr)
     if parsed.folio is None:
-        parsed.field_confidences["folio"] = 0.0
+        # Fallback: some slips label the pairing key as "Remisión"
+        rem = _CFE_REMISION_PATTERN.search(text)
+        if rem:
+            value = clean_text(_strip_trailing_label(rem.group(1)))
+            if value:
+                parsed.folio = value
+                parsed.field_confidences["folio"] = _word_confidence_for_value(value, ocr)
+        if parsed.folio is None:
+            parsed.field_confidences["folio"] = 0.0
 
     parsed.date = parse_date(text)
     parsed.field_confidences["date"] = (
         _word_confidence_for_value(parsed.date, ocr) if parsed.date else 0.0
     )
+
+    caja_match = _CFE_CAJA_PATTERN.search(text)
+    if caja_match:
+        caja_value = clean_text(_strip_trailing_label(caja_match.group(1)))
+        if caja_value:
+            parsed.truck_box_number = caja_value
+            parsed.field_confidences["truck_box_number"] = _word_confidence_for_value(caja_value, ocr)
+    if parsed.truck_box_number is None:
+        parsed.field_confidences["truck_box_number"] = 0.0
 
     entry_match = _CFE_ENTRY_WEIGHT_PATTERN.search(text)
     entry_source = _strip_trailing_label(entry_match.group(1)) if entry_match else ""

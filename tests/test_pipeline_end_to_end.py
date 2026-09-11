@@ -17,6 +17,7 @@ Fecha: 15/01/2026
 Centro de Explotacion: Mina San Jose
 Destino: Planta Norte
 Datos del chofer del camion: Juan Perez
+No. Caja: A-12
 """
 
 CLEAN_SLIP_TEXT = """\
@@ -24,6 +25,7 @@ Folio: B-1001
 Fecha: 15/01/2026
 Peso de Entrada: 500 kg
 Peso de Salida: 9500 kg
+No. Caja: A-12
 """
 
 TRANSFER_BOLETA_TEXT = """\
@@ -32,11 +34,12 @@ Fecha: 16/01/2026
 Centro de Explotacion: Planta Norte
 Destino: Patio Almacen
 Datos del chofer del camion: Maria Lopez
+No. Caja: B-99
 """
 
 # No weight fields at all -- exercises the WeightEstimationRule fallback
 # once the pairing completes.
-SLIP_WITHOUT_WEIGHT_TEXT = "Folio: B-1002\nFecha: 16/01/2026\n"
+SLIP_WITHOUT_WEIGHT_TEXT = "Folio: B-1002\nFecha: 16/01/2026\nNo. Caja: B-99\n"
 
 ILLEGIBLE_TEXT = "xk qlm zzt ### asdf ??"
 
@@ -180,9 +183,10 @@ def test_volumen_mismatch_flags_needs_review(db_session):
         "Centro de Explotacion: Mina San Jose\n"
         "Destino: Planta Norte\n"
         "Datos del chofer del camion: Juan Perez\n"
+        "No. Caja: A-77\n"
         "Volumen por Entregar: 9000\n"
     )
-    slip_text = "Folio: B-1003\nFecha: 15/01/2026\nPeso de Entrada: 0 kg\nPeso de Salida: 7000 kg\n"
+    slip_text = "Folio: B-1003\nFecha: 15/01/2026\nPeso de Entrada: 0 kg\nPeso de Salida: 7000 kg\nNo. Caja: A-77\n"
     boleta = _make_boleta(db_session, batch, "mismatch_boleta.png", document_type="boleta")
     slip = _make_boleta(db_session, batch, "mismatch_slip.png", document_type="cfe_slip")
 
@@ -207,8 +211,9 @@ def test_mismatched_folios_in_same_batch_flags_both(db_session):
         "Centro de Explotacion: Mina San Jose\n"
         "Destino: Planta Norte\n"
         "Datos del chofer del camion: Juan Perez\n"
+        "No. Caja: A-12\n"
     )
-    slip_text = "Folio: B-2002\nFecha: 15/01/2026\nPeso de Entrada: 500 kg\nPeso de Salida: 9500 kg\n"
+    slip_text = "Folio: B-2002\nFecha: 15/01/2026\nPeso de Entrada: 500 kg\nPeso de Salida: 9500 kg\nNo. Caja: B-13\n"
     boleta = _make_boleta(db_session, batch, "mismatch_boleta2.png", document_type="boleta")
     slip = _make_boleta(db_session, batch, "mismatch_slip2.png", document_type="cfe_slip")
 

@@ -47,6 +47,7 @@ from app.parsing.field_parser import (
     parse_fields_with_template,
 )
 from app.rules.config_loader import get_active_template_for_producer, get_thresholds
+from app.parsing.normalizers import normalize_truck_box_number
 
 
 def process_boleta(db: Session, boleta: Boleta, ocr_adapter: OCRAdapter) -> BoletaRecord:
@@ -333,6 +334,7 @@ def _process_salida_cfe_slip(
     record.cfe_entry_weight = parsed.cfe_entry_weight
     record.cfe_exit_weight = parsed.cfe_exit_weight
     record.delivered_weight = compute_delivered_weight(parsed.cfe_entry_weight, parsed.cfe_exit_weight)
+    record.truck_box_number = parsed.truck_box_number
     record.field_confidences = parsed.field_confidences
     record.salida_status = "cfe_slip_only"
 
@@ -443,6 +445,8 @@ def _complete_salida(
     evaluation = evaluate(
         db, ocr_for_eval, parsed_for_eval, classification, tariff, inventory, is_duplicate, folio_check, kind="salida"
     )
+
+    # Pairing is folio-based; do not override folio-related exceptions here.
 
     primary.kind = "salida"
     primary.producer_id = None
