@@ -91,7 +91,15 @@
             {{ status_badge(r.status) }}
             {% endif %}
           </td>
-          <td class="col-action">{% if r.status == 'needs_review' %}<a class="table-action" href="/review/{{ r.id }}">Revisar</a>{% endif %}</td>
+          <td class="col-action">
+            {% if r.status == 'needs_review' %}
+              <a class="table-action" href="/review/{{ r.id }}">Revisar</a>
+            {% endif %}
+            <form method="post" action="/records/{{ r.id }}/delete" class="logout-form" onsubmit="return confirm('¿Borrar esta boleta? Esta acción no se puede deshacer.');">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+              <button type="submit" class="table-action">Borrar</button>
+            </form>
+          </td>
         </tr>
         {% endfor %}
       </tbody>
