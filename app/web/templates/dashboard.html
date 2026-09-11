@@ -90,7 +90,7 @@
       </label>
       <label class="field" for="batch-transportista">
         <span class="field-label">Transportista</span>
-        <select name="transportista_id" id="batch-transportista" required>
+        <select name="transportista_id" id="batch-transportista">
           <option value="" disabled selected>Transportista…</option>
           {% for t in transportistas %}
           <option value="{{ t.id }}">{{ t.canonical_name }}</option>
