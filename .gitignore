@@ -11,7 +11,13 @@ data/originals/*
 !data/originals/.gitkeep
 data/boletas.db
 data/*.db-journal
+data/whatsapp_media/*
+!data/whatsapp_media/.gitkeep
+app/data/whatsapp_media/*
 
 # Scratch pipeline output
 scratch/
 .DS_Store
+# WhatsApp inbound media (saved locally for ingest)
+/data/whatsapp_media/*
+!data/whatsapp_media/.gitkeep

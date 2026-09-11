@@ -44,8 +44,10 @@ python scripts/init_db.py
 
 ## Auth
 
-Every route (including the API) requires the single admin login. There is
-no signup route — create the one admin account against Supabase Auth:
+Every route (including the API) requires the single admin login, except
+`/login`, `/logout`, `/api/health`, and the Twilio WhatsApp webhook
+(`POST /webhooks/twilio/whatsapp`, authenticated by `X-Twilio-Signature`).
+There is no signup route — create the one admin account against Supabase Auth:
 
 ```bash
 python scripts/create_admin_user.py --email admin@example.com --password 'change-me'
@@ -141,6 +143,29 @@ DATABASE_URL="sqlite:///./data/boletas.db" \
 Railway/hosted: set `OPENAI_API_KEY`, `OPENAI_OCR_MODEL` (optional), and `OCR_BACKEND`
 as environment variables in the deployment settings. Leave unset to run Tesseract-only.
 
+## Upload boletas from WhatsApp
+
+Point a Twilio WhatsApp sender (sandbox or production) at this app so the
+crew can photograph boletas on their phone and dump them into a scanning
+batch without opening the web UI.
+
+1. Set `TWILIO_ACCOUNT_SID`, `TWILIO_AUTH_TOKEN`, and `PUBLIC_BASE_URL`
+   (the public `https://…` origin, no trailing slash — required so Twilio
+   signature checks work behind Railway/any proxy). Optional:
+   `TWILIO_WHATSAPP_FROM` (display only) and `WHATSAPP_ALLOWED_SENDERS`
+   (comma-separated E.164 numbers; empty means any sender can upload).
+2. In Twilio Console → Messaging → WhatsApp sandbox (or the production
+   sender) set **When a message comes in** to
+   `https://<PUBLIC_BASE_URL>/webhooks/twilio/whatsapp` with **HTTP POST**.
+3. Join the sandbox if that's what you're using, then send a photo. El sistema
+   guarda la imagen y pregunta (con lista/botones de WhatsApp): el lote de folios,
+   si es Entrada o Salida, y si es boleta interna o CFE. Al responder, crea la
+   boleta y la cola para OCR. Nunca inventa valores; vuelve a preguntar ante
+   respuestas inválidas.
+
+The **WhatsApp** page in the admin menu shows whether Twilio is
+configured, the webhook URL, the allowlist, and recent conversations.
+
 ## Try it with the bundled sample boletas
 
 No real scans yet? Generate 3 synthetic sample boletas and run the full
@@ -189,6 +214,7 @@ app/
   review/      human correction/approval service + audit trail
   exports/     CSV/JSON export
   reporting/   batch summary aggregations
+  whatsapp/    Twilio WhatsApp inbound webhook (signature + media ingest)
   api/         JSON REST API (FastAPI)
   web/         server-rendered UI (Jinja2, no JS framework/CDN)
 scripts/       init_db, load_config, create_admin_user, sample-fixture generator, CLI pipeline runner

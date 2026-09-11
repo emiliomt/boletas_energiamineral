@@ -73,10 +73,13 @@ def test_authenticated_shell_has_nav_and_viewport(client):
     assert 'href="/"' in html
     assert 'href="/dashboard"' in html
     assert 'href="/admin/folio-batches"' in html
+    assert 'href="/admin/whatsapp"' in html
     assert 'href="/review"' in html
     assert 'action="/logout"' in html
     assert 'Saltar al contenido' in html
     assert 'aria-label="Principal"' in html
+    assert 'id="whatsapp-heading"' in html
+    assert 'href="/admin/whatsapp"' in html
 
 
 def test_home_new_lote_form_names(client):
