@@ -154,6 +154,10 @@ _WEIGHT_DECLARED_PATTERN = re.compile(r"volumen\s+por\s+entregar[ \t]*[:\-]?[ \t
 _WEIGHT_ACTUAL_PATTERN = re.compile(r"volumen\s+entregado[ \t]*[:\-]?[ \t]*([^\n\r]+)", re.IGNORECASE)
 # Legacy label, kept as a fallback for any pre-redesign boleta still in circulation.
 _WEIGHT_LEGACY_PATTERN = re.compile(r"peso[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE)
+# Provider-slip variants (Entrada ingest-only): explicit net/gross/tare labels
+_WEIGHT_NETO_PATTERN = re.compile(r"peso\s+neto[ \t]*[:\-]?[ \t]*([^\n\r]+)", re.IGNORECASE)
+_WEIGHT_BRUTO_PATTERN = re.compile(r"peso\s+bruto[ \t]*[:\-]?[ \t]*([^\n\r]+)", re.IGNORECASE)
+_WEIGHT_TARA_PATTERN = re.compile(r"\btara[ \t]*[:\-]?[ \t]*([^\n\r]+)", re.IGNORECASE)
 
 # CFE weight-slip labels (Phase 3: Salida two-document reconciliation). A
 # separate, much smaller pattern set from the boleta's own -- the slip is
@@ -301,19 +305,41 @@ def parse_fields(ocr: OCRResult) -> ParsedFields:
         _word_confidence_for_value(parsed.date, ocr) if parsed.date else 0.0
     )
 
-    # Capture "Volumen Entregado" / legacy bare "Peso" when present.
-    weight_match = _WEIGHT_ACTUAL_PATTERN.search(text) or _WEIGHT_LEGACY_PATTERN.search(text)
+    # Provider slips may carry explicit "Peso Neto"/"Peso Bruto"/"Tara".
+    neto_match = _WEIGHT_NETO_PATTERN.search(text)
+    if neto_match:
+        neto_source = _strip_trailing_label(neto_match.group(1))
+        parsed.weight = _extract_quantity(neto_source) if neto_source else None
+        parsed.field_confidences["weight"] = (
+            _word_confidence_for_value(str(parsed.weight), ocr) if parsed.weight is not None else 0.0
+        )
+
+    # Capture "Volumen Entregado" / legacy bare "Peso" when present (fallback if no explicit neto).
+    weight_match = None if parsed.weight is not None else (_WEIGHT_ACTUAL_PATTERN.search(text) or _WEIGHT_LEGACY_PATTERN.search(text))
     weight_source_text = _strip_trailing_label(weight_match.group(1)) if weight_match else ""
-    parsed.weight = _extract_quantity(weight_source_text) if weight_source_text else None
-    parsed.field_confidences["weight"] = (
-        _word_confidence_for_value(str(parsed.weight), ocr) if parsed.weight is not None else 0.0
-    )
+    if parsed.weight is None:
+        parsed.weight = _extract_quantity(weight_source_text) if weight_source_text else None
+        parsed.field_confidences["weight"] = (
+            _word_confidence_for_value(str(parsed.weight), ocr) if parsed.weight is not None else 0.0
+        )
 
     declared_match = _WEIGHT_DECLARED_PATTERN.search(text)
     if declared_match:
         declared_source = _strip_trailing_label(declared_match.group(1))
         if declared_source:
             parsed.weight_declared = _extract_quantity(declared_source)
+
+    # If no explicit neto/entregado, but both bruto and tara are present, compute neto = bruto - tara.
+    if parsed.weight is None:
+        bruto_match = _WEIGHT_BRUTO_PATTERN.search(text)
+        tara_match = _WEIGHT_TARA_PATTERN.search(text)
+        bruto_src = _strip_trailing_label(bruto_match.group(1)) if bruto_match else ""
+        tara_src = _strip_trailing_label(tara_match.group(1)) if tara_match else ""
+        bruto = _extract_quantity(bruto_src) if bruto_src else None
+        tara = _extract_quantity(tara_src) if tara_src else None
+        if bruto is not None and tara is not None:
+            parsed.weight = abs(bruto - tara)
+            parsed.field_confidences["weight"] = _word_confidence_for_value(str(parsed.weight), ocr)
 
     # CFE wording on some boletas: "Peso de Entrada"/"Peso de Salida".
     entry_match = _CFE_ENTRY_WEIGHT_PATTERN.search(text)

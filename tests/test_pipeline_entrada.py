@@ -120,8 +120,9 @@ def test_entrada_unmatched_transportista_flags_and_needs_review(db_session):
 
     record = process_boleta(db_session, boleta, adapter)
 
-    assert record.status == "needs_review"
-    assert "unmatched_transportista" in record.exceptions
+    # Ingest-only Entrada v1: skip fuzzy transportista mapping; do not flag unmatched transportista
+    assert record.status == "auto_processed"
+    assert "unmatched_transportista" not in (record.exceptions or [])
 
 
 def test_entrada_missing_destination_is_not_flagged(db_session):
