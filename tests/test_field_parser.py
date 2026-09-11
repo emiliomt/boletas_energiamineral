@@ -85,6 +85,25 @@ def test_bare_volumen_number_captured_without_unit():
 
     assert parsed.weight == 9000.0
     assert parsed.weight_declared == 9200.0
+ 
+
+def test_provider_peso_neto_maps_to_weight():
+    text = "PESO NETO: 63,240 kg\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields(ocr)
+
+    assert parsed.weight == 63240.0
+    assert parsed.field_confidences["weight"] > 0.0
+
+
+def test_provider_bruto_minus_tara_maps_to_weight_when_neto_absent():
+    text = "Peso Bruto: 64,000 kg\nTara: 760 kg\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields(ocr)
+
+    assert parsed.weight == 63240.0
 
 
 # OCR of a freshly generated boleta that has NOT been filled in by hand yet:
@@ -315,7 +334,9 @@ def test_generic_parse_fields_misses_a_genuinely_different_format():
 
     assert parsed.folio is None
     assert parsed.fletero is None
-    assert parsed.weight is None
+    # Generic parser now recognizes "Peso Neto Entregado" as a net weight, even if
+    # other labels remain unmatched without a template.
+    assert parsed.weight == 75.0
 
 
 def test_template_parses_a_genuinely_different_format_correctly():

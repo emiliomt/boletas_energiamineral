@@ -57,83 +57,103 @@
     </article>
   </div>
 
-  <section class="panel panel-nuevo-lote{% if not folio_batches %} is-empty-inline{% endif %}" aria-labelledby="nuevo-lote-heading">
+  <section class="panel panel-nuevo-lote" aria-labelledby="nuevo-lote-heading">
     <h2 id="nuevo-lote-heading">Nuevo lote</h2>
-    {% if folio_batches %}
-    <p class="muted">Elige un lote de folios ya registrado para abrir un lote de escaneo en el punto de entrega.</p>
-    <form method="post" action="/batches" class="inline-form">
-      <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-      <label class="field" for="batch-label">
-        <span class="field-label">Nombre del lote</span>
-        <select name="label" id="batch-label" required>
-          <option value="" disabled selected>Nombre del lote…</option>
-          {% for fb in folio_batches %}
-          <option value="{{ fb.label }}">{{ fb.label }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field" for="batch-kind">
-        <span class="field-label">Tipo</span>
-        <select name="kind" id="batch-kind">
-          <option value="salida" selected>Salida</option>
-          <option value="entrada">Entrada</option>
-        </select>
-      </label>
-      <label class="field" for="batch-producer">
-        <span class="field-label">Proveedor</span>
-        <select name="producer_id" id="batch-producer">
-          <option value="">Proveedor (solo Entrada)…</option>
-          {% for p in producers %}
-          <option value="{{ p.id }}">{{ p.name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field" for="batch-transportista">
-        <span class="field-label">Transportista</span>
-        <select name="transportista_id" id="batch-transportista">
-          <option value="" disabled selected>Transportista…</option>
-          {% for t in transportistas %}
-          <option value="{{ t.id }}">{{ t.canonical_name }}</option>
-          {% endfor %}
-        </select>
-      </label>
-      <label class="field" for="batch-created-by">
-        <span class="field-label">Tu nombre</span>
-        <input type="text" id="batch-created-by" name="created_by" placeholder="Tu nombre (opcional)" autocomplete="name">
-      </label>
-      <button type="submit">Crear lote</button>
-    </form>
-    <p class="muted">
-      Para lotes de Entrada, selecciona el proveedor correspondiente — es
-      obligatorio y no se detecta automáticamente.
-    </p>
-    {% else %}
-    {% call empty_state("No hay lotes registrados", "Registra un lote de folios primero para poder crear un lote de escaneo.") %}
-      <a class="btn" href="/admin/folio-batches">Ir a lotes de folios</a>
-    {% endcall %}
-    {# Keep the proveedores catalog available in the DOM for tests and future UI,
-       even when no folio_batches exist yet. Hidden/disabled, has no effect on UX. #}
-    <label class="field" for="batch-producer" hidden>
-      <span class="field-label">Proveedor</span>
-      <select name="producer_id" id="batch-producer" disabled>
-        <option value="">Proveedor (solo Entrada)…</option>
-        {% for p in producers %}
-        <option value="{{ p.id }}">{{ p.name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    {# Keep the transportistas catalog available too, hidden when empty state #}
-    <label class="field" for="batch-transportista" hidden>
-      <span class="field-label">Transportista</span>
-      <select name="transportista_id" id="batch-transportista" disabled>
-        <option value="">Transportista…</option>
-        {% for t in transportistas %}
-        <option value="{{ t.id }}">{{ t.canonical_name }}</option>
-        {% endfor %}
-      </select>
-    </label>
-    {% endif %}
+    <div class="split-grid">
+      <div>
+        <h3>Entrada (ingesta, sin impresión)</h3>
+        <p class="muted">Crea un lote para subir boletas de proveedor. No requiere folios ni plantilla PCS.</p>
+        <form method="post" action="/batches" class="inline-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <input type="hidden" name="kind" value="entrada">
+          <label class="field" for="entrada-label">
+            <span class="field-label">Nombre del lote</span>
+            <input type="text" id="entrada-label" name="label" placeholder="Nombre del lote…" required>
+          </label>
+          <label class="field" for="entrada-producer">
+            <span class="field-label">Proveedor</span>
+            <select name="producer_id" id="entrada-producer" required>
+              <option value="" disabled selected>Proveedor…</option>
+              {% for p in producers %}
+              <option value="{{ p.id }}">{{ p.name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field" for="entrada-transportista">
+            <span class="field-label">Transportista (opcional)</span>
+            <select name="transportista_id" id="entrada-transportista">
+              <option value="" selected>—</option>
+              {% for t in transportistas %}
+              <option value="{{ t.id }}">{{ t.canonical_name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field" for="entrada-created-by">
+            <span class="field-label">Tu nombre</span>
+            <input type="text" id="entrada-created-by" name="created_by" placeholder="Tu nombre (opcional)" autocomplete="name">
+          </label>
+          <button type="submit">Crear lote de Entrada</button>
+        </form>
+        <p class="muted">Para lotes de Entrada, selecciona el proveedor correspondiente — es obligatorio y no se detecta automáticamente.</p>
+      </div>
+      <div>
+        <h3>Salida (con folios preimpresos)</h3>
+        {% if folio_batches %}
+        <p class="muted">Elige un lote de folios ya registrado para abrir un lote de escaneo en el punto de entrega.</p>
+        <form method="post" action="/batches" class="inline-form">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+          <input type="hidden" name="kind" value="salida">
+          <label class="field" for="salida-label">
+            <span class="field-label">Nombre del lote</span>
+            <select name="label" id="salida-label" required>
+              <option value="" disabled selected>Nombre del lote…</option>
+              {% for fb in folio_batches %}
+              <option value="{{ fb.label }}">{{ fb.label }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field" for="salida-transportista">
+            <span class="field-label">Transportista</span>
+            <select name="transportista_id" id="salida-transportista">
+              <option value="" disabled selected>Transportista…</option>
+              {% for t in transportistas %}
+              <option value="{{ t.id }}">{{ t.canonical_name }}</option>
+              {% endfor %}
+            </select>
+          </label>
+          <label class="field" for="salida-created-by">
+            <span class="field-label">Tu nombre</span>
+            <input type="text" id="salida-created-by" name="created_by" placeholder="Tu nombre (opcional)" autocomplete="name">
+          </label>
+          <button type="submit">Crear lote de Salida</button>
+        </form>
+        {% else %}
+        {% call empty_state("No hay lotes de folios registrados", "Registra un lote de folios para poder crear un lote de Salida.") %}
+          <a class="btn" href="/admin/folio-batches">Ir a lotes de folios</a>
+        {% endcall %}
+        {% endif %}
+      </div>
+    </div>
   </section>
+  {# Hidden catalogs preserved for tests and future UI hooks #}
+  <label class="field" for="batch-producer" hidden>
+    <span class="field-label">Proveedor</span>
+    <select name="producer_id" id="batch-producer" disabled>
+      <option value="">Proveedor…</option>
+      {% for p in producers %}
+      <option value="{{ p.id }}">{{ p.name }}</option>
+      {% endfor %}
+    </select>
+  </label>
+  <label class="field" for="batch-transportista" hidden>
+    <span class="field-label">Transportista</span>
+    <select name="transportista_id" id="batch-transportista" disabled>
+      <option value="">Transportista…</option>
+      {% for t in transportistas %}
+      <option value="{{ t.id }}">{{ t.canonical_name }}</option>
+      {% endfor %}
+    </select>
+  </label>
 
   <section class="panel panel-lotes" aria-labelledby="lotes-heading">
     <div class="panel-header">

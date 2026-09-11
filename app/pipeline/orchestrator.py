@@ -104,7 +104,8 @@ def _process_entrada(
         parsed.field_confidences["folio"] = 1.0
 
     classification = classify_entrada(db, producer)
-    transportista = resolve_transportista(db, parsed.fletero)
+    # Ingest-only Entrada: skip fuzzy transportista roster resolution in v1
+    transportista = None
     tariff = compute_entrada_tariff(db, producer, parsed.weight)
     inventory = compute_inventory(db, classification.matched_rule, parsed.material, parsed.weight)
 
