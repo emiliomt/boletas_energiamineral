@@ -1,5 +1,6 @@
-"""The dashboard "Nuevo lote" name field is a dropdown of the registered
-folio batches (Lotes de Folios), not a free-text input."""
+"""Dashboard 'Nuevo lote' shows:
+- Entrada (free-text label, always available)
+- Salida (dropdown of registered folio batches)"""
 from __future__ import annotations
 
 import pytest
@@ -53,11 +54,12 @@ def test_dashboard_shows_registered_lotes_as_dropdown(client_and_session):
 
     html = client.get("/").text
 
+    # Salida form shows a dropdown of registered folio batches
     assert '<select name="label"' in html
     assert '<option value="Semana 33">Semana 33</option>' in html
     assert '<option value="Semana 34">Semana 34</option>' in html
-    # the old free-text input must be gone
-    assert 'name="label" placeholder=' not in html
+    # Entrada form shows a free-text label input
+    assert 'name="label" placeholder=' in html
 
 
 def test_dashboard_empty_state_when_no_registered_lotes(client_and_session):
@@ -65,8 +67,10 @@ def test_dashboard_empty_state_when_no_registered_lotes(client_and_session):
 
     html = client.get("/").text
 
-    assert '<select name="label"' not in html
-    assert "No hay lotes registrados" in html
+    # Entrada form is still available (free-text label)
+    assert 'name="label" placeholder=' in html
+    # Salida form shows empty state when no folio batches exist
+    assert "No hay lotes de folios registrados" in html
     assert "/admin/folio-batches" in html
 
 
