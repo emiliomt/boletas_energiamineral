@@ -25,6 +25,8 @@ from app.models import (
 )
 from app.whatsapp.media import download_media, parse_media_items
 from app.whatsapp.numbers import normalize_sender
+from app.whatsapp import send as wa_send
+import json
 
 logger = logging.getLogger(__name__)
 
@@ -89,10 +91,16 @@ def _save_downloaded_media(result_filename: str, content: bytes) -> Path:
     return out_path
 
 
-def _ask_lote_prompt(db: Session) -> str:
+def _prompt_lote(db: Session, sender: str) -> str:
     lotes = db.query(FolioBatch).filter(FolioBatch.deleted_at.is_(None)).order_by(FolioBatch.id.desc()).all()
     if not lotes:
         return "No hay lotes registrados. Primero registrá un lote en la app."
+    # Attempt interactive list; fallback text always returned below.
+    try:
+        rows = [{"id": f"lote:{lb.id}", "title": lb.label, "description": ""} for lb in lotes[:10]]
+        wa_send.send_interactive_lote_list(sender, rows)
+    except Exception:
+        logger.exception("Failed to enqueue interactive lote list")
     preview = ", ".join(f"#{lb.id} {lb.label}" for lb in lotes[:10])
     return ("¿Qué lote de folios usaste? Respondé con el ID o nombre exacto.\n"
             f"Opciones: {preview}")
@@ -111,6 +119,9 @@ def _apply_text_reply(db: Session, conv: WhatsAppConversation, sender: str, body
         if not lotes:
             return "No hay lotes registrados. Primero registrá un lote en la app.", []
         selected_id: int | None = None
+        # Accept interactive payloads like "lote:123"
+        if body_l.startswith("lote:") and body_l.split(":", 1)[1].isdigit():
+            selected_id = int(body_l.split(":", 1)[1])
         if _ID_RE.fullmatch(body_l):
             fid = int(body_l)
             match = next((lb for lb in lotes if lb.id == fid), None)
@@ -121,17 +132,25 @@ def _apply_text_reply(db: Session, conv: WhatsAppConversation, sender: str, body
             if match:
                 selected_id = match.id
         if selected_id is None:
-            return _ask_lote_prompt(db), []
+            return _prompt_lote(db, sender), []
         ingest.lote_id = selected_id
         conv.step = "ask_movimiento"
+        # Try interactive quick replies
+        wa_send.send_quick_replies(sender, "¿Entrada o salida?", [("mov:entrada", "Entrada"), ("mov:salida", "Salida")])
         return "¿Entrada o salida? (respondé «entrada» o «salida»)", []
     if step == "ask_movimiento":
+        # Accept interactive payloads like "mov:entrada"
+        if body_l.startswith("mov:"):
+            body_l = body_l.split(":", 1)[1]
         if body_l not in {"entrada", "salida"}:
             return "No entendí. ¿Entrada o salida? (respondé «entrada» o «salida»)", []
         ingest.movimiento = body_l
         conv.step = "ask_fuente"
+        wa_send.send_quick_replies(sender, "¿Boleta interna o CFE?", [("fuente:interna", "Interna"), ("fuente:cfe", "CFE")])
         return "¿Boleta interna o CFE? (respondé «interna» o «cfe»)", []
     if step == "ask_fuente":
+        if body_l.startswith("fuente:"):
+            body_l = body_l.split(":", 1)[1]
         if body_l not in {"interna", "cfe"}:
             return "No entendí. ¿Boleta interna o CFE? (respondé «interna» o «cfe»)", []
         ingest.fuente = body_l
@@ -259,7 +278,7 @@ def _start_ingest_from_media(db: Session, conv: WhatsAppConversation, sender: st
     db.flush()
     conv.ingest_id = ingest.id
     conv.step = "ask_lote"
-    return _ask_lote_prompt(db)
+    return _prompt_lote(db, sender)
 
 
 def handle_inbound(db: Session, params: dict[str, str]) -> HandleResult:
@@ -276,6 +295,25 @@ def handle_inbound(db: Session, params: dict[str, str]) -> HandleResult:
 
     conv = _get_conversation(db, sender)
     body = (params.get("Body") or "").strip()
+    # Parse interactive replies first (Twilio passes InteractiveData JSON and/or ButtonPayload/Text)
+    raw_interactive = (params.get("InteractiveData") or "").strip()
+    try:
+        if raw_interactive:
+            data = json.loads(raw_interactive)
+            t = (data.get("interactive") or {}).get("type")
+            if t == "list_reply":
+                lr = (data.get("interactive") or {}).get("list_reply") or {}
+                body = lr.get("id") or lr.get("title") or body
+            elif t == "button_reply":
+                br = (data.get("interactive") or {}).get("button_reply") or {}
+                body = br.get("id") or br.get("title") or body
+    except Exception:
+        # ignore parse errors; fallback to plain Body/Button*
+        pass
+    if not raw_interactive:
+        payload = (params.get("ButtonPayload") or "").strip()
+        if payload:
+            body = payload
     items = parse_media_items(params)
 
     replies: list[str] = []

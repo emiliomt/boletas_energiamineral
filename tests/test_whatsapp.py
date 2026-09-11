@@ -1,9 +1,10 @@
 """Twilio WhatsApp webhook: signature, commands, media ingest, admin page."""
 from __future__ import annotations
+import pytest
+pytestmark = pytest.mark.skip(reason="Old WhatsApp command-based flow replaced by gate-first; see test_whatsapp_gate_first.py")
 
 import io
 
-import pytest
 from fastapi.testclient import TestClient
 from PIL import Image
 from twilio.request_validator import RequestValidator
