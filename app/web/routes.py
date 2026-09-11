@@ -321,8 +321,19 @@ def _num(value: str) -> float | None:
     value = (value or "").strip()
     if not value:
         return None
+    # Accept both Spanish-style decimals (comma) and dot decimals.
+    # Heuristics:
+    # - If both '.' and ',' are present, assume '.' are thousand separators and ',' is the decimal mark.
+    # - If only ',' present, treat it as the decimal mark.
+    # - Otherwise, parse as-is.
+    normalized = value.replace(" ", "")
+    if "," in normalized:
+        if "." in normalized:
+            normalized = normalized.replace(".", "").replace(",", ".")
+        else:
+            normalized = normalized.replace(",", ".")
     try:
-        return float(value)
+        return float(normalized)
     except ValueError:
         return None
 

@@ -209,3 +209,54 @@ def test_css_tokens_file_is_complete():
         "--ease:",
     ):
         assert token in css, token
+
+
+def test_review_submit_accepts_spanish_decimal_commas(client):
+    c, session_local = client
+    db = session_local()
+    try:
+        batch = Batch(label="rev-nums")
+        db.add(batch)
+        db.flush()
+        boleta = Boleta(
+            batch_id=batch.id,
+            original_filename="b.png",
+            stored_path="b.png",
+            mime_type="image/png",
+            page_number=1,
+            sha256_hash="nums",
+        )
+        db.add(boleta)
+        db.flush()
+        record = BoletaRecord(
+            boleta_id=boleta.id,
+            folio="B-9100",
+            status="needs_review",
+            ocr_engine="tesseract",
+        )
+        db.add(record)
+        db.commit()
+        record_id = record.id
+    finally:
+        db.close()
+
+    # Use comma as decimal separator in form inputs
+    resp = c.post(
+        f"/review/{record_id}",
+        data={
+            "edited_by": "tester",
+            "weight_declared": "123,45",
+            "weight": "67,89",
+        },
+        allow_redirects=False,
+    )
+    assert resp.status_code == 303
+
+    # Verify values persisted as floats
+    db = session_local()
+    try:
+        updated = db.get(BoletaRecord, record_id)
+        assert updated.weight_declared == 123.45
+        assert updated.weight == 67.89
+    finally:
+        db.close()
