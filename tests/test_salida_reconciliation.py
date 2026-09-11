@@ -20,13 +20,13 @@ def _seed_boleta(db_session, batch: Batch, document_type: str, filename: str) ->
 
 
 def _seed_partial_record(
-    db_session, batch: Batch, document_type: str, folio: str | None, filename: str
+    db_session, batch: Batch, document_type: str, caja: str | None, filename: str
 ) -> BoletaRecord:
     boleta = _seed_boleta(db_session, batch, document_type, filename)
     record = BoletaRecord(
         boleta_id=boleta.id,
         kind="salida",
-        folio=folio,
+        truck_box_number=caja,
         salida_status="boleta_only" if document_type == "boleta" else "cfe_slip_only",
     )
     db_session.add(record)
@@ -39,7 +39,7 @@ def test_boleta_first_no_counterpart_yet_stays_boleta_only(db_session):
     db_session.add(batch)
     db_session.flush()
 
-    match = find_salida_counterpart(db_session, batch.id, "S-1001", "boleta")
+    match = find_salida_counterpart(db_session, batch.id, "C-1001", "boleta")
 
     assert match.salida_status == "boleta_only"
     assert match.counterpart_record is None
@@ -51,7 +51,7 @@ def test_slip_first_no_counterpart_yet_stays_cfe_slip_only(db_session):
     db_session.add(batch)
     db_session.flush()
 
-    match = find_salida_counterpart(db_session, batch.id, "S-1002", "cfe_slip")
+    match = find_salida_counterpart(db_session, batch.id, "C-1002", "cfe_slip")
 
     assert match.salida_status == "cfe_slip_only"
     assert match.counterpart_record is None
@@ -61,9 +61,9 @@ def test_boleta_then_slip_completes(db_session):
     batch = Batch(label="b1", kind="salida")
     db_session.add(batch)
     db_session.flush()
-    boleta_record = _seed_partial_record(db_session, batch, "boleta", "S-1003", "b.png")
+    boleta_record = _seed_partial_record(db_session, batch, "boleta", "C-1003", "b.png")
 
-    match = find_salida_counterpart(db_session, batch.id, "S-1003", "cfe_slip")
+    match = find_salida_counterpart(db_session, batch.id, "C-1003", "cfe_slip")
 
     assert match.salida_status == "complete"
     assert match.counterpart_record is not None
@@ -74,9 +74,9 @@ def test_slip_then_boleta_completes(db_session):
     batch = Batch(label="b1", kind="salida")
     db_session.add(batch)
     db_session.flush()
-    slip_record = _seed_partial_record(db_session, batch, "cfe_slip", "S-1004", "s.png")
+    slip_record = _seed_partial_record(db_session, batch, "cfe_slip", "C-1004", "s.png")
 
-    match = find_salida_counterpart(db_session, batch.id, "S-1004", "boleta")
+    match = find_salida_counterpart(db_session, batch.id, "C-1004", "boleta")
 
     assert match.salida_status == "complete"
     assert match.counterpart_record is not None
@@ -107,7 +107,7 @@ def test_normalized_folio_mismatch_flags_when_core_differs(db_session):
 
     assert match.salida_status == "cfe_slip_only"
     assert match.counterpart_record is None
-    assert "salida_folio_mismatch" in match.exceptions
+    assert "salida_caja_mismatch" in match.exceptions
     assert match.mismatched_sibling is not None
 
 
@@ -115,26 +115,26 @@ def test_both_together_matching_folios_completes(db_session):
     batch = Batch(label="b1", kind="salida")
     db_session.add(batch)
     db_session.flush()
-    boleta_record = _seed_partial_record(db_session, batch, "boleta", "S-1005", "b.png")
+    boleta_record = _seed_partial_record(db_session, batch, "boleta", "C-1005", "b.png")
 
-    match = find_salida_counterpart(db_session, batch.id, "S-1005", "cfe_slip")
+    match = find_salida_counterpart(db_session, batch.id, "C-1005", "cfe_slip")
 
     assert match.salida_status == "complete"
     assert match.counterpart_record.id == boleta_record.id
     assert match.exceptions == []
 
 
-def test_both_together_mismatched_folios_flags_both(db_session):
+def test_both_together_mismatched_caja_flags_both(db_session):
     batch = Batch(label="b1", kind="salida")
     db_session.add(batch)
     db_session.flush()
-    boleta_record = _seed_partial_record(db_session, batch, "boleta", "S-2001", "b.png")
+    boleta_record = _seed_partial_record(db_session, batch, "boleta", "C-2001", "b.png")
 
-    match = find_salida_counterpart(db_session, batch.id, "S-2002", "cfe_slip")
+    match = find_salida_counterpart(db_session, batch.id, "C-2002", "cfe_slip")
 
     assert match.salida_status == "cfe_slip_only"
     assert match.counterpart_record is None
-    assert "salida_folio_mismatch" in match.exceptions
+    assert "salida_caja_mismatch" in match.exceptions
     assert match.mismatched_sibling is not None
     assert match.mismatched_sibling.id == boleta_record.id
 
@@ -146,9 +146,9 @@ def test_different_batches_do_not_mismatch(db_session):
     batch_b = Batch(label="b", kind="salida")
     db_session.add_all([batch_a, batch_b])
     db_session.flush()
-    _seed_partial_record(db_session, batch_a, "boleta", "S-3001", "b.png")
+    _seed_partial_record(db_session, batch_a, "boleta", "C-3001", "b.png")
 
-    match = find_salida_counterpart(db_session, batch_b.id, "S-3002", "cfe_slip")
+    match = find_salida_counterpart(db_session, batch_b.id, "C-3002", "cfe_slip")
 
     assert match.salida_status == "cfe_slip_only"
     assert match.exceptions == []
@@ -161,16 +161,16 @@ def test_reprocessing_an_already_complete_pairing_is_excluded_from_rematch(db_se
     batch = Batch(label="b1", kind="salida")
     db_session.add(batch)
     db_session.flush()
-    primary = _seed_partial_record(db_session, batch, "boleta", "S-4001", "b.png")
+    primary = _seed_partial_record(db_session, batch, "boleta", "C-4001", "b.png")
     primary.salida_status = "complete"
-    secondary = _seed_partial_record(db_session, batch, "cfe_slip", "S-4001", "s.png")
+    secondary = _seed_partial_record(db_session, batch, "cfe_slip", "C-4001", "s.png")
     secondary.salida_status = "cfe_slip_only"
     secondary.reconciled_with_record_id = primary.id
     db_session.flush()
 
     # A third document (e.g. a stray reprocess) looking for a "cfe_slip_only"
     # counterpart must not find the already-reconciled secondary.
-    match = find_salida_counterpart(db_session, batch.id, "S-4001", "boleta", exclude_record_id=primary.id)
+    match = find_salida_counterpart(db_session, batch.id, "C-4001", "boleta", exclude_record_id=primary.id)
 
     assert match.counterpart_record is None
 
@@ -179,12 +179,12 @@ def test_exclude_record_id_excludes_self_from_matching(db_session):
     batch = Batch(label="b1", kind="salida")
     db_session.add(batch)
     db_session.flush()
-    record = _seed_partial_record(db_session, batch, "boleta", "S-5001", "b.png")
+    record = _seed_partial_record(db_session, batch, "boleta", "C-5001", "b.png")
 
-    match = find_salida_counterpart(db_session, batch.id, "S-5001", "cfe_slip", exclude_record_id=record.id + 999)
+    match = find_salida_counterpart(db_session, batch.id, "C-5001", "cfe_slip", exclude_record_id=record.id + 999)
     assert match.counterpart_record is not None  # sanity: normally matches
 
-    match_excluded = find_salida_counterpart(db_session, batch.id, "S-5001", "boleta", exclude_record_id=record.id)
+    match_excluded = find_salida_counterpart(db_session, batch.id, "C-5001", "boleta", exclude_record_id=record.id)
     assert match_excluded.counterpart_record is None
 
 

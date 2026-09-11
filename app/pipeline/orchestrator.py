@@ -47,6 +47,7 @@ from app.parsing.field_parser import (
     parse_fields_with_template,
 )
 from app.rules.config_loader import get_active_template_for_producer, get_thresholds
+from app.parsing.normalizers import normalize_truck_box_number
 
 
 def process_boleta(db: Session, boleta: Boleta, ocr_adapter: OCRAdapter) -> BoletaRecord:
@@ -192,6 +193,11 @@ def _flag_salida_folio_mismatch(sibling: BoletaRecord) -> None:
         sibling.exceptions = [*(sibling.exceptions or []), "salida_folio_mismatch"]
     sibling.status = "needs_review"
 
+def _flag_salida_caja_mismatch(sibling: BoletaRecord) -> None:
+    if "salida_caja_mismatch" not in (sibling.exceptions or []):
+        sibling.exceptions = [*(sibling.exceptions or []), "salida_caja_mismatch"]
+    sibling.status = "needs_review"
+
 
 def _process_salida_boleta(
     db: Session, boleta: Boleta, ocr_result: OCRResult, qr_folio: str | None, existing_record: BoletaRecord | None
@@ -210,11 +216,14 @@ def _process_salida_boleta(
         return _complete_salida(db, existing_record, parsed, existing_record, boleta_ocr, slip_ocr)
 
     reconciliation = find_salida_counterpart(
-        db, boleta.batch_id, parsed.folio, "boleta",
+        db, boleta.batch_id, parsed.truck_box_number, "boleta",
         exclude_record_id=existing_record.id if existing_record else None,
     )
     if reconciliation.mismatched_sibling is not None:
-        _flag_salida_folio_mismatch(reconciliation.mismatched_sibling)
+        if "salida_caja_mismatch" in reconciliation.exceptions:
+            _flag_salida_caja_mismatch(reconciliation.mismatched_sibling)
+        else:
+            _flag_salida_folio_mismatch(reconciliation.mismatched_sibling)
 
     record = existing_record or BoletaRecord(boleta_id=boleta.id)
     record.kind = "salida"
@@ -310,11 +319,14 @@ def _process_salida_cfe_slip(
         return _complete_salida(db, existing_record, existing_record, parsed, boleta_ocr, slip_ocr)
 
     reconciliation = find_salida_counterpart(
-        db, boleta.batch_id, parsed.folio, "cfe_slip",
+        db, boleta.batch_id, parsed.truck_box_number, "cfe_slip",
         exclude_record_id=existing_record.id if existing_record else None,
     )
     if reconciliation.mismatched_sibling is not None:
-        _flag_salida_folio_mismatch(reconciliation.mismatched_sibling)
+        if "salida_caja_mismatch" in reconciliation.exceptions:
+            _flag_salida_caja_mismatch(reconciliation.mismatched_sibling)
+        else:
+            _flag_salida_folio_mismatch(reconciliation.mismatched_sibling)
 
     record = existing_record or BoletaRecord(boleta_id=boleta.id)
     record.kind = "salida"
@@ -327,6 +339,7 @@ def _process_salida_cfe_slip(
     record.cfe_entry_weight = parsed.cfe_entry_weight
     record.cfe_exit_weight = parsed.cfe_exit_weight
     record.delivered_weight = compute_delivered_weight(parsed.cfe_entry_weight, parsed.cfe_exit_weight)
+    record.truck_box_number = parsed.truck_box_number
     record.field_confidences = parsed.field_confidences
     record.salida_status = "cfe_slip_only"
 
@@ -437,6 +450,15 @@ def _complete_salida(
     evaluation = evaluate(
         db, ocr_for_eval, parsed_for_eval, classification, tariff, inventory, is_duplicate, folio_check, kind="salida"
     )
+
+    # If No. Caja matches after normalization, folio-related blockers must not apply.
+    caja_boleta = normalize_truck_box_number(g(boleta_source, "truck_box_number"))
+    caja_slip = normalize_truck_box_number(g(slip_source, "truck_box_number"))
+    if caja_boleta and caja_slip and caja_boleta == caja_slip:
+        evaluation.exceptions = [
+            e for e in evaluation.exceptions
+            if e not in {"missing_required_field:folio", "salida_folio_mismatch", "salida_caja_mismatch"}
+        ]
 
     primary.kind = "salida"
     primary.producer_id = None
