@@ -67,6 +67,18 @@ def _verify_clerk_request(request: Request) -> tuple[bool, str | None, str | Non
             break
     return (True, user_id, email, None)
 
+def current_admin(request: Request) -> str | None:
+    """Best-effort current admin identity for stamping actions.
+    Returns email if available, else user id, else None.
+    """
+    ok, user_id, email, _ = _verify_clerk_request(request)
+    if ok:
+        return email or user_id
+    # Back-compat: return any legacy session value if present
+    try:
+        return request.session.get(SESSION_KEY)
+    except Exception:
+        return None
 
 def require_admin_api(request: Request) -> str:
     ok, user_id, email, reason = _verify_clerk_request(request)

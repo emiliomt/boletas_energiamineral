@@ -55,14 +55,11 @@ def test_login_page_preserves_auth_contract(client):
     c, _ = client
     html = c.get("/login?next=/dashboard").text
     assert 'name="viewport"' in html
-    assert 'method="post"' in html
-    assert 'action="/login"' in html
-    assert 'name="next"' in html
-    assert 'value="/dashboard"' in html
-    assert 'name="email"' in html
-    assert 'name="password"' in html
-    assert 'for="email"' in html
-    assert 'for="password"' in html
+    # Either Clerk is configured (embed present) or a clear not-configured message is shown
+    if 'id="clerk-signin"' in html:
+        assert 'data-next="/dashboard"' in html
+    else:
+        assert "Clerk no está configurado" in html
     assert 'aria-label="Principal"' not in html  # login stays outside the authenticated shell
 
 
@@ -74,7 +71,8 @@ def test_authenticated_shell_has_nav_and_viewport(client):
     assert 'href="/dashboard"' in html
     assert 'href="/admin/folio-batches"' in html
     assert 'href="/review"' in html
-    assert 'action="/logout"' in html
+    # Clerk user button container present (logout via Clerk UI)
+    assert 'id="clerk-userbutton"' in html
     assert 'Saltar al contenido' in html
     assert 'aria-label="Principal"' in html
 

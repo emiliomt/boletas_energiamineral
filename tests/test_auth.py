@@ -4,8 +4,10 @@ real Clerk by relying on FastAPI dependency overrides elsewhere."""
 from __future__ import annotations
 
 from fastapi.testclient import TestClient
+import pytest
 
 
+@pytest.fixture()
 def client(tmp_path, monkeypatch):
     import app.config as app_config
     import app.db as app_db
