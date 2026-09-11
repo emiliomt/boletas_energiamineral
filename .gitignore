@@ -11,6 +11,9 @@ data/originals/*
 !data/originals/.gitkeep
 data/boletas.db
 data/*.db-journal
+data/whatsapp_media/*
+!data/whatsapp_media/.gitkeep
+app/data/whatsapp_media/*
 
 # Scratch pipeline output
 scratch/
