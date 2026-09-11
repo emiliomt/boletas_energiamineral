@@ -87,6 +87,7 @@ def init_db() -> None:
     _ensure_columns("boletas")  # document_type (Phase 3: Salida two-document reconciliation)
     # Newly added optional columns to existing table(s)
     _ensure_columns("transportistas")  # phone, notes
+    _ensure_columns("proveedores")  # modo_pago, precio_peso
     # Unique index for Entrada folio integrity: (producer_id, folio) when kind='entrada'
     # Note: SQLite supports partial indexes; ignore failure on older SQLite.
     with engine.begin() as conn:

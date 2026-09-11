@@ -96,6 +96,32 @@
     }
   }
 
+  function toggleProveedorModoPago(selectEl) {
+    if (!selectEl) return;
+    var form = selectEl.closest("form");
+    if (!form) return;
+    var mode = selectEl.value || "flete";
+    var cajaField = form.querySelector(".precio-caja-field");
+    var transporteField = form.querySelector(".precio-transporte-field");
+    var pesoField = form.querySelector(".precio-peso-field");
+    var fletePesoField = form.querySelector(".precio-flete-peso-field");
+    var cajaInput = cajaField ? cajaField.querySelector("input") : null;
+    var transporteInput = transporteField ? transporteField.querySelector("input") : null;
+    var pesoInput = pesoField ? pesoField.querySelector("input") : null;
+    var fletePesoInput = fletePesoField ? fletePesoField.querySelector("input") : null;
+    var isPeso = mode === "peso";
+    // Show/hide
+    if (cajaField) cajaField.hidden = isPeso;
+    if (transporteField) transporteField.hidden = isPeso;
+    if (pesoField) pesoField.hidden = !isPeso;
+    if (fletePesoField) fletePesoField.hidden = !isPeso;
+    // Disable irrelevant inputs to avoid accidental submission
+    if (cajaInput) cajaInput.disabled = isPeso;
+    if (transporteInput) transporteInput.disabled = isPeso;
+    if (pesoInput) pesoInput.disabled = !isPeso;
+    if (fletePesoInput) fletePesoInput.disabled = !isPeso;
+  }
+
   onReady(function () {
     var modeSelect = document.getElementById("mode-select");
     if (modeSelect) {
@@ -113,5 +139,13 @@
     bindBoletaTemplates();
     document.querySelectorAll(".js-select-all").forEach(bindSelectAll);
     document.querySelectorAll("form[data-busy-on-submit]").forEach(bindBusyForm);
+
+    // Configuración → Proveedores: toggle price fields based on modo de pago
+    document.querySelectorAll("select.modo-pago-select").forEach(function (sel) {
+      sel.addEventListener("change", function () {
+        toggleProveedorModoPago(sel);
+      });
+      toggleProveedorModoPago(sel);
+    });
   });
 })();
