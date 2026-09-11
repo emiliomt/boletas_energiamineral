@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+import logging
+import os
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import RedirectResponse
@@ -28,6 +30,12 @@ from app.web import config_routes as config_web
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     init_db()
+    # Log once whether Clerk keys are set (boolean only; never log secrets)
+    logger = logging.getLogger(__name__)
+    pk = (settings.clerk_publishable_key or os.environ.get("CLERK_PUBLISHABLE_KEY") or "").strip()
+    sk = (settings.clerk_secret_key or os.environ.get("CLERK_SECRET_KEY") or "").strip()
+    logger.info("Clerk publishable key set: %s", bool(pk))
+    logger.info("Clerk secret key set: %s", bool(sk))
     yield
 
 
@@ -54,7 +62,13 @@ async def auth_redirect_handler(request: Request, exc: AuthRedirect) -> Redirect
 
 @app.get("/api/health")
 def health() -> dict:
-    return {"status": "ok"}
+    pk = (settings.clerk_publishable_key or os.environ.get("CLERK_PUBLISHABLE_KEY") or "").strip()
+    sk = (settings.clerk_secret_key or os.environ.get("CLERK_SECRET_KEY") or "").strip()
+    return {
+        "status": "ok",
+        "clerk_publishable_key_set": bool(pk),
+        "clerk_secret_key_set": bool(sk),
+    }
 
 
 # /login, /logout, and /api/health are the only unauthenticated routes --
