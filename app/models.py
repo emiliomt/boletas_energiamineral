@@ -292,6 +292,10 @@ class Proveedor(Base):
     origin: Mapped[str | None] = mapped_column(String(255), nullable=True)  # optional origin text
     precio_caja: Mapped[float | None] = mapped_column(Float, nullable=True)  # MXN
     precio_transporte: Mapped[float | None] = mapped_column(Float, nullable=True)  # MXN
+    # New: payment mode for future branching in calc UI (catalog + UI only)
+    # flete (precio_caja/optional precio_transporte) | peso (precio_peso por tonelada)
+    modo_pago: Mapped[str] = mapped_column(String(16), default="flete")  # flete|peso
+    precio_peso: Mapped[float | None] = mapped_column(Float, nullable=True)  # MXN per ton
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
