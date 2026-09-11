@@ -6,7 +6,7 @@
   <title>{% block title %}Boletas Energía Mineral{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css?v=20260908-2">
   {% if settings and settings.clerk_publishable_key %}
-  <script async crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest"></script>
+  <script async crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
   <script>
     window.__CLERK_PUBLISHABLE_KEY__ = {{ settings.clerk_publishable_key|tojson|safe }};
   </script>

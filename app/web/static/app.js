@@ -13,6 +13,17 @@
     }
   }
 
+  function waitForClerk(timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      var start = Date.now();
+      (function poll() {
+        if (window.Clerk) return resolve(window.Clerk);
+        if (Date.now() - start > (timeoutMs || 6000)) return reject(new Error("timeout"));
+        setTimeout(poll, 50);
+      })();
+    });
+  }
+
   function toggleFolioMode() {
     var select = document.getElementById("mode-select");
     var sequential = document.getElementById("sequential-fields");
@@ -149,24 +160,31 @@
     });
 
     // Clerk: mount UserButton and toggle sign-in visibility if Clerk is available
-    if (window.Clerk && window.__CLERK_PUBLISHABLE_KEY__) {
-      window.Clerk.load({ publishableKey: window.__CLERK_PUBLISHABLE_KEY__ }).then(function () {
-        var mountPoint = document.getElementById("clerk-userbutton");
-        var signInLink = document.getElementById("clerk-signin-link");
-        if (!mountPoint) return;
-        // Render a UserButton (includes sign-out)
-        window.Clerk.mountUserButton(mountPoint, {
-          userProfileUrl: window.location.origin + "/login", // keep simple; Clerk modal opens by default
+    if (window.__CLERK_PUBLISHABLE_KEY__) {
+      waitForClerk(6000)
+        .then(function () {
+          return window.Clerk.load({ publishableKey: window.__CLERK_PUBLISHABLE_KEY__ });
+        })
+        .then(function () {
+          var mountPoint = document.getElementById("clerk-userbutton");
+          var signInLink = document.getElementById("clerk-signin-link");
+          if (!mountPoint) return;
+          // Render a UserButton (includes sign-out)
+          window.Clerk.mountUserButton(mountPoint, {
+            userProfileUrl: window.location.origin + "/login", // keep simple; Clerk modal opens by default
+          });
+          // Toggle visibility based on current session
+          function syncVisibility() {
+            var isSignedIn = !!(window.Clerk.user && window.Clerk.session);
+            if (signInLink) signInLink.style.display = isSignedIn ? "none" : "";
+            mountPoint.style.display = isSignedIn ? "" : "none";
+          }
+          syncVisibility();
+          window.Clerk.addListener && window.Clerk.addListener(syncVisibility);
+        })
+        .catch(function () {
+          // If Clerk fails to load, leave the fallback "Ingresar" link visible.
         });
-        // Toggle visibility based on current session
-        function syncVisibility() {
-          var isSignedIn = !!(window.Clerk.user && window.Clerk.session);
-          if (signInLink) signInLink.style.display = isSignedIn ? "none" : "";
-          mountPoint.style.display = isSignedIn ? "" : "none";
-        }
-        syncVisibility();
-        window.Clerk.addListener && window.Clerk.addListener(syncVisibility);
-      });
     }
   });
 })();
