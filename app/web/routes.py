@@ -40,6 +40,7 @@ templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"
 templates.env.globals["describe_exceptions"] = describe_exceptions
 templates.env.globals["summarize_exceptions"] = summarize_exceptions
 templates.env.globals["csrf_token"] = csrf_token_value
+templates.env.globals["settings"] = settings
 _ocr_adapter = get_ocr_adapter()
 logger = logging.getLogger(__name__)
 

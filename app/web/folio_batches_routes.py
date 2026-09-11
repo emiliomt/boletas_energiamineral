@@ -22,6 +22,7 @@ from app.web.csrf import require_valid_csrf, csrf_token_value
 router = APIRouter(prefix="/admin/folio-batches", tags=["web-folio-batches"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
 templates.env.globals["csrf_token"] = csrf_token_value
+templates.env.globals["settings"] = settings
 
 
 def _status_counts(db: Session, folio_batch_id: int) -> dict[str, int]:

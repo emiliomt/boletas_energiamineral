@@ -5,6 +5,12 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}Boletas Energía Mineral{% endblock %}</title>
   <link rel="stylesheet" href="/static/style.css?v=20260908-2">
+  {% if settings and settings.clerk_publishable_key %}
+  <script async crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest"></script>
+  <script>
+    window.__CLERK_PUBLISHABLE_KEY__ = {{ settings.clerk_publishable_key|tojson|safe }};
+  </script>
+  {% endif %}
 </head>
 <body>
   <a class="skip-link" href="#contenido">Saltar al contenido</a>
@@ -21,10 +27,8 @@
         <a href="/admin/folio-batches" class="nav-link{% if path.startswith('/admin/folio-batches') %} is-current{% endif %}"{% if path.startswith('/admin/folio-batches') %} aria-current="page"{% endif %}>Lotes de Folios</a>
         <a href="/review" class="nav-link{% if path.startswith('/review') %} is-current{% endif %}"{% if path.startswith('/review') %} aria-current="page"{% endif %}>Cola de Revisión</a>
         <a href="/admin/config" class="nav-link{% if path.startswith('/admin/config') %} is-current{% endif %}"{% if path.startswith('/admin/config') %} aria-current="page"{% endif %}>Configuración</a>
-        <form method="post" action="/logout" class="logout-form">
-          <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-          <button type="submit" class="btn-logout">Salir</button>
-        </form>
+        <span id="clerk-userbutton" class="nav-user"></span>
+        <a href="/login" id="clerk-signin-link" class="nav-link">Ingresar</a>
       </nav>
     </div>
   </header>

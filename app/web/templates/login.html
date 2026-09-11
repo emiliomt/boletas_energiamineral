@@ -5,32 +5,48 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Iniciar sesión — Boletas Energía Mineral</title>
   <link rel="stylesheet" href="/static/style.css?v=20260908-2">
+  {% if clerk_configured %}
+  <script async crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@latest"></script>
+  <script>
+    window.__CLERK_PUBLISHABLE_KEY__ = {{ clerk_publishable_key|tojson|safe }};
+  </script>
+  {% endif %}
 </head>
 <body class="login-body">
   <main class="login-shell">
-<div class="login-card panel {% if error %}is-error{% endif %}">
+    <div class="login-card panel {% if error %}is-error{% endif %}">
       <p class="login-brand">Energía Mineral</p>
       <h1>Iniciar sesión</h1>
       <p class="lede">Acceso al registro de boletas.</p>
-      {% if error %}
-      <div class="alert alert-error" role="alert">
-        <p id="login-error">{{ error }}</p>
-      </div>
+      {% if not clerk_configured %}
+        <div class="alert alert-error" role="alert">
+          <p id="login-error">Clerk no está configurado. Establece CLERK_PUBLISHABLE_KEY y CLERK_SECRET_KEY en el entorno.</p>
+        </div>
+      {% else %}
+        <div id="clerk-signin" data-next="{{ next }}"></div>
+        <noscript>
+          <p class="mt-3">Habilita JavaScript para iniciar sesión.</p>
+        </noscript>
       {% endif %}
-      <form method="post" action="/login" class="review-form">
-        <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
-        <input type="hidden" name="next" value="{{ next }}">
-        <label class="field" for="email">
-          <span class="field-label">Correo</span>
-          <input type="email" id="email" name="email" required autocomplete="username" autofocus {% if error %}aria-invalid="true" aria-describedby="login-error"{% endif %}>
-        </label>
-        <label class="field" for="password">
-          <span class="field-label">Contraseña</span>
-          <input type="password" id="password" name="password" required autocomplete="current-password" {% if error %}aria-invalid="true" aria-describedby="login-error"{% endif %}>
-        </label>
-        <button type="submit" class="btn btn-primary">Entrar</button>
-      </form>
     </div>
   </main>
+  {% if clerk_configured %}
+  <script>
+    (function () {
+      function ready(fn){if(document.readyState==='loading'){document.addEventListener('DOMContentLoaded',fn);}else{fn();}}
+      ready(function () {
+        if (!window.Clerk) return;
+        window.Clerk.load({ publishableKey: window.__CLERK_PUBLISHABLE_KEY__ }).then(function () {
+          var next = document.getElementById('clerk-signin')?.getAttribute('data-next') || '/';
+          window.Clerk.mountSignIn(document.getElementById('clerk-signin'), {
+            signInUrl: window.location.origin + '/login',
+            afterSignInUrl: next,
+            redirectUrl: next
+          });
+        });
+      });
+    })();
+  </script>
+  {% endif %}
 </body>
 </html>

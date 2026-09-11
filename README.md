@@ -5,7 +5,7 @@ tickets) end to end: generate pre-numbered, QR-coded boleta batches for the
 print vendor, scan the completed boletas back in at the delivery point (OCR
 + QR), classify each trip and calculate fletero payment, update inventory,
 and surface only ambiguous cases for manual review. The whole app is
-behind a single admin login (Supabase Auth).
+behind a single admin login (Clerk).
 
 Built rules-first: every decision (trip classification, tariff, inventory
 direction, estimated weight, when to flag for review) is driven by editable
@@ -42,18 +42,42 @@ pip install -r requirements.txt
 python scripts/init_db.py
 ```
 
-## Auth
+## Auth (Clerk)
 
-Every route (including the API) requires the single admin login. There is
-no signup route — create the one admin account against Supabase Auth:
+All routes (including the API) require a Clerk session, except:
+
+- `/api/health` (public)
+- `/login` and `/logout` (UI entry/exit)
+
+Setup:
+
+1) In Clerk Dashboard, create an application and copy:
+
+- Publishable key → `CLERK_PUBLISHABLE_KEY`
+- Secret key → `CLERK_SECRET_KEY`
+- (Optional) JWT public key (PEM) → `CLERK_JWT_KEY` for networkless verification
+- (Optional) Allowed origins → `CLERK_AUTHORIZED_PARTIES` (comma-separated)
+
+2) Export keys in your environment (never commit real secrets):
 
 ```bash
-python scripts/create_admin_user.py --email admin@example.com --password 'change-me'
+export CLERK_PUBLISHABLE_KEY=pk_test_...
+export CLERK_SECRET_KEY=sk_test_...
+# optional:
+# export CLERK_JWT_KEY='-----BEGIN PUBLIC KEY-----\n...\n-----END PUBLIC KEY-----\n'
+# export CLERK_AUTHORIZED_PARTIES='http://localhost:8000,https://boletas.example.com'
 ```
 
-This needs `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` set (see
-`.env.example`). Local dev without Supabase configured yet will show a
-clear "not configured" message on the login page instead of crashing.
+3) Run the server (SQLite strongly recommended locally; see AGENTS.md for the override):
+
+```bash
+DATABASE_URL="sqlite:///./data/boletas.db" \
+.venv/bin/uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+```
+
+If Clerk is not configured in a production-like environment, protected routes
+fail closed (401/redirect) and `/login` shows a clear “Clerk no está configurado”
+message. In tests, endpoints continue to use FastAPI dependency overrides.
 
 In production you MUST set a strong `SESSION_SECRET_KEY` environment variable
 (e.g. `openssl rand -hex 32`). The app will refuse to start with the insecure
@@ -178,7 +202,7 @@ actual HTTP API.
 
 ```
 app/
-  auth/        Supabase Auth credential check + session (login/logout, require_admin_*)
+  auth/        Clerk-based auth gate (backend session verification, require_admin_*)
   ingestion/   upload storage, PDF page-splitting
   ocr/         OCRAdapter interface; Tesseract impl; LLM/cloud-OCR stub; QR decoder
   qr/          QR generation + the print-ready boleta-batch PDF template
@@ -190,7 +214,7 @@ app/
   exports/     CSV/JSON export
   reporting/   batch summary aggregations
   api/         JSON REST API (FastAPI)
-  web/         server-rendered UI (Jinja2, no JS framework/CDN)
+  web/         server-rendered UI (Jinja2, no JS framework/CDN; Clerk JS for auth UI)
 scripts/       init_db, load_config, create_admin_user, sample-fixture generator, CLI pipeline runner
 tests/         unit tests per module + end-to-end pipeline/API tests
 ```
