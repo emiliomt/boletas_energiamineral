@@ -42,6 +42,7 @@ def create_or_update_proveedor_web(
     origin: str = Form(""),
     precio_caja: str = Form(""),
     precio_peso: str = Form(""),
+    precio_flete_peso: str = Form(""),
     precio_transporte: str = Form(""),
     modo_pago: str = Form("flete"),
     proveedor_id: str = Form(""),
@@ -96,6 +97,7 @@ def create_or_update_proveedor_web(
             p.origin = origin.strip() or None
             p.precio_caja = _num(precio_caja)
             p.precio_peso = _num(precio_peso)
+            p.precio_flete_peso = _num(precio_flete_peso)
             p.precio_transporte = _num(precio_transporte)
             p.modo_pago = (modo_pago or "flete").strip()
             p.active = is_active
@@ -111,6 +113,7 @@ def create_or_update_proveedor_web(
             origin=origin.strip() or None,
             precio_caja=_num(precio_caja),
             precio_peso=_num(precio_peso),
+            precio_flete_peso=_num(precio_flete_peso),
             precio_transporte=_num(precio_transporte),
             modo_pago=(modo_pago or "flete").strip(),
             active=is_active,

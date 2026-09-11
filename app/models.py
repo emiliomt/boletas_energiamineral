@@ -296,6 +296,8 @@ class Proveedor(Base):
     # flete (precio_caja/optional precio_transporte) | peso (precio_peso por tonelada)
     modo_pago: Mapped[str] = mapped_column(String(16), default="flete")  # flete|peso
     precio_peso: Mapped[float | None] = mapped_column(Float, nullable=True)  # MXN per ton
+    # When modo_pago='peso', transport cost per ton (replaces flat precio_transporte)
+    precio_flete_peso: Mapped[float | None] = mapped_column(Float, nullable=True)  # MXN per ton
     active: Mapped[bool] = mapped_column(Boolean, default=True)
 
 
