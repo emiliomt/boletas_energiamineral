@@ -500,6 +500,39 @@ class WhatsAppMessage(Base):
     media_count: Mapped[int] = mapped_column(Integer, default=0)
     created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
 
+class WhatsAppIngest(Base):
+    """Gate-first WhatsApp ingest item.
+
+    Stores inbound media and metadata until complete; creates Boleta only
+    after lote/movimiento/fuente are collected.
+    """
+
+    __tablename__ = "whatsapp_ingests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    # Registered lote selection (FolioBatch) required before creating Boleta.
+    lote_id: Mapped[int | None] = mapped_column(ForeignKey("folio_batches.id"), nullable=True, index=True)
+    movimiento: Mapped[str | None] = mapped_column(String(16), nullable=True)  # entrada|salida
+    fuente: Mapped[str | None] = mapped_column(String(16), nullable=True)  # interna|cfe
+    media_url: Mapped[str] = mapped_column(String(1024))
+    status: Mapped[str] = mapped_column(String(32), default="awaiting_meta")  # awaiting_meta|processing|ready|needs_review
+    whatsapp_from: Mapped[str] = mapped_column(String(32), index=True)
+    received_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+    message_sid: Mapped[str | None] = mapped_column(String(64), unique=True, nullable=True)
+    created_boleta_id: Mapped[int | None] = mapped_column(ForeignKey("boletas.id"), nullable=True)
+
+class WhatsAppConversation(Base):
+    """Per-sender conversation state for gate-first Q&A."""
+
+    __tablename__ = "whatsapp_conversations"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    sender: Mapped[str] = mapped_column(String(32), unique=True, index=True)
+    ingest_id: Mapped[int | None] = mapped_column(ForeignKey("whatsapp_ingests.id"), nullable=True)
+    step: Mapped[str] = mapped_column(String(32), default="ask_lote")  # ask_lote|ask_movimiento|ask_fuente|done
+    updated_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow, onupdate=_utcnow)
+    created_at: Mapped[dt.datetime] = mapped_column(DateTime, default=_utcnow)
+
 
 class ExceptionThreshold(Base):
     """Config table: tunable thresholds/behaviors driving confidence & status."""

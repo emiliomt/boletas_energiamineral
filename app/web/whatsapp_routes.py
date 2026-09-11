@@ -10,9 +10,11 @@ from app.db import get_db
 from app.models import Batch, WhatsAppSession
 from app.whatsapp.commands import HELP_TEXT
 from app.whatsapp.webhook import TWILIO_WEBHOOK_PATH
+from app.web.csrf import csrf_token_value
 
 router = APIRouter(tags=["web"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
+templates.env.globals["csrf_token"] = csrf_token_value
 
 
 def _webhook_public_url() -> str | None:
