@@ -37,6 +37,10 @@ if TYPE_CHECKING:
 _LABEL_PATTERNS: dict[str, list[re.Pattern]] = {
     "folio": [
         re.compile(r"folio[ \t]*(?:no\.?|#|num(?:ero)?\.?)?[ \t]*[:\-][ \t]*([A-Za-z0-9\-]+)", re.IGNORECASE),
+        # CFE wording commonly prints a bare "Remisión: 003612" label.
+        # Intentionally NOT matching "No. de Remisión" here to preserve
+        # template-only formats (see tests for EXTERNO NORTE).
+        re.compile(r"^[ \t]*remisi[oó]n[ \t]*[:\-][ \t]*([A-Za-z0-9\-]+)", re.IGNORECASE | re.MULTILINE),
     ],
     "origin": [
         re.compile(r"centro\s+de\s+explotaci[oó]n[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNORECASE),
@@ -80,6 +84,7 @@ _LABEL_PATTERNS: dict[str, list[re.Pattern]] = {
 # absorb the trailing "Contrato: C-1" into the destination value.
 _FIELD_LABEL_KEYWORDS = (
     r"folio",
+    r"remisi[oó]n",
     r"fecha",
     r"proveedor",
     r"destino",
@@ -93,6 +98,7 @@ _FIELD_LABEL_KEYWORDS = (
     r"datos\s+de\s+concesi[oó]n",
     r"volumen\s+por\s+entregar",
     r"volumen\s+entregado",
+    r"peso\s+total",
     r"poder\s+calor[ií]fico",
     r"humedad",
     r"ceniza",
@@ -154,7 +160,10 @@ _WEIGHT_LEGACY_PATTERN = re.compile(r"peso[ \t]*[:\-][ \t]*([^\n\r]+)", re.IGNOR
 # CFE's own document, not ours, and only carries a folio (matching our
 # boleta's), a date, and the entry/exit weights that determine delivered
 # volume.
-_CFE_FOLIO_PATTERN = re.compile(r"folio[ \t]*(?:no\.?|#|num(?:ero)?\.?)?[ \t]*[:\-][ \t]*([A-Za-z0-9\-]+)", re.IGNORECASE)
+_CFE_FOLIO_PATTERN = re.compile(
+    r"(?:folio|remisi[oó]n|no\.?\s*de\s*remisi[oó]n)[ \t]*(?:no\.?|#|num(?:ero)?\.?)?[ \t]*[:\-][ \t]*([A-Za-z0-9\-]+)",
+    re.IGNORECASE,
+)
 _CFE_ENTRY_WEIGHT_PATTERN = re.compile(r"peso\s+(?:de\s+)?entrada[ \t]*[:\-]?[ \t]*([^\n\r]+)", re.IGNORECASE)
 _CFE_EXIT_WEIGHT_PATTERN = re.compile(r"peso\s+(?:de\s+)?salida[ \t]*[:\-]?[ \t]*([^\n\r]+)", re.IGNORECASE)
 
@@ -175,6 +184,10 @@ class ParsedFields:
     representante_legal: str | None = None
     weight: float | None = None  # Volumen Entregado (actual) -- drives tariff/inventory
     weight_declared: float | None = None  # Volumen por Entregar (initial/planned)
+    # CFE-style entry/exit weights sometimes appear on the boleta itself; capture
+    # them to surface in the review UI even before the slip arrives.
+    cfe_entry_weight: float | None = None
+    cfe_exit_weight: float | None = None
     # Phase 4: only set by parse_fields_with_template(); stays None for the
     # generic parse_fields() path (Salida, or an Entrada with no configured
     # template) so app/engines/exceptions.py's evaluate() can tell "no
@@ -216,6 +229,16 @@ def _extract_quantity(source_text: str) -> float | None:
     unit inline -- the operation's convention (e.g. toneladas) is assumed
     external to the document. No unit conversion is applied in the fallback
     case; the number is captured as-is."""
+    # CFE forms often print thousands-separated numbers without a unit,
+    # e.g. "63.240" meaning 63240 kg. Detect grouped thousands (1-3 digits
+    # followed by groups of exactly three) and strip the separators.
+    thousands = re.search(r"\b(\d{1,3}(?:[.,]\d{3})+)\b", source_text)
+    if thousands:
+        token = thousands.group(1)
+        try:
+            return float(re.sub(r"[.,]", "", token))
+        except ValueError:
+            pass
     value = parse_weight_kg(source_text)
     if value is not None:
         return value
@@ -276,6 +299,7 @@ def parse_fields(ocr: OCRResult) -> ParsedFields:
         _word_confidence_for_value(parsed.date, ocr) if parsed.date else 0.0
     )
 
+    # Capture "Volumen Entregado" / legacy bare "Peso" when present.
     weight_match = _WEIGHT_ACTUAL_PATTERN.search(text) or _WEIGHT_LEGACY_PATTERN.search(text)
     weight_source_text = _strip_trailing_label(weight_match.group(1)) if weight_match else ""
     parsed.weight = _extract_quantity(weight_source_text) if weight_source_text else None
@@ -288,6 +312,33 @@ def parse_fields(ocr: OCRResult) -> ParsedFields:
         declared_source = _strip_trailing_label(declared_match.group(1))
         if declared_source:
             parsed.weight_declared = _extract_quantity(declared_source)
+
+    # CFE wording on some boletas: "Peso de Entrada"/"Peso de Salida".
+    entry_match = _CFE_ENTRY_WEIGHT_PATTERN.search(text)
+    exit_match = _CFE_EXIT_WEIGHT_PATTERN.search(text)
+    entry_source = _strip_trailing_label(entry_match.group(1)) if entry_match else ""
+    exit_source = _strip_trailing_label(exit_match.group(1)) if exit_match else ""
+    parsed.cfe_entry_weight = _extract_quantity(entry_source) if entry_source else None
+    parsed.cfe_exit_weight = _extract_quantity(exit_source) if exit_source else None
+    if parsed.cfe_entry_weight is not None:
+        parsed.field_confidences["cfe_entry_weight"] = _word_confidence_for_value(
+            str(parsed.cfe_entry_weight), ocr
+        )
+    if parsed.cfe_exit_weight is not None:
+        parsed.field_confidences["cfe_exit_weight"] = _word_confidence_for_value(
+            str(parsed.cfe_exit_weight), ocr
+        )
+    # Map "Peso de Entrada" into Volumen por Entregar when not explicitly present.
+    if parsed.weight_declared is None and parsed.cfe_entry_weight is not None:
+        parsed.weight_declared = parsed.cfe_entry_weight
+        # Do not overwrite weight_declared confidence when already set; otherwise set a token-average.
+        parsed.field_confidences["weight_declared"] = _word_confidence_for_value(
+            str(parsed.weight_declared), ocr
+        )
+    # If both entry/exit are present on the same document, compute Volumen Entregado.
+    if parsed.weight is None and parsed.cfe_entry_weight is not None and parsed.cfe_exit_weight is not None:
+        parsed.weight = abs(parsed.cfe_exit_weight - parsed.cfe_entry_weight)
+        parsed.field_confidences["weight"] = _word_confidence_for_value(str(parsed.weight), ocr)
 
     for key, pattern in _QUALITY_LABEL_PATTERNS.items():
         match = pattern.search(text)

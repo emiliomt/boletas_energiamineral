@@ -234,6 +234,12 @@ def _process_salida_boleta(
     record.proveedor = parsed.proveedor
     record.concesion_minera = parsed.concesion_minera
     record.representante_legal = parsed.representante_legal
+    # Surface CFE-style entry/exit weights when they appear on the boleta itself
+    # (some CFE formats include both). These do not complete the Salida on their
+    # own, but exposing them improves the review experience and allows manual
+    # correction before the slip arrives.
+    record.cfe_entry_weight = parsed.cfe_entry_weight
+    record.cfe_exit_weight = parsed.cfe_exit_weight
     record.weight_declared = parsed.weight_declared
     record.quality_data = parsed.quality_data
     record.field_confidences = parsed.field_confidences

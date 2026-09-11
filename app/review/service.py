@@ -38,6 +38,7 @@ EDITABLE_FIELDS = (
     "material",
     "fletero",
     "weight",
+    "cfe_exit_weight",
     "trip_type",
     "secondary_origin",
     "contract_number",

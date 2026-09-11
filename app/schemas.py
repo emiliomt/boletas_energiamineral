@@ -74,6 +74,7 @@ class ReviewCorrection(BaseModel):
     material: str | None = None
     fletero: str | None = None
     weight: float | None = None
+    cfe_exit_weight: float | None = None  # Peso Salida (cuando esté presente en CFE/boleta)
     trip_type: str | None = None
 
     # Remaining boleta fields the reviewer can also correct.
