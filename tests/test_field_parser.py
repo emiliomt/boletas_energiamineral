@@ -228,6 +228,39 @@ def test_cfe_slip_entry_weight_label_does_not_bleed_into_exit_weight_value():
     assert parsed.cfe_exit_weight == 24500.0
 
 
+def test_remision_label_maps_to_folio_generic():
+    text = "Remisión: 003612\nFecha: 13/07/2026\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields(ocr)
+    assert parsed.folio == "003612"
+    assert parsed.field_confidences["folio"] > 0.0
+
+
+def test_remision_label_maps_to_folio_cfe_slip():
+    text = "No. de Remisión: B-9001\nFecha: 01/01/2026\nPeso de Entrada: 500 kg\nPeso de Salida: 9500 kg\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_cfe_slip_fields(ocr)
+    assert parsed.folio == "B-9001"
+    assert parsed.cfe_entry_weight == 500.0
+    assert parsed.cfe_exit_weight == 9500.0
+
+
+def test_boleta_peso_entrada_y_salida_map_and_compute_entregado():
+    # CFE-style boleta where entry/exit are printed without a unit and with thousands separators.
+    text = "Remisión: 003612\nPrimer Pesaje Peso Entrada: 63.240\nSegundo Pesaje Peso Salida: 15.760\n"
+    ocr = _fake_ocr_result(text)
+
+    parsed = parse_fields(ocr)
+    # Volumen por Entregar comes from Peso Entrada
+    assert parsed.weight_declared == 63240.0
+    # Peso Salida captured separately for the review UI
+    assert parsed.cfe_exit_weight == 15760.0
+    # Volumen Entregado computed as the difference (Peso Total on the boleta)
+    assert parsed.weight == 47480.0
+
+
 def test_cfe_slip_missing_folio_flags_zero_confidence():
     text = "Fecha: 12/03/2026\nPeso de Entrada: 500 kg\nPeso de Salida: 9500 kg\n"
     ocr = _fake_ocr_result(text)

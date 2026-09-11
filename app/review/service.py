@@ -38,6 +38,8 @@ EDITABLE_FIELDS = (
     "material",
     "fletero",
     "weight",
+    "cfe_entry_weight",
+    "cfe_exit_weight",
     "trip_type",
     "secondary_origin",
     "contract_number",
@@ -198,6 +200,13 @@ def apply_review(db: Session, record: BoletaRecord, correction: ReviewCorrection
         tariff.matched_rule.id if record.kind not in ("entrada", "salida") and tariff.matched_rule else None
     )
     record.field_confidences = field_confidences
+
+    # If CFE entry/exit weights were corrected, recompute delivered_weight.
+    if "cfe_entry_weight" in changed_fields or "cfe_exit_weight" in changed_fields:
+        if record.cfe_entry_weight is not None and record.cfe_exit_weight is not None:
+            record.delivered_weight = abs(record.cfe_exit_weight - record.cfe_entry_weight)
+        else:
+            record.delivered_weight = None
 
     inventory_result = InventoryResult(
         inventory_direction=direction,

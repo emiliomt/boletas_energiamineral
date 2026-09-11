@@ -83,50 +83,71 @@
             <label>Proveedor
               <input type="text" name="proveedor" value="{{ record.proveedor or '' }}" list="proveedores-list" autocomplete="off">
             </label>
-            <label>Contrato<input type="text" name="contract_number" value="{{ record.contract_number or '' }}"></label>
-            <label>Representante Legal (Nombre)<input type="text" name="representante_legal" value="{{ record.representante_legal or '' }}"></label>
+            {% if record.boleta and record.boleta.document_type == 'cfe_slip' %}
+              <label>No. Caja (opcional)<input type="text" name="truck_box_number" value="{{ record.truck_box_number or '' }}"></label>
+            {% else %}
+              <label>Contrato<input type="text" name="contract_number" value="{{ record.contract_number or '' }}"></label>
+              <label>Representante Legal (Nombre)<input type="text" name="representante_legal" value="{{ record.representante_legal or '' }}"></label>
+            {% endif %}
           </div>
         </fieldset>
 
-        <fieldset class="fieldset">
-          <legend>Ruta y transporte</legend>
-          <div class="form-grid">
-            <label>Destino<input type="text" name="destination" value="{{ record.destination or '' }}"></label>
-            <label>Datos del chofer del camión (Fletero)
-              <input type="text" name="fletero" value="{{ record.fletero or '' }}" list="transportistas-list" autocomplete="off">
-            </label>
-            <label>No. Caja<input type="text" name="truck_box_number" value="{{ record.truck_box_number or '' }}"></label>
-          </div>
-        </fieldset>
+        {% if not (record.boleta and record.boleta.document_type == 'cfe_slip') %}
+          <fieldset class="fieldset">
+            <legend>Ruta y transporte</legend>
+            <div class="form-grid">
+              <label>Destino<input type="text" name="destination" value="{{ record.destination or '' }}"></label>
+              <label>Datos del chofer del camión (Fletero)
+                <input type="text" name="fletero" value="{{ record.fletero or '' }}" list="transportistas-list" autocomplete="off">
+              </label>
+              <label>No. Caja<input type="text" name="truck_box_number" value="{{ record.truck_box_number or '' }}"></label>
+            </div>
+          </fieldset>
+        {% endif %}
 
-        <fieldset class="fieldset">
-          <legend>Calidad del carbón</legend>
-          <div class="form-grid">
-            <label>Poder Calorífico Superior<input type="text" name="poder_calorifico_superior" value="{{ q.get('poder_calorifico_superior', '') }}"></label>
-            <label>% Humedad<input type="text" name="humedad_pct" value="{{ q.get('humedad_pct', '') }}"></label>
-            <label>% Ceniza<input type="text" name="ceniza_pct" value="{{ q.get('ceniza_pct', '') }}"></label>
-            <label>% Azufre<input type="text" name="azufre_pct" value="{{ q.get('azufre_pct', '') }}"></label>
-            <label>FSI<input type="text" name="fsi" value="{{ q.get('fsi', '') }}"></label>
-            <label>Granulometría<input type="text" name="granulometria" value="{{ q.get('granulometria', '') }}"></label>
-          </div>
-        </fieldset>
+        {% if not (record.boleta and record.boleta.document_type == 'cfe_slip') %}
+          <fieldset class="fieldset">
+            <legend>Calidad del carbón</legend>
+            <div class="form-grid">
+              <label>Poder Calorífico Superior<input type="text" name="poder_calorifico_superior" value="{{ q.get('poder_calorifico_superior', '') }}"></label>
+              <label>% Humedad<input type="text" name="humedad_pct" value="{{ q.get('humedad_pct', '') }}"></label>
+              <label>% Ceniza<input type="text" name="ceniza_pct" value="{{ q.get('ceniza_pct', '') }}"></label>
+              <label>% Azufre<input type="text" name="azufre_pct" value="{{ q.get('azufre_pct', '') }}"></label>
+              <label>FSI<input type="text" name="fsi" value="{{ q.get('fsi', '') }}"></label>
+              <label>Granulometría<input type="text" name="granulometria" value="{{ q.get('granulometria', '') }}"></label>
+            </div>
+          </fieldset>
+        {% endif %}
 
-        <fieldset class="fieldset">
-          <legend>Origen</legend>
-          <div class="form-grid">
-            <label>Centro de Explotación (Origen)<input type="text" name="origin" value="{{ record.origin or '' }}"></label>
-            <label>Centro de Acopio<input type="text" name="secondary_origin" value="{{ record.secondary_origin or '' }}"></label>
-            <label>Datos de Concesión Minera<input type="text" name="concesion_minera" value="{{ record.concesion_minera or '' }}"></label>
-          </div>
-        </fieldset>
+        {% if not (record.boleta and record.boleta.document_type == 'cfe_slip') %}
+          <fieldset class="fieldset">
+            <legend>Origen</legend>
+            <div class="form-grid">
+              <label>Centro de Explotación (Origen)<input type="text" name="origin" value="{{ record.origin or '' }}"></label>
+              <label>Centro de Acopio<input type="text" name="secondary_origin" value="{{ record.secondary_origin or '' }}"></label>
+              <label>Datos de Concesión Minera<input type="text" name="concesion_minera" value="{{ record.concesion_minera or '' }}"></label>
+            </div>
+          </fieldset>
+        {% endif %}
 
-        <fieldset class="fieldset">
-          <legend>Volumen</legend>
-          <div class="form-grid">
-            <label>Volumen por Entregar<input type="text" name="weight_declared" value="{{ record.weight_declared or '' }}"></label>
-            <label>Volumen Entregado / Peso (kg)<input type="text" name="weight" value="{{ record.weight or '' }}"></label>
-          </div>
-        </fieldset>
+        {% if record.boleta and record.boleta.document_type == 'cfe_slip' %}
+          <fieldset class="fieldset">
+            <legend>Volumen (CFE)</legend>
+            <div class="form-grid">
+              <label>Volumen por Entregar (Peso Entrada CFE)<input type="text" name="cfe_entry_weight" value="{{ record.cfe_entry_weight or '' }}"></label>
+              <label>Peso Salida<input type="text" name="cfe_exit_weight" value="{{ record.cfe_exit_weight or '' }}"></label>
+              <label>Volumen Entregado (calculado)<input type="text" value="{{ record.delivered_weight if record.delivered_weight is not none else '' }}" disabled></label>
+            </div>
+          </fieldset>
+        {% else %}
+          <fieldset class="fieldset">
+            <legend>Volumen</legend>
+            <div class="form-grid">
+              <label>Volumen por Entregar<input type="text" name="weight_declared" value="{{ record.weight_declared or '' }}"></label>
+              <label>Volumen Entregado / Peso (kg)<input type="text" name="weight" value="{{ record.weight or '' }}"></label>
+            </div>
+          </fieldset>
+        {% endif %}
 
         <fieldset class="fieldset">
           <legend>Clasificación</legend>
