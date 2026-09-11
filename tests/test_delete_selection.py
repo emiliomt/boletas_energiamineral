@@ -78,6 +78,86 @@ def test_delete_selected_folio_batches_removes_them_and_their_folios(client_and_
     finally:
         db.close()
 
+def test_delete_single_record_unlinks_and_deletes(client_and_session):
+    client, session_local = client_and_session
+    db = session_local()
+    try:
+        batch = Batch(label="one")
+        db.add(batch)
+        db.flush()
+        boleta = Boleta(
+            batch_id=batch.id,
+            original_filename="x.png",
+            stored_path="x.png",
+            mime_type="image/png",
+            page_number=1,
+            sha256_hash="x",
+        )
+        db.add(boleta)
+        db.flush()
+        record = BoletaRecord(boleta_id=boleta.id, folio="X-1", status="needs_review")
+        db.add(record)
+        db.flush()
+        fb = FolioBatch(label="fb", mode="imported", count=1)
+        db.add(fb)
+        db.flush()
+        folio = Folio(folio_batch_id=fb.id, folio="X-1", qr_payload="BOL:X-1", status="scanned", boleta_record_id=record.id)
+        db.add(folio)
+        db.commit()
+        record_id, boleta_id, folio_id, batch_id = record.id, boleta.id, folio.id, batch.id
+    finally:
+        db.close()
+
+    resp = client.post(f"/records/{record_id}/delete", data={}, follow_redirects=False)
+    assert resp.status_code == 303
+    # Should redirect back to the lote page
+    assert resp.headers.get("location", "").startswith(f"/batches/{batch_id}")
+
+    db = session_local()
+    try:
+        assert db.get(BoletaRecord, record_id) is None
+        assert db.get(Boleta, boleta_id) is None
+        folio = db.get(Folio, folio_id)
+        assert folio is not None
+        assert folio.status == "issued"
+        assert folio.boleta_record_id is None
+    finally:
+        db.close()
+
+
+def test_delete_primary_record_clears_reconciliation_links(client_and_session):
+    client, session_local = client_and_session
+    db = session_local()
+    try:
+        batch = Batch(label="salida", kind="salida")
+        db.add(batch)
+        db.flush()
+        b1, r1 = _add_boleta(db, batch, filename="a.png", sha="a", folio="S-1", kind="salida")
+        _b2, r2 = _add_boleta(
+            db, batch, filename="b.png", sha="b", folio="S-1", kind="salida", reconciled_with_record_id=r1.id
+        )
+        db.add(ReviewAudit(boleta_record_id=r1.id, field_name="folio", action="approval"))
+        db.commit()
+        primary_id, secondary_id = r1.id, r2.id
+    finally:
+        db.close()
+
+    resp = client.post(f"/records/{primary_id}/delete", data={}, follow_redirects=False)
+    assert resp.status_code == 303
+
+    db = session_local()
+    try:
+        # Primary is gone
+        assert db.get(BoletaRecord, primary_id) is None
+        # Secondary survives but its reconciliation pointer should be cleared.
+        remaining = db.get(BoletaRecord, secondary_id)
+        assert remaining is not None
+        assert remaining.reconciled_with_record_id is None
+        # Review audits for deleted record should be gone.
+        assert db.query(ReviewAudit).count() == 0
+    finally:
+        db.close()
+
 
 def test_delete_selected_batches_cascades_and_unlinks_folios(client_and_session):
     client, session_local = client_and_session
