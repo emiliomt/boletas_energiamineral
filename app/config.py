@@ -5,7 +5,9 @@ All values have sane local-dev defaults so the app runs with zero setup.
 from __future__ import annotations
 
 from pathlib import Path
+import os
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # Repo root, e.g. /home/user/boletas_energiamineral
@@ -13,7 +15,14 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    # - env_ignore_empty=True so empty values in the environment or .env
+    #   don't override real values.
+    # - Keep .env support for local dev, but ensure OS env wins.
+    model_config = SettingsConfigDict(
+        env_file=".env",
+        extra="ignore",
+        env_ignore_empty=True,
+    )
 
     database_url: str = f"sqlite:///{BASE_DIR / 'data' / 'boletas.db'}"
     originals_dir: Path = BASE_DIR / "data" / "originals"
@@ -54,8 +63,9 @@ class Settings(BaseSettings):
     # Clerk (authentication)
     # Publishable and secret keys must be provided via environment variables.
     # Never expose CLERK_SECRET_KEY to the client.
-    clerk_publishable_key: str | None = None
-    clerk_secret_key: str | None = None
+    # Use explicit env aliases for robustness on PaaS providers.
+    clerk_publishable_key: str | None = Field(default=None, validation_alias="CLERK_PUBLISHABLE_KEY")
+    clerk_secret_key: str | None = Field(default=None, validation_alias="CLERK_SECRET_KEY")
     # Optional: PEM public key to verify session tokens locally without network.
     clerk_jwt_key: str | None = None
     # Optional: comma/space separated list of authorized parties (origins) to validate tokens against.
@@ -109,6 +119,5 @@ class Settings(BaseSettings):
             return []
         parts = [p.strip() for p in self.clerk_authorized_parties.replace(" ", ",").split(",")]
         return [p for p in parts if p]
-
 
 settings = Settings()

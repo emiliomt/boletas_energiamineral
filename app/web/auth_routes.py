@@ -12,6 +12,7 @@ from fastapi.templating import Jinja2Templates
 from app.auth.session import log_out
 from app.config import BASE_DIR, settings
 from app.web.csrf import csrf_token_value, require_valid_csrf
+import os
 
 router = APIRouter(tags=["web-auth"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
@@ -24,10 +25,15 @@ def login_form(request: Request, next: str = "/"):
     # Pass Clerk publishable key to the template for client-side initialization.
     # Open-redirect protection: only allow relative in-site paths starting with a single "/"
     safe_next = next if isinstance(next, str) and next.startswith("/") and not next.startswith("//") else "/"
+    # Fallback to raw environment if settings is empty, trimming whitespace.
+    key_from_settings = settings.clerk_publishable_key or ""
+    key_from_env = os.environ.get("CLERK_PUBLISHABLE_KEY", "") or ""
+    key_from_env = key_from_env.strip()
+    clerk_pk = (key_from_settings or key_from_env) or None
     context = {
         "next": safe_next,
-        "clerk_publishable_key": settings.clerk_publishable_key,
-        "clerk_configured": bool(settings.clerk_publishable_key),
+        "clerk_publishable_key": clerk_pk,
+        "clerk_configured": bool((clerk_pk or "").strip()),
         "error": None,
     }
     return templates.TemplateResponse(request, "login.html", context)
