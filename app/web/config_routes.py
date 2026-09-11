@@ -17,6 +17,8 @@ from app.web.csrf import csrf_token_value, require_valid_csrf
 router = APIRouter(prefix="/admin/config", tags=["web-config"])
 templates = Jinja2Templates(directory=str(BASE_DIR / "app" / "web" / "templates"))
 templates.env.globals["csrf_token"] = csrf_token_value
+from app.config import settings as _settings_for_templates
+templates.env.globals["settings"] = _settings_for_templates
 
 
 @router.get("")

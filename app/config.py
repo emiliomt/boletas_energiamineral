@@ -51,6 +51,16 @@ class Settings(BaseSettings):
     supabase_anon_key: str | None = None
     supabase_service_role_key: str | None = None
 
+    # Clerk (authentication)
+    # Publishable and secret keys must be provided via environment variables.
+    # Never expose CLERK_SECRET_KEY to the client.
+    clerk_publishable_key: str | None = None
+    clerk_secret_key: str | None = None
+    # Optional: PEM public key to verify session tokens locally without network.
+    clerk_jwt_key: str | None = None
+    # Optional: comma/space separated list of authorized parties (origins) to validate tokens against.
+    clerk_authorized_parties: str | None = None
+
     # Signs the admin session cookie. Has an insecure local-dev default so
     # the app still runs with zero setup -- MUST be overridden via env var
     # (a long random value) in any real deployment.
@@ -92,6 +102,13 @@ class Settings(BaseSettings):
         # Accept comma or whitespace separated; normalize to lowercase.
         parts = [p.strip().lower() for p in self.admin_emails.replace(" ", ",").split(",")]
         return {p for p in parts if p}
+
+    @property
+    def clerk_authorized_parties_list(self) -> list[str]:
+        if not self.clerk_authorized_parties:
+            return []
+        parts = [p.strip() for p in self.clerk_authorized_parties.replace(" ", ",").split(",")]
+        return [p for p in parts if p]
 
 
 settings = Settings()

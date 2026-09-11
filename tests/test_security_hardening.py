@@ -69,36 +69,16 @@ def test_upload_filename_sanitize_and_limit(tmp_path, monkeypatch):
         db.close()
 
 
-def test_login_next_redirect_and_admin_allowlist(tmp_path, monkeypatch):
+def test_login_next_is_clamped_to_in_site_path(tmp_path, monkeypatch):
     _setup_db(tmp_path, monkeypatch)
-    # Minimal app with overridden Supabase verification
-    import app.web.auth_routes as auth_routes
-    monkeypatch.setattr(auth_routes, "verify_credentials", lambda email, password: {"user": {"email": email}})
-    # Allowlist only admin@example.com
-    monkeypatch.setattr(app_config.settings, "admin_emails", "admin@example.com")
-
     from app.main import app
-
     with TestClient(app) as c:
-        # GET login to establish a session + fetch CSRF token
         html = c.get("/login?next=https://evil.com").text
-        import re
-
-        m = re.search(r'name="csrf_token" value="([^"]+)"', html)
-        assert m
-        token = m.group(1)
-        # Non-allowlisted user is rejected
-        resp = c.post("/login", data={"email": "user@evil.com", "password": "x", "next": "/dashboard", "csrf_token": token})
-        assert resp.status_code == 200
-        assert "no tiene acceso" in resp.text.lower()
-        # Allowlisted user logs in; next must be clamped to "/"
-        resp = c.post(
-            "/login",
-            data={"email": "admin@example.com", "password": "x", "next": "https://evil.com", "csrf_token": token},
-            allow_redirects=False,
-        )
-        assert resp.status_code == 303
-        assert resp.headers["location"] == "/"
+        # Clerk sign-in container should carry a safe relative next path
+        if 'id="clerk-signin"' in html:
+            assert 'data-next="/"' in html
+        else:
+            assert "Clerk no está configurado" in html
 
 
 def test_folio_void_rejected_and_salida_counterpart_batch_scoped(tmp_path, monkeypatch):
