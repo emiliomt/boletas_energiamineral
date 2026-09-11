@@ -8,7 +8,6 @@ from sqlalchemy.orm import Session
 from app.config import BASE_DIR, settings
 from app.db import get_db
 from app.models import Batch, WhatsAppSession
-from app.whatsapp.commands import HELP_TEXT
 from app.whatsapp.webhook import TWILIO_WEBHOOK_PATH
 from app.web.csrf import csrf_token_value
 
@@ -53,6 +52,5 @@ def whatsapp_admin(request: Request, db: Session = Depends(get_db)):
             "whatsapp_from": settings.twilio_whatsapp_from,
             "sessions": sessions,
             "batches_by_id": batches_by_id,
-            "help_text": HELP_TEXT,
         },
     )

@@ -66,12 +66,15 @@
     <h2 id="uso-heading">Cómo se usa</h2>
     <ol class="whatsapp-steps">
       <li>El operador escribe al número de WhatsApp de la empresa (o se une al sandbox de Twilio).</li>
-      <li>Manda las fotos de las boletas, una tras otra. Van al mismo lote de escaneo.</li>
-      <li>Si también hay comprobante CFE, escribe <code>cfe</code> y manda esa foto.</li>
-      <li>Cuando termina el camión o el turno, escribe <code>fin</code>. Las fotos siguientes abren otro lote.</li>
+      <li>Manda la foto de la boleta. El sistema guarda la imagen y pregunta por:
+        <ul>
+          <li>El <strong>lote de folios</strong> (lista interactiva)</li>
+          <li><strong>Entrada o Salida</strong> (botones)</li>
+          <li><strong>Boleta interna o CFE</strong> (botones)</li>
+        </ul>
+      </li>
+      <li>Al responder las tres preguntas, la boleta se crea y se cola para OCR.</li>
     </ol>
-    <h3>Comandos</h3>
-    <pre class="ocr-text whatsapp-help">{{ help_text }}</pre>
   </section>
 
   <section class="panel" aria-labelledby="sesiones-heading">

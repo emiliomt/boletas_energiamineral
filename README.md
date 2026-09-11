@@ -157,13 +157,11 @@ batch without opening the web UI.
 2. In Twilio Console → Messaging → WhatsApp sandbox (or the production
    sender) set **When a message comes in** to
    `https://<PUBLIC_BASE_URL>/webhooks/twilio/whatsapp` with **HTTP POST**.
-3. Join the sandbox if that's what you're using, then send photos. The
-   first photo opens a lote de escaneo named `WhatsApp …`; later photos
-   from the same number keep going into that lote until they text `fin`.
-4. Operators can text `ayuda` for the command list (`lote nuevo`,
-   `tipo entrada`, `productor …`, `cfe`, …). The webhook only downloads
-   and stores the file; OCR runs after Twilio gets its TwiML reply so
-   we stay inside the 15-second webhook timeout.
+3. Join the sandbox if that's what you're using, then send a photo. El sistema
+   guarda la imagen y pregunta (con lista/botones de WhatsApp): el lote de folios,
+   si es Entrada o Salida, y si es boleta interna o CFE. Al responder, crea la
+   boleta y la cola para OCR. Nunca inventa valores; vuelve a preguntar ante
+   respuestas inválidas.
 
 The **WhatsApp** page in the admin menu shows whether Twilio is
 configured, the webhook URL, the allowlist, and recent conversations.
