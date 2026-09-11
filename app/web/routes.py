@@ -254,10 +254,21 @@ def delete_record_web(
                 {Folio.boleta_record_id: None, Folio.status: "issued", Folio.scanned_at: None},
                 synchronize_session=False,
             )
-            # If other records were reconciled into this one, clear that link.
-            db.query(BoletaRecord).filter(
-                BoletaRecord.reconciled_with_record_id == record.id
-            ).update({BoletaRecord.reconciled_with_record_id: None}, synchronize_session=False)
+            # If other records were reconciled into this one, clear that link and
+            # return them to their pending/waiting state based on their document type.
+            survivors = (
+                db.query(BoletaRecord)
+                .join(Boleta, BoletaRecord.boleta_id == Boleta.id)
+                .filter(BoletaRecord.reconciled_with_record_id == record.id)
+                .all()
+            )
+            for s in survivors:
+                s.reconciled_with_record_id = None
+                if s.kind == "salida":
+                    # Restore appropriate waiting status for the remaining doc.
+                    s.salida_status = "boleta_only" if (s.boleta and s.boleta.document_type == "boleta") else "cfe_slip_only"
+            # Ensure FK-clearing updates are flushed before deleting the primary.
+            db.flush()
             # Drop review audit history for this record.
             db.query(ReviewAudit).filter(ReviewAudit.boleta_record_id == record.id).delete(
                 synchronize_session=False
@@ -265,6 +276,15 @@ def delete_record_web(
             # Delete the derived record first, then the raw scan row.
             db.query(BoletaRecord).filter(BoletaRecord.id == record.id).delete(synchronize_session=False)
             if record.boleta_id:
+                # Best-effort: remove stored media from disk.
+                try:
+                    from pathlib import Path
+                    b = db.get(Boleta, record.boleta_id)
+                    if b and b.stored_path:
+                        Path(b.stored_path).unlink(missing_ok=True)  # Python 3.8+ supports missing_ok
+                except Exception:
+                    # Ignore filesystem errors; DB delete still proceeds.
+                    logger.exception("Unable to delete stored file for boleta %s", record.boleta_id)
                 db.query(Boleta).filter(Boleta.id == record.boleta_id).delete(synchronize_session=False)
         db.commit()
     except Exception:
