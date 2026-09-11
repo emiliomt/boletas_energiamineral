@@ -225,6 +225,54 @@ def delete_batches_web(
             )
     return RedirectResponse(url="/", status_code=303)
 
+@router.post("/records/{record_id}/delete")
+def delete_record_web(
+    request: Request,
+    record_id: int,
+    csrf_token: str = Form(""),
+    db: Session = Depends(get_db),
+):
+    """Delete one uploaded boleta and its derived record.
+
+    Hard-delete only (no soft-delete columns on Boleta/BoletaRecord). Mirrors the
+    batch-deletion cleanup to avoid dangling links:
+      - Unlink Folio.boleta_record_id and reset its status back to 'issued'
+      - Clear BoletaRecord.reconciled_with_record_id pointers that referenced this record
+      - Remove ReviewAudit rows for this record
+      - Delete the BoletaRecord and its Boleta
+    """
+    require_valid_csrf(request, csrf_token)
+    record = db.get(BoletaRecord, record_id)
+    # Default to home if the record no longer exists.
+    redirect_url = "/"
+    if record and record.boleta:
+        redirect_url = f"/batches/{record.boleta.batch_id}"
+    try:
+        if record is not None:
+            # Unlink any issued folio that pointed at this record.
+            db.query(Folio).filter(Folio.boleta_record_id == record.id).update(
+                {Folio.boleta_record_id: None, Folio.status: "issued", Folio.scanned_at: None},
+                synchronize_session=False,
+            )
+            # If other records were reconciled into this one, clear that link.
+            db.query(BoletaRecord).filter(
+                BoletaRecord.reconciled_with_record_id == record.id
+            ).update({BoletaRecord.reconciled_with_record_id: None}, synchronize_session=False)
+            # Drop review audit history for this record.
+            db.query(ReviewAudit).filter(ReviewAudit.boleta_record_id == record.id).delete(
+                synchronize_session=False
+            )
+            # Delete the derived record first, then the raw scan row.
+            db.query(BoletaRecord).filter(BoletaRecord.id == record.id).delete(synchronize_session=False)
+            if record.boleta_id:
+                db.query(Boleta).filter(Boleta.id == record.boleta_id).delete(synchronize_session=False)
+        db.commit()
+    except Exception:
+        db.rollback()
+        logger.exception("Failed to delete boleta record %s", record_id)
+        request.session["flash_error"] = "No se pudo borrar la boleta. Inténtalo de nuevo."
+    return RedirectResponse(url=redirect_url, status_code=303)
+
 
 @router.get("/batches/{batch_id}")
 def batch_detail(request: Request, batch_id: int, db: Session = Depends(get_db)):
