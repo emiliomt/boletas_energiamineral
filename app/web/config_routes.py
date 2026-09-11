@@ -41,7 +41,9 @@ def create_or_update_proveedor_web(
     name: str = Form(...),
     origin: str = Form(""),
     precio_caja: str = Form(""),
+    precio_peso: str = Form(""),
     precio_transporte: str = Form(""),
+    modo_pago: str = Form("flete"),
     proveedor_id: str = Form(""),
     active: str = Form("1"),
     csrf_token: str = Form(""),
@@ -93,7 +95,9 @@ def create_or_update_proveedor_web(
             p.name = name.strip()
             p.origin = origin.strip() or None
             p.precio_caja = _num(precio_caja)
+            p.precio_peso = _num(precio_peso)
             p.precio_transporte = _num(precio_transporte)
+            p.modo_pago = (modo_pago or "flete").strip()
             p.active = is_active
             try:
                 _sync_proveedor_to_producer(p)
@@ -106,7 +110,9 @@ def create_or_update_proveedor_web(
             name=name.strip(),
             origin=origin.strip() or None,
             precio_caja=_num(precio_caja),
+            precio_peso=_num(precio_peso),
             precio_transporte=_num(precio_transporte),
+            modo_pago=(modo_pago or "flete").strip(),
             active=is_active,
         )
         db.add(p)

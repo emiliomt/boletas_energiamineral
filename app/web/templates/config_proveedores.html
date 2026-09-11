@@ -16,8 +16,15 @@
       <div class="form-grid">
         <label>Nombre<input type="text" name="name" required></label>
         <label>Origen (opcional)<input type="text" name="origin"></label>
-        <label>Precio por caja (MXN, opcional)<input type="text" name="precio_caja" inputmode="decimal"></label>
-        <label>Precio de transporte (MXN, opcional)<input type="text" name="precio_transporte" inputmode="decimal"></label>
+        <label>Modo de pago
+          <select name="modo_pago" class="modo-pago-select">
+            <option value="flete" selected>Flete</option>
+            <option value="peso">Por peso</option>
+          </select>
+        </label>
+        <label class="precio-caja-field">Precio por caja (MXN, opcional)<input type="text" name="precio_caja" inputmode="decimal"></label>
+        <label class="precio-transporte-field">Precio de transporte (MXN, opcional)<input type="text" name="precio_transporte" inputmode="decimal"></label>
+        <label class="precio-peso-field">Precio por peso (MXN por ton, opcional)<input type="text" name="precio_peso" inputmode="decimal"></label>
         <label>Activo
           <select name="active">
             <option value="1" selected>Sí</option>
@@ -38,6 +45,8 @@
             <th>ID</th>
             <th>Nombre</th>
             <th>Origen</th>
+            <th>Modo</th>
+            <th>Precio</th>
             <th>Precio caja</th>
             <th>Precio transporte</th>
             <th>Estado</th>
@@ -50,6 +59,14 @@
             <td class="num">{{ p.id }}</td>
             <td>{{ p.name }}</td>
             <td>{{ p.origin or "—" }}</td>
+            <td>{{ "Flete" if (p.modo_pago or "flete") == "flete" else "Por peso" }}</td>
+            <td class="num">
+              {% if (p.modo_pago or "flete") == "peso" %}
+                {{ p.precio_peso if p.precio_peso is not none else "—" }}
+              {% else %}
+                {{ p.precio_caja if p.precio_caja is not none else "—" }}
+              {% endif %}
+            </td>
             <td class="num">{{ p.precio_caja if p.precio_caja is not none else "—" }}</td>
             <td class="num">{{ p.precio_transporte if p.precio_transporte is not none else "—" }}</td>
             <td>{% if p.active %}<span class="badge badge-ok">Activo</span>{% else %}<span class="badge">Inactivo</span>{% endif %}</td>
@@ -62,8 +79,15 @@
                   <div class="form-grid">
                     <label>Nombre<input type="text" name="name" value="{{ p.name }}" required></label>
                     <label>Origen<input type="text" name="origin" value="{{ p.origin or '' }}"></label>
-                    <label>Precio por caja<input type="text" name="precio_caja" value="{{ p.precio_caja if p.precio_caja is not none else '' }}"></label>
-                    <label>Precio de transporte<input type="text" name="precio_transporte" value="{{ p.precio_transporte if p.precio_transporte is not none else '' }}"></label>
+                    <label>Modo de pago
+                      <select name="modo_pago" class="modo-pago-select">
+                        <option value="flete" {% if (p.modo_pago or 'flete') == 'flete' %}selected{% endif %}>Flete</option>
+                        <option value="peso" {% if p.modo_pago == 'peso' %}selected{% endif %}>Por peso</option>
+                      </select>
+                    </label>
+                    <label class="precio-caja-field">Precio por caja<input type="text" name="precio_caja" value="{{ p.precio_caja if p.precio_caja is not none else '' }}"></label>
+                    <label class="precio-transporte-field">Precio de transporte<input type="text" name="precio_transporte" value="{{ p.precio_transporte if p.precio_transporte is not none else '' }}"></label>
+                    <label class="precio-peso-field">Precio por peso (MXN por ton)<input type="text" name="precio_peso" value="{{ p.precio_peso if p.precio_peso is not none else '' }}"></label>
                     <label>Activo
                       <select name="active">
                         <option value="1" {% if p.active %}selected{% endif %}>Sí</option>
