@@ -162,9 +162,7 @@
     // Clerk: mount UserButton and toggle sign-in visibility if Clerk is available
     if (window.__CLERK_PUBLISHABLE_KEY__) {
       waitForClerk(6000)
-        .then(function () {
-          return window.Clerk.load({ publishableKey: window.__CLERK_PUBLISHABLE_KEY__ });
-        })
+        .then(function () { return window.Clerk.load({ ui: { ClerkUI: window.__internal_ClerkUICtor } }); })
         .then(function () {
           var mountPoint = document.getElementById("clerk-userbutton");
           var signInLink = document.getElementById("clerk-signin-link");

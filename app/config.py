@@ -119,5 +119,47 @@ class Settings(BaseSettings):
             return []
         parts = [p.strip() for p in self.clerk_authorized_parties.replace(" ", ",").split(",")]
         return [p for p in parts if p]
+\
+    @property
+    def clerk_frontend_api_host(self) -> str | None:
+        """Derive Clerk Frontend API host from the publishable key.
+\
+        Keys are of the form:
+          - pk_test_<base64url(host)>[$]
+          - pk_live_<base64url(host)>[$]
+\
+        Return the decoded host (e.g. 'clerk.accounts.dev') or None if unavailable.
+        """
+        pk = (self.clerk_publishable_key or os.environ.get("CLERK_PUBLISHABLE_KEY") or "").strip()
+        if not pk:
+            return None
+        prefix = None
+        for p in ("pk_test_", "pk_live_"):
+            if pk.startswith(p):
+                prefix = p
+                break
+        if not prefix:
+            return None
+        enc = pk[len(prefix) :]
+        # Base64-url decode with padding.
+        try:
+            import base64
+\
+            pad_len = (-len(enc)) % 4
+            enc_padded = enc + ("=" * pad_len)
+            host = base64.urlsafe_b64decode(enc_padded.encode("ascii")).decode("utf-8")
+        except Exception:
+            return None
+        # Strip trailing sentinel '$' (if present) and surrounding whitespace.
+        host = (host or "").strip()
+        if host.endswith("$"):
+            host = host[:-1].strip()
+        # Basic validation
+        if not host or "." not in host:
+            return None
+        allowed = set("abcdefghijklmnopqrstuvwxyz0123456789.-")
+        if any(ch.lower() not in allowed for ch in host):
+            return None
+        return host
 
 settings = Settings()
