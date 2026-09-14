@@ -141,18 +141,19 @@ class Settings(BaseSettings):
         if not prefix:
             return None
         enc = pk[len(prefix) :]
-        # Some keys may include a trailing '$' sentinel; strip it.
-        if enc.endswith("$"):
-            enc = enc[:-1]
         # Base64-url decode with padding.
         try:
             import base64
 \
             pad_len = (-len(enc)) % 4
             enc_padded = enc + ("=" * pad_len)
-            host = base64.urlsafe_b64decode(enc_padded.encode("ascii")).decode("utf-8").strip()
+            host = base64.urlsafe_b64decode(enc_padded.encode("ascii")).decode("utf-8")
         except Exception:
             return None
+        # Strip trailing sentinel '$' (if present) and surrounding whitespace.
+        host = (host or "").strip()
+        if host.endswith("$"):
+            host = host[:-1].strip()
         # Basic validation
         if not host or "." not in host:
             return None

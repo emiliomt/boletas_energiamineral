@@ -6,8 +6,10 @@
   <title>Iniciar sesión — Boletas Energía Mineral</title>
   <link rel="stylesheet" href="/static/style.css?v=20260908-2">
   {% if clerk_configured %}
-  <script defer crossorigin="anonymous" src="https://{{ (clerk_frontend_api or 'cdn.jsdelivr.net') }}/npm/@clerk/ui@1/dist/ui.browser.js"></script>
-  <script defer crossorigin="anonymous" data-clerk-publishable-key="{{ clerk_publishable_key }}" src="https://{{ (clerk_frontend_api or 'cdn.jsdelivr.net') }}/npm/@clerk/clerk-js@6/dist/clerk.browser.js"></script>
+  {% if clerk_frontend_api %}
+  <script defer crossorigin="anonymous" src="https://{{ clerk_frontend_api }}/npm/@clerk/ui@1/dist/ui.browser.js"></script>
+  <script defer crossorigin="anonymous" data-clerk-publishable-key="{{ clerk_publishable_key }}" src="https://{{ clerk_frontend_api }}/npm/@clerk/clerk-js@6/dist/clerk.browser.js"></script>
+  {% endif %}
   <script>window.__CLERK_PUBLISHABLE_KEY__ = {{ clerk_publishable_key|tojson|safe }};</script>
   {% endif %}
 </head>
