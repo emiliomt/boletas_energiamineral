@@ -4,7 +4,6 @@ the JSON API uses."""
 from __future__ import annotations
 
 import logging
-import shutil
 
 from fastapi import APIRouter, Depends, Form, Request, UploadFile
 from fastapi.responses import RedirectResponse
@@ -341,16 +340,6 @@ def upload_web(
         if not chunks:
             continue
         content = b"".join(chunks)
-        boletas = store_upload(db, batch, upload.filename, content, upload.content_type or "", document_type)
-        for boleta in boletas:
-            process_boleta(db, boleta, _ocr_adapter)
-    db.commit()
-    return RedirectResponse(url=f"/batches/{batch_id}?uploaded=1", status_code=303)
-    batch = db.get(Batch, batch_id)
-    for upload, document_type in [(f, "boleta") for f in files] + [(f, "cfe_slip") for f in cfe_slip_files]:
-        content = upload.file.read()
-        if not content:
-            continue
         boletas = store_upload(db, batch, upload.filename, content, upload.content_type or "", document_type)
         for boleta in boletas:
             process_boleta(db, boleta, _ocr_adapter)
