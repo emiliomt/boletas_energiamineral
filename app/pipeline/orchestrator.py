@@ -35,7 +35,6 @@ from app.engines.folio_registry import (
 from app.engines.inventory import InventoryResult, compute_inventory
 from app.engines.salida_reconciliation import compute_delivered_weight, find_salida_counterpart
 from app.engines.tariff import TariffResult, compute_entrada_tariff, compute_salida_tariff
-from app.engines.transportista_registry import resolve_transportista
 from app.models import Boleta, BoletaRecord, Producer
 from app.ocr.base import OCRAdapter, OCRResult
 from app.ocr.qr_decoder import decode_qr_folio
@@ -47,7 +46,6 @@ from app.parsing.field_parser import (
     parse_fields_with_template,
 )
 from app.rules.config_loader import get_active_template_for_producer, get_thresholds
-from app.parsing.normalizers import normalize_truck_box_number
 
 
 def process_boleta(db: Session, boleta: Boleta, ocr_adapter: OCRAdapter) -> BoletaRecord:
