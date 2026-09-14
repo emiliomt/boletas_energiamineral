@@ -33,6 +33,7 @@ def login_form(request: Request, next: str = "/"):
     context = {
         "next": safe_next,
         "clerk_publishable_key": clerk_pk,
+        "clerk_frontend_api": settings.clerk_frontend_api_host,
         "clerk_configured": bool((clerk_pk or "").strip()),
         "error": None,
     }

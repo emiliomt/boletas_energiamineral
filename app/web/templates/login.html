@@ -6,10 +6,9 @@
   <title>Iniciar sesión — Boletas Energía Mineral</title>
   <link rel="stylesheet" href="/static/style.css?v=20260908-2">
   {% if clerk_configured %}
-  <script async crossorigin="anonymous" src="https://cdn.jsdelivr.net/npm/@clerk/clerk-js@5/dist/clerk.browser.js"></script>
-  <script>
-    window.__CLERK_PUBLISHABLE_KEY__ = {{ clerk_publishable_key|tojson|safe }};
-  </script>
+  <script defer crossorigin="anonymous" src="https://{{ (clerk_frontend_api or 'cdn.jsdelivr.net') }}/npm/@clerk/ui@1/dist/ui.browser.js"></script>
+  <script defer crossorigin="anonymous" data-clerk-publishable-key="{{ clerk_publishable_key }}" src="https://{{ (clerk_frontend_api or 'cdn.jsdelivr.net') }}/npm/@clerk/clerk-js@6/dist/clerk.browser.js"></script>
+  <script>window.__CLERK_PUBLISHABLE_KEY__ = {{ clerk_publishable_key|tojson|safe }};</script>
   {% endif %}
 </head>
 <body class="login-body">
@@ -68,9 +67,7 @@
       }
       onReady(function () {
         waitForClerk(6000)
-          .then(function () {
-            return window.Clerk.load({ publishableKey: window.__CLERK_PUBLISHABLE_KEY__ });
-          })
+          .then(function () { return window.Clerk.load({ ui: { ClerkUI: window.__internal_ClerkUICtor } }); })
           .then(function () {
             var mountEl = document.getElementById('clerk-signin');
             if (!mountEl) return;
@@ -80,6 +77,14 @@
               afterSignInUrl: next,
               redirectUrl: next
             });
+            // If the mount completes but nothing renders, hint about origin allowlist
+            setTimeout(function () {
+              try {
+                if (mountEl && mountEl.childElementCount === 0) {
+                  showLoginError('No se pudo cargar el inicio de sesión de Clerk. Pista: autoriza el origen de esta app en el panel de Clerk (Allowed Origins / Redirects).');
+                }
+              } catch (_) { /* ignore */ }
+            }, 2000);
           })
           .catch(function () {
             showLoginError('No se pudo cargar el inicio de sesión de Clerk. Recarga la página e inténtalo de nuevo. Si el problema persiste, contacta al administrador.');
