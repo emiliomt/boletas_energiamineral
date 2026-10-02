@@ -19,12 +19,17 @@
       <p class="login-brand">Energía Mineral</p>
       <h1>Iniciar sesión</h1>
       <p class="lede">Acceso al registro de boletas.</p>
+      {% if error %}
+        <div class="alert alert-error" role="alert">
+          <p id="login-error">{{ error }}</p>
+        </div>
+      {% endif %}
       {% if not clerk_configured %}
         <div class="alert alert-error" role="alert">
-          <p id="login-error">Clerk no está configurado. Establece CLERK_PUBLISHABLE_KEY y CLERK_SECRET_KEY en el entorno.</p>
+          <p{% if not error %} id="login-error"{% endif %}>Clerk no está configurado. Establece CLERK_PUBLISHABLE_KEY y CLERK_SECRET_KEY en el entorno.</p>
         </div>
       {% else %}
-        <div id="clerk-signin" data-next="{{ next }}"></div>
+        <div id="clerk-signin" data-next="{{ next }}"{% if auth_denied %} data-denied="1"{% endif %}></div>
         <noscript>
           <p class="mt-3">Habilita JavaScript para iniciar sesión.</p>
         </noscript>
@@ -81,6 +86,12 @@
               return value;
             }
             var next = safeNext(mountEl.getAttribute("data-next") || "/");
+            // A session the server already rejected must not be sent back to
+            // the app. forceRedirectUrl would recreate the redirect loop.
+            if (mountEl.getAttribute("data-denied") === "1" && window.Clerk.user) {
+              try { window.sessionStorage.removeItem("boletas-clerk-bounce"); } catch (_) { /* ignore */ }
+              return;
+            }
             if (window.Clerk.user) {
               var bounceKey = "boletas-clerk-bounce";
               var tries = Number(window.sessionStorage.getItem(bounceKey) || "0");
