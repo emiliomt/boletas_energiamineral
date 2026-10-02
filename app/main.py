@@ -18,6 +18,7 @@ from app.api import exports as exports_api
 from app.api import folio_batches as folio_batches_api
 from app.api import records as records_api
 from app.api import review as review_api
+from app.auth.clerk_handshake import AuthHandshake
 from app.auth.session import AuthRedirect, require_admin_api, require_admin_web
 from app.config import BASE_DIR, settings
 from app.db import init_db
@@ -58,6 +59,15 @@ app.add_middleware(
 @app.exception_handler(AuthRedirect)
 async def auth_redirect_handler(request: Request, exc: AuthRedirect) -> RedirectResponse:
     return RedirectResponse(url=f"/login?next={exc.next_path}", status_code=303)
+
+
+@app.exception_handler(AuthHandshake)
+async def auth_handshake_handler(request: Request, exc: AuthHandshake) -> RedirectResponse:
+    response = RedirectResponse(url=exc.location, status_code=307)
+    response.headers["cache-control"] = "no-store"
+    for directive in exc.set_cookies:
+        response.headers.append("set-cookie", directive)
+    return response
 
 
 @app.get("/api/health")

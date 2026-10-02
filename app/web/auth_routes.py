@@ -9,6 +9,7 @@ from fastapi import APIRouter, Form, Request
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 
+from app.auth.clerk_handshake import safe_next_path
 from app.auth.session import log_out
 from app.config import BASE_DIR, settings
 from app.web.csrf import csrf_token_value, require_valid_csrf
@@ -23,8 +24,9 @@ templates.env.globals["settings"] = settings
 @router.get("/login")
 def login_form(request: Request, next: str = "/"):
     # Pass Clerk publishable key to the template for client-side initialization.
-    # Open-redirect protection: only allow relative in-site paths starting with a single "/"
-    safe_next = next if isinstance(next, str) and next.startswith("/") and not next.startswith("//") else "/"
+    # Open-redirect protection: only allow relative in-site paths, and never
+    # send a signed-in user back to /login (that is the redirect loop).
+    safe_next = safe_next_path(next)
     # Fallback to raw environment if settings is empty, trimming whitespace.
     key_from_settings = settings.clerk_publishable_key or ""
     key_from_env = os.environ.get("CLERK_PUBLISHABLE_KEY", "") or ""
@@ -48,9 +50,9 @@ def login_submit(
 ):
     # Legacy endpoint kept to avoid breaking clients; no server-side login.
     require_valid_csrf(request, csrf_token)
-    # Always redirect back to /login; Clerk handles sign-in via JS.
-    safe_next = next if isinstance(next, str) and next.startswith("/") and not next.startswith("//") else "/"
-    return RedirectResponse(url=f"/login?next={safe_next or '/'}", status_code=303)
+    # Legacy endpoint kept to avoid breaking clients; Clerk signs in via JS.
+    safe_next = safe_next_path(next)
+    return RedirectResponse(url=f"/login?next={safe_next}", status_code=303)
 
 
 @router.post("/logout")
