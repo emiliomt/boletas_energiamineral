@@ -97,8 +97,19 @@
             <legend>Ruta y transporte</legend>
             <div class="form-grid">
               <label>Destino<input type="text" name="destination" value="{{ record.destination or '' }}"></label>
-              <label>Datos del chofer del camión (Fletero)
-                <input type="text" name="fletero" value="{{ record.fletero or '' }}" list="transportistas-list" autocomplete="off">
+              <label for="review-fletero">Datos del chofer del camión (Fletero)
+                <select name="fletero" id="review-fletero"{% if not transportistas_sugeridos %} aria-describedby="fletero-vacio"{% endif %}>
+                  <option value=""{% if not selected_fletero and not fletero_sin_catalogo %} selected{% endif %}>Selecciona un fletero…</option>
+                  {% if fletero_sin_catalogo %}
+                  <option value="{{ fletero_sin_catalogo }}" selected>{{ fletero_sin_catalogo }}</option>
+                  {% endif %}
+                  {% for t in transportistas_sugeridos %}
+                  <option value="{{ t.canonical_name }}"{% if selected_fletero == t.canonical_name %} selected{% endif %}>{{ t.canonical_name }}</option>
+                  {% endfor %}
+                </select>
+                {% if not transportistas_sugeridos %}
+                <span class="field-hint" id="fletero-vacio" role="status">No hay fleteros registrados. Agrégalos en <a href="/admin/config/transportistas">Configuración de transportistas</a>.</span>
+                {% endif %}
               </label>
               <label>No. Caja<input type="text" name="truck_box_number" value="{{ record.truck_box_number or '' }}"></label>
             </div>
@@ -173,11 +184,6 @@
       <datalist id="proveedores-list">
         {% for p in proveedores_sugeridos %}
         <option value="{{ p.name }}"></option>
-        {% endfor %}
-      </datalist>
-      <datalist id="transportistas-list">
-        {% for t in transportistas_sugeridos %}
-        <option value="{{ t.canonical_name }}"></option>
         {% endfor %}
       </datalist>
     </section>
