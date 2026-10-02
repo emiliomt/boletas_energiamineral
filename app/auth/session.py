@@ -19,6 +19,12 @@ try:
     from clerk_backend_api.security import authenticate_request
     from clerk_backend_api.security.types import AuthenticateRequestOptions
 except Exception:  # pragma: no cover - import failures exercised in tests via missing deps
+    # Make this failure loud at startup (without leaking any secrets).
+    import logging
+    logging.getLogger(__name__).error(
+        "Clerk backend SDK import failed; authentication will be disabled "
+        "(fail-closed). Ensure 'clerk-backend-api==7.0.0' is installed."
+    )
     authenticate_request = None  # type: ignore[assignment]
     AuthenticateRequestOptions = None  # type: ignore[assignment]
 
