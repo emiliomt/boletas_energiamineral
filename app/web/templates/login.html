@@ -73,11 +73,31 @@
           .then(function () {
             var mountEl = document.getElementById('clerk-signin');
             if (!mountEl) return;
-            var next = mountEl.getAttribute('data-next') || '/';
+            function safeNext(value) {
+              if (!value || value.charAt(0) !== "/" || value.charAt(1) === "/" || value.charAt(1) === "\\") return "/";
+              var path = value.split("?")[0].split("#")[0];
+              var normalized = path.length > 1 ? path.replace(/\/+$/, "") : path;
+              if (normalized === "/login" || normalized === "/logout" || normalized.indexOf("/login/") === 0 || normalized.indexOf("/logout/") === 0) return "/";
+              return value;
+            }
+            var next = safeNext(mountEl.getAttribute("data-next") || "/");
+            if (window.Clerk.user) {
+              var bounceKey = "boletas-clerk-bounce";
+              var tries = Number(window.sessionStorage.getItem(bounceKey) || "0");
+              if (tries >= 2) {
+                showLoginError("No se pudo completar el inicio de sesión. Recarga la página e inténtalo de nuevo.");
+                return;
+              }
+              window.sessionStorage.setItem(bounceKey, String(tries + 1));
+              window.location.replace(next);
+              return;
+            }
+            try { window.sessionStorage.removeItem("boletas-clerk-bounce"); } catch (_) { /* ignore */ }
             window.Clerk.mountSignIn(mountEl, {
-              signInUrl: window.location.origin + '/login',
-              afterSignInUrl: next,
-              redirectUrl: next
+              fallbackRedirectUrl: next,
+              forceRedirectUrl: next,
+              signUpFallbackRedirectUrl: next,
+              signUpForceRedirectUrl: next
             });
             // If the mount completes but nothing renders, hint about origin allowlist
             setTimeout(function () {
