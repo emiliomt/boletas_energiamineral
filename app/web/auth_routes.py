@@ -22,11 +22,14 @@ templates.env.globals["settings"] = settings
 
 
 @router.get("/login")
-def login_form(request: Request, next: str = "/"):
+def login_form(request: Request, next: str = "/", denied: str = ""):
     # Pass Clerk publishable key to the template for client-side initialization.
     # Open-redirect protection: only allow relative in-site paths, and never
     # send a signed-in user back to /login (that is the redirect loop).
     safe_next = safe_next_path(next)
+    # The web gate sets denied=1 when a Clerk session exists but is not on
+    # the admin allowlist. The page must stay here instead of bouncing.
+    auth_denied = denied == "1"
     # Fallback to raw environment if settings is empty, trimming whitespace.
     key_from_settings = settings.clerk_publishable_key or ""
     key_from_env = os.environ.get("CLERK_PUBLISHABLE_KEY", "") or ""
@@ -37,7 +40,8 @@ def login_form(request: Request, next: str = "/"):
         "clerk_publishable_key": clerk_pk,
         "clerk_frontend_api": settings.clerk_frontend_api_host,
         "clerk_configured": bool((clerk_pk or "").strip()),
-        "error": None,
+        "error": "No autorizado." if auth_denied else None,
+        "auth_denied": auth_denied,
     }
     return templates.TemplateResponse(request, "login.html", context)
 

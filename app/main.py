@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 import logging
 import os
+from urllib.parse import quote
 
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import RedirectResponse
@@ -58,7 +59,11 @@ app.add_middleware(
 
 @app.exception_handler(AuthRedirect)
 async def auth_redirect_handler(request: Request, exc: AuthRedirect) -> RedirectResponse:
-    return RedirectResponse(url=f"/login?next={exc.next_path}", status_code=303)
+    # Quote the path so a query string cannot swallow a later flag.
+    url = "/login?next=" + quote(exc.next_path, safe="/")
+    if exc.denied:
+        url += "&denied=1"
+    return RedirectResponse(url=url, status_code=303)
 
 
 @app.exception_handler(AuthHandshake)
