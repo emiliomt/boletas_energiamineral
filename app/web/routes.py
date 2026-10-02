@@ -24,6 +24,7 @@ from app.models import (
     Proveedor,
     Transportista,
 )
+from app.engines.transportista_registry import resolve_transportista
 from app.ocr.factory import get_ocr_adapter
 from app.pipeline.orchestrator import process_boleta
 from app.reporting.summary import build_batch_summary, build_overview
@@ -359,11 +360,28 @@ def review_queue_web(request: Request, db: Session = Depends(get_db)):
     return templates.TemplateResponse(request, "review_queue.html", {"records": records})
 
 
+def _review_fletero_selection(db: Session, record: BoletaRecord | None) -> tuple[str | None, str | None]:
+    """Pick the catalog fletero to preselect, or keep an OCR name that is not in the roster.
+
+    Exact canonical names and aliases resolve to Transportista.canonical_name.
+    Anything else (including a fuzzy guess) stays as the posted value so saving
+    the form does not replace what the boleta actually says.
+    """
+    raw = ""
+    if record is not None and record.fletero:
+        raw = record.fletero.strip()
+    resolution = resolve_transportista(db, raw or None)
+    if resolution.transportista is not None and (resolution.match_note or "").startswith("exact:"):
+        return resolution.transportista.canonical_name, None
+    return None, raw or None
+
+
 @router.get("/review/{record_id}")
 def review_detail_web(request: Request, record_id: int, db: Session = Depends(get_db)):
     record = db.get(BoletaRecord, record_id)
     proveedores = db.query(Proveedor).filter_by(active=True).order_by(Proveedor.name).all()
     transportistas = db.query(Transportista).filter_by(active=True).order_by(Transportista.canonical_name).all()
+    selected_fletero, fletero_sin_catalogo = _review_fletero_selection(db, record)
     return templates.TemplateResponse(
         request,
         "review_detail.html",
@@ -371,6 +389,8 @@ def review_detail_web(request: Request, record_id: int, db: Session = Depends(ge
             "record": record,
             "proveedores_sugeridos": proveedores,
             "transportistas_sugeridos": transportistas,
+            "selected_fletero": selected_fletero,
+            "fletero_sin_catalogo": fletero_sin_catalogo,
         },
     )
 

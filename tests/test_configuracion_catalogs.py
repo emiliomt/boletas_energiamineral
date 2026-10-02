@@ -143,9 +143,11 @@ def test_datalists_exist_and_are_populated(client):
         db.close()
     html = c.get(f"/review/{record_id}").text
     assert 'datalist id="proveedores-list"' in html
-    assert 'datalist id="transportistas-list"' in html
+    assert 'datalist id="transportistas-list"' not in html
+    assert '<select name="fletero"' in html
     assert 'option value="Prov Sugerido"' in html
     assert 'option value="Fletero Sugerido"' in html
+    assert ">Fletero Sugerido<" in html
     # Folio batch form also includes proveedores datalist
     html2 = c.get("/admin/folio-batches").text
     assert 'datalist id="proveedores-list"' in html2
